@@ -1,0 +1,53 @@
+\documentclass{article} -- change to whatever later
+\usepackage{fullpage}
+\usepackage{amsmath,amsthm}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+
+\theoremstyle{definition}
+\newtheorem{example}[theorem}{Example}
+\newtheorem{remark}[theorem}{Remark}
+
+\newcommand{\PL}{PL} -- expand out later
+\newcommand{\BSp}{\(\mathbf{B}\)-Species}
+\newcommand{\LSp}{\(\mathbf{L}\)-Species}
+
+\title{Structured Positions}
+\author{}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+The well-supported data-structures, aka inductive types, in functional
+languages are insufficiently rich. We can do better.
+\end{abstract}
+
+The starting-point question is: how can one properly teach a \PL about
+bags (aka multisets)?
+
+Adding a single new type is rather boring though. Even though doing it
+properly is difficult (most languages have rather poor abstraction facilities
+so that giving a proper API that doesn't \emph{leak} is hard), it is still
+to \textit{ad hoc}. The desire is to find a family of ``type constructors''
+that would contain both inductive types and bags.
+
+And even that is aiming far too low. The real problem is 
+\textbf{how to teach computers about structures}. In other words, if a
+human performs the act of defining a particular structure, a lot of
+natural \emph{kit} should come along ``for free'' as a side-effect of
+that declaration of intent. (Haskell's \texttt{Deriving} mechanism is
+a reasonable analogy; of course getting an induction principle should also
+be within scope).
+
+\section{Better Structures}
+
+In a way, we already know that this is \texit{in theory} feasible:
+species, \BSp and \LSp. In practice, the theory is insufficiently
+constructive nor does it provide answers for key aspects of treating
+a structure so obtained as a \emph{data} structure. In particular, no
+eliminator.
+
+Another approach is to use the theory of containers. Which, unfortunately,
+don't give eliminators either!
+\end{document}
