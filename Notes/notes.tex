@@ -50,4 +50,34 @@ eliminator.
 
 Another approach is to use the theory of containers. Which, unfortunately,
 don't give eliminators either!
+
+\section{Random Jumble}
+
+Basically, self-notes so that things don't get forgotten.
+
+\subsection{Symmetries of trees}
+\label{sec:sym-trees}
+
+Start with the not terribly useful "the symmetries of the positions of List".
+Boring, as they are trivial. BUT List is tricky as it is the normal form (or
+effective presentation) of the carrier of free monoids. You *could* also take
+the term algebra and quotient it by the monoid equations (as a classical
+mathematician might do). The resulting trees *do* have symmetries! These are
+easier to see if one generalizes positions to be 2-sorted, with 1 sort for the
+things that contain data, and another for the 'nil' nodes. The resulting
+symmetries basically says that the 'nil' nodes cannot convey information. I
+don't have an easy way to talk about associativity (yet).  
+
+\subsection{Whence the groups?}
+
+I'm thinking that the group elements (which we now know are equivalence
+witnesses for our proof-relevant Setoids of positions) will have a double life,
+and show up as generators and relations of an equational theory. Because
+equivalences have reflectivity, symmetry and transitivity (and these are
+coherent), this is why we get groups. But which group is guided by what other
+terms we have. And, lo and behold, all 'swap's is what generates all
+permutations is what generates Sn is what gives Bags which are free commutative
+monoids.
+
+The connection with Section~\ref{sec:sym-trees} should be clear.
 \end{document}
