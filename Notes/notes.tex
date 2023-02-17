@@ -40,9 +40,18 @@ that declaration of intent. (Haskell's \texttt{Deriving} mechanism is
 a reasonable analogy; of course getting an induction principle should also
 be within scope).
 
+\section{Notation and Vocabulary}
+
+\begin{itemize}
+\item we call \emph{container description} what others call \emph{container},
+\item we call \emph{container} what others call \emph{structure} or
+instance.
+\end{itemize}
+\noindent Reasoning: we want containers to contain things.
+
 \section{Better Structures}
 
-In a way, we already know that this is \texit{in theory} feasible:
+In a way, we already know that this is \textit{in theory} feasible:
 species, \BSp and \LSp. In practice, the theory is insufficiently
 constructive nor does it provide answers for key aspects of treating
 a structure so obtained as a \emph{data} structure. In particular, no
@@ -92,6 +101,57 @@ as well as between positions.  Unit will be there to mark the holes. The
 names of the positions (position labels, what have you) will be the paths
 in the structure.
 
-Really need to code that up.
+(Something something about counit only taking in 'thingy' homomorphisms
+and must only respect those. Need to expand this out.
 
+Really need to code that up, all of the above in this subsection.
+
+\subsection{On eliminators}
+
+Simple desiderata: eliminators should be `compositional' and respect
+the appropriate equivalence.
+
+So if a structure naturally decomposes into a disjoint union of
+two sub-structures, the eliminator should map. If there is such a thing
+as an empty container that belongs to a container description
+
+As Bags decompose as disjoint unions of the 'right' size, its eliminator
+must also give the same answer along all such decompositions.
+
+\subsection{Misc}
+\begin{itemize}
+\item various combinators related to derivatives: up, down, here,
+sideways and equinanimity.
+\item Ornamentation and differentiation are related: they commute!
+\item Ornaments must respect positions (up to iso) but can change shapes
+\item Keeping track of where $2$ positions map under the symmetries of
+Bag and Cycle will illustrate the difference between them. Only $1$ does not.
+\item Specifying by putting a number of fingers down leads to differential
+equations on containers.
+\item Main trick of dependent types: if you want it respected, put it in
+the type.
+\item Odd thing about HoTT and UF: they want it respected so much, they put
+it into the meta-theory.
+\item There seems to be something about the ``directed accessibility
+graph'' of the positions of (finitary) containers. It contains both the usual
+stuff and, via the non-tree parts, equivalences.
+\end{itemize}
+
+\subsection{To remember}
+\begin{itemize}
+\item Baggy Rose Tree (Philippa Gardner, modelling DOM)
+\item Traversal (without leaking) and applicative
+\item Bag $\circ$ Maybe $\equiv$ Bag.
+\item non-empty container satisfying \texttt{allEqual} $\Rightarrow$ can
+extract
+\item Species can be seen as generalized vectors with finite sets of
+positions.
+\item Group actions are way more important than groups alone
+\item Want some set of containers closed under differentiation and
+preferably some notion of integration too.
+\item Cycle(A+B) is a nice structure
+\item The proof of the implicit species theorem should be mined fully
+\item (Observation from Daan Leijen's talk at POPL): ``Minamide tuples''
+are derivatives - and drive Daan's work. Even has a certain FToC feel.
+\end{itemize}
 \end{document}
