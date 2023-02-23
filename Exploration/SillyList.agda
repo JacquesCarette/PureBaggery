@@ -22,7 +22,7 @@ open import Categories.NaturalTransformation using (ntHelper)
 private
   variable
     o ℓ e o₁ o₂ o₃ e₁ e₂ e₃ : Level
-    A B : Setoid o e
+    A B X Y Z : Setoid o e
 
 ∣_∣ : Setoid o e → Set o
 ∣ S ∣ = Setoid.Carrier S
@@ -42,6 +42,16 @@ SLmap : (f : A ⟶ B) → SillyList A → SillyList B
 SLmap f [] = []
 SLmap f (Leaf x) = Leaf (f ⟨$⟩ x)
 SLmap f (l₀ ++ l₁) = SLmap f l₀ ++ SLmap f l₁
+
+-- We can fold too. But note how this is intricately
+-- tied to Monoid?
+module _ (M : Monoid o e) where
+  open Monoid M using (ε; _∙_) renaming (setoid to W)
+  
+  SLfold : SillyList W → ∣ W ∣
+  SLfold [] = ε
+  SLfold (Leaf x) = x
+  SLfold (l₀ ++ l₁) = SLfold l₀ ∙ SLfold l₁
 
 -- Since that's quotiented, exhibit that as well:
 -- Note well the level here.
@@ -110,10 +120,27 @@ SLmap-cong f assoc++ˡ = assoc++ˡ
 SLmap-cong f assoc++ʳ = assoc++ʳ
 SLmap-cong f (x≈y ⊚ z≈w) = SLmap-cong f x≈y ⊚ SLmap-cong f z≈w
 
+-- The following 3 proofs have all the same pattern. They are all
+-- "by induction" on SillyList. We could encapsulate this in an
+-- induction principle and then use it. Perhaps worth it for
+-- pedagogical reasons?
 SLmap-id : (x : SillyList A) → SLmap SF.id x ≈ x
 SLmap-id [] = []
 SLmap-id {A = A} (Leaf x) = Leaf (Setoid.refl A)
 SLmap-id (x ++ y) = SLmap-id x ++ SLmap-id y
+
+SLmap-hom : {f : X ⟶ Y} {g : Y ⟶ Z} (x : SillyList X) →
+  SLmap (g SF.∘ f) x ≈ SLmap g (SLmap f x)
+SLmap-hom [] = []
+SLmap-hom {Z = Z} (Leaf x) = Leaf (Setoid.refl Z)
+SLmap-hom (x ++ y) = SLmap-hom x ++ SLmap-hom y
+
+-- SLmap respects when two Setoid functions are ≈
+SLmap-S-cong : {f g : X ⟶ Y} → ({x y : ∣ X ∣} → Setoid._≈_ X x y →
+  Setoid._≈_ Y (f ⟨$⟩ x) (g ⟨$⟩ y)) → (x : SillyList X) → SLmap f x ≈ SLmap g x
+SLmap-S-cong resp [] = []
+SLmap-S-cong {X = X} resp (Leaf x) = Leaf (resp (Setoid.refl X))
+SLmap-S-cong resp (x ++ y) = SLmap-S-cong resp x ++ SLmap-S-cong resp y
 
 -- Silly lists are monoids
 SLMonoid : Setoid o e → Monoid o (o ⊔ e)
@@ -188,6 +215,14 @@ _H∘_ {M₁ = M₁} {M₃ = M₃} f g =
     module G = Hom g
     open Monoid M₃ using (trans)
 
+-- We also need the underlying setoid of a monoid:
+-- setoid : Monoid o e → Setoid o e
+-- setoid m = record { Monoid m }
+
+-- and the underlying setoid map from a monoid homomorphism
+setoid⟶ : {M N : Monoid o e} → Hom M N → Monoid.setoid M ⟶ Monoid.setoid N
+setoid⟶ h = record { _⟨$⟩_ = Hom.map h; cong = Hom.cong h }
+
 -- The collection of monoids form a Category
 MonoidCat : (o e : Level) → Category (lsuc (o ⊔ e)) (o ⊔ e) (o ⊔ e)
 MonoidCat o e = record
@@ -196,30 +231,28 @@ MonoidCat o e = record
   ; _≈_ = λ {A} {B} f g → (∀ x → Monoid._≈_ B (map f x) (map g x))
   ; id = HomId
   ; _∘_ = _H∘_
-  ; assoc = λ { {D = D} _ → Monoid.refl D}
-  ; sym-assoc = λ { {D = D} _ → Monoid.refl D}
-  ; identityˡ = λ {_} {B} _ → Monoid.refl B
-  ; identityʳ = λ {_} {B} _ → Monoid.refl B
-  ; identity² = λ {A} _ → Monoid.refl A
+  ; assoc = λ { {D = D} _ → refl D}
+  ; sym-assoc = λ { {D = D} _ → refl D}
+  ; identityˡ = λ {_} {B} _ → refl B
+  ; identityʳ = λ {_} {B} _ → refl B
+  ; identity² = λ {A} _ → refl A
   ; equiv = λ {A} {B} → record
-    { refl = λ _ → Monoid.refl B
-    ; sym = λ Fx≈Fy x → Monoid.sym B (Fx≈Fy x)
-    ; trans = λ Ix≈Jx Jx≈Hx x → Monoid.trans B (Ix≈Jx x) (Jx≈Hx x)
+    { refl = λ _ → refl B
+    ; sym = λ Fx≈Fy x → sym B (Fx≈Fy x)
+    ; trans = λ Ix≈Jx Jx≈Hx x → trans B (Ix≈Jx x) (Jx≈Hx x)
     }
   ; ∘-resp-≈ = λ {_} {_} {C} {f} {h} {g} {i} fx≈hx gx≈ix x →
-                Monoid.trans C (cong f (gx≈ix x)) (fx≈hx (map i x))
+                trans C (cong f (gx≈ix x)) (fx≈hx (map i x))
   }
   where
-    open Hom
+    open Hom using (map; cong)
+    open Monoid using (refl; sym; trans)
 
 -- There is an obvious forgetful Functor. Best to call it Underlying.
 Underlying : (o e : Level) → Functor (MonoidCat o e) (Setoids o e)
 Underlying o e = record
-  { F₀             =   λ m → record { Monoid m }
-  ; F₁             =   λ f → record
-                             { _⟨$⟩_ = Hom.map f
-                             ; cong = Hom.cong f
-                             }
+  { F₀             =   Monoid.setoid
+  ; F₁             =   setoid⟶
   ; identity       =   id
   ; homomorphism   =   λ {_} {_} {Z} {f} {g} x≈y → Hom.cong g (Hom.cong f x≈y) 
   ; F-resp-≈       =   λ {_} {B} {f} {g} f≈g {x} {y} x≈y → Monoid.trans B (f≈g x) (Hom.cong g x≈y)
@@ -238,8 +271,8 @@ Free o e = record
                    (λ _ _ → Monoid.refl N)
                    [])
   ; identity = SLmap-id
-  ; homomorphism = {!!}
-  ; F-resp-≈ = λ F≐G x → {!!}
+  ; homomorphism = SLmap-hom
+  ; F-resp-≈ = SLmap-S-cong
   }
 
 -- Note how the Adjoint here is not fully level polymorphic!
@@ -250,15 +283,18 @@ Free o e = record
 -- unit is singleton (aka Leaf)
 --   naturality of unit says map onto singleton is the same as singleton-apply
 -- counit is fold
---   naturality of counit says
--- zig says ?
--- zag says
+--   naturality of counit says fold-map is map-fold (at the right types)
+-- zig says that creating a list-list (of singletons) and then folding
+--   (for the SLMonoid) will just extract the original list
+-- zag says... nothing of interest! It's just true by definition.
+
+
 ListLeft : (o : Level) → Adjoint (Free o o) (Underlying o o)
 ListLeft o = record
   { unit = ntHelper (record { η = singleton ; commute = λ f x≈y → Leaf (Π.cong f x≈y) })
   ; counit = ntHelper (record { η = fold ; commute = {!!} })
   ; zig = {!!}
-  ; zag = {!!}
+  ; zag = id
   }
   where
     -- kit for unit
@@ -275,27 +311,5 @@ ListLeft o = record
     FU = Free o o ∘F Underlying o o
     module FU = Functor FU
     fold : (X : Monoid o o) → Hom (FU.₀ X) X
-    fold X = hom {!!} {!!}
-  {-
-  record
-  { unit = record { η = λ _ x → [ x ]
-                  ; commute = λ _ → ≡.refl }
-  ; counit = record { η = λ X →
-    let fold = foldr (_*_ X) (Id X)
-        _+_ = _*_ X
-        e   = Id X in
-    MkHom fold ≡.refl
-          λ {x} {y} → ind (λ l → fold (l ++ y) ≡ fold l + fold y)
-                          (≡.sym (leftId X))
-                          (λ z zs eq → ≡.trans (≡.cong (z +_) eq) (≡.sym (assoc X))) x
-                    ; commute = λ {X} {Y} f l →
-   let foldX = foldr (_*_ X) (Id X)
-       foldY = foldr (_*_ Y) (Id Y)
-       _+_ = _*_ Y in
-       ind (λ ll → foldY (map (mor f) ll) ≡ mor f (foldX ll))
-           (≡.sym (pres-Id f))
-           (λ z zs eq → ≡.trans (≡.cong ((mor f z) +_) eq) (≡.sym (pres-Op f)) ) l }
-  ; zig = λ l → ind (λ ll → ll ≡ foldr _++_ [] (map [_] ll)) ≡.refl (λ y ys eq → ≡.cong (y ∷_) eq) l
-  ; zag = λ {X} → ≡.sym (rightId X)
-  }
--}
+    fold X = hom (SLfold X)
+                 (H.mkIsHom {M = SLMonoid (Monoid.setoid X)} {X} (SLfold X) {!!} {!!} {!!})
