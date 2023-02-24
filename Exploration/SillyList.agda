@@ -7,7 +7,7 @@ open import Algebra.Morphism.Structures using (IsMonoidHomomorphism; IsMagmaHomo
 open import Data.Product using (_,_)
 open import Function              using (id ; _∘_ )
 open import Function.Equality as SF using (Π; _⟨$⟩_; _⟶_) -- SF = Setoid Functions
-open import Level renaming (zero to lzero; suc to lsuc)
+open import Level using (Level; _⊔_; suc)
 open import Relation.Binary.Bundles using (Setoid)
 open import Relation.Binary.Definitions using (Reflexive; Symmetric; Transitive)
 open import Relation.Binary.Structures using (IsEquivalence)
@@ -252,11 +252,11 @@ module _ {M N : Monoid o e} (f : Hom M N) where
     (sym (homo (SLfold M x) (SLfold M y)))
 
 -- The collection of monoids form a Category
-MonoidCat : (o e : Level) → Category (lsuc (o ⊔ e)) (o ⊔ e) (o ⊔ e)
+MonoidCat : (o e : Level) → Category (suc (o ⊔ e)) (o ⊔ e) (o ⊔ e)
 MonoidCat o e = record
   { Obj = Monoid o e
   ; _⇒_ = Hom
-  ; _≈_ = λ {A} {B} f g → (∀ x → Monoid._≈_ B (map f x) (map g x))
+  ; _≈_ = λ {_} {B} f g → (∀ x → Monoid._≈_ B (map f x) (map g x))
   ; id = HomId
   ; _∘_ = _H∘_
   ; assoc = λ { {D = D} _ → refl D}
