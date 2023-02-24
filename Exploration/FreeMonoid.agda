@@ -6,7 +6,7 @@
 -- and work with propositional equality!!
 module FreeMonoid where
 
-open import Algebra using (RawMonoid; Op₂; IsMonoid; Semigroup)
+open import Algebra using (RawMonoid; Op₂; IsMonoid)
 open import Algebra.Morphism.Structures using (IsMonoidHomomorphism; IsMagmaHomomorphism)
 open import Data.List using (List; map; []; _∷_; _++_; [_]; foldr)
 open import Data.List.Properties
@@ -40,12 +40,6 @@ record Monoid c ℓ : Set (suc (c ⊔ ℓ)) where
     isMonoid : IsMonoid _≡_ _∙_ ε
 
   open IsMonoid isMonoid public
-
-  semigroup : Semigroup _ _
-  semigroup = record { isSemigroup = isSemigroup }
-
-  open Semigroup semigroup public
-    using (_≉_; rawMagma; magma)
 
   rawMonoid : RawMonoid _ _
   rawMonoid = record { _≈_ = _≡_; _∙_ = _∙_; ε = ε}
