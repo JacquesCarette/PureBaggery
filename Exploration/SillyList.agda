@@ -181,14 +181,13 @@ HomId {M = M} = hom id (record { isMagmaHomomorphism = record
                        ; ε-homo = refl })
   where open Monoid M using (refl)
 
--- Stuff gets too verbose otherwise:
-open IsMonoidHomomorphism
-open IsMagmaHomomorphism
-open IsRelHomomorphism
 
 -- Homomorphism composition.
 -- First, some kit to make later things less ugly
 module H {M : Monoid o₁ e₁} {N : Monoid o₂ e₂} where
+  open IsMonoidHomomorphism
+  open IsMagmaHomomorphism
+  open IsRelHomomorphism
   private
     module M = Monoid M
     module N = Monoid N
@@ -215,13 +214,42 @@ _H∘_ {M₁ = M₁} {M₃ = M₃} f g =
     module G = Hom g
     open Monoid M₃ using (trans)
 
--- We also need the underlying setoid of a monoid:
--- setoid : Monoid o e → Setoid o e
--- setoid m = record { Monoid m }
-
--- and the underlying setoid map from a monoid homomorphism
+-- the underlying setoid map from a monoid homomorphism
 setoid⟶ : {M N : Monoid o e} → Hom M N → Monoid.setoid M ⟶ Monoid.setoid N
 setoid⟶ h = record { _⟨$⟩_ = Hom.map h; cong = Hom.cong h }
+
+-- We also have that SLfold has a number of properties.
+-- These are here because some properties involve monoid homomorphisms.
+
+module _ {M : Monoid o e} where
+  open Monoid M renaming (_≈_ to _≈M_; setoid to W)
+
+  -- SLfold respects monoid SL equivalence
+  SLfold-cong : {x y : SillyList W} → x ≈ y → SLfold M x ≈M SLfold M y
+  SLfold-cong (Leaf x) = x
+  SLfold-cong [] = refl
+  SLfold-cong (eq₀ ++ eq₁) = ∙-cong (SLfold-cong eq₀) (SLfold-cong eq₁)
+  SLfold-cong []++ˡ = identityˡ _
+  SLfold-cong ++[]ˡ = identityʳ _
+  SLfold-cong []++ʳ = sym (identityˡ _)
+  SLfold-cong ++[]ʳ = sym (identityʳ _)
+  SLfold-cong assoc++ˡ = assoc _ _ _
+  SLfold-cong assoc++ʳ = sym (assoc _ _ _)
+  SLfold-cong (eq₀ ⊚ eq₁) = trans (SLfold-cong eq₀) (SLfold-cong eq₁)
+
+-- SLfold is natural, i.e. SLfold ∘ map is the same as Hom.map ∘ SLfold
+module _ {M N : Monoid o e} (f : Hom M N) where
+  open Monoid M using () renaming (_∙_ to _∙M_)
+  open Monoid N using (sym; refl; trans; ∙-cong) renaming (_≈_ to _≈N_; _∙_ to _∙N_)
+  open Hom f
+  
+  SLfold-natural : (x : SillyList (Monoid.setoid M)) →
+        SLfold N (SLmap (setoid⟶ f) x) ≈N Hom.map f (SLfold M x)
+  SLfold-natural [] = sym ε-homo
+  SLfold-natural (Leaf x) = refl
+  SLfold-natural (x ++ y) = trans
+    (∙-cong (SLfold-natural x) (SLfold-natural y))
+    (sym (homo (SLfold M x) (SLfold M y)))
 
 -- The collection of monoids form a Category
 MonoidCat : (o e : Level) → Category (lsuc (o ⊔ e)) (o ⊔ e) (o ⊔ e)
@@ -292,8 +320,8 @@ Free o e = record
 ListLeft : (o : Level) → Adjoint (Free o o) (Underlying o o)
 ListLeft o = record
   { unit = ntHelper (record { η = singleton ; commute = λ f x≈y → Leaf (Π.cong f x≈y) })
-  ; counit = ntHelper (record { η = fold ; commute = {!!} })
-  ; zig = {!!}
+  ; counit = ntHelper (record { η = fold ; commute = SLfold-natural })
+  ; zig = zig
   ; zag = id
   }
   where
@@ -312,4 +340,12 @@ ListLeft o = record
     module FU = Functor FU
     fold : (X : Monoid o o) → Hom (FU.₀ X) X
     fold X = hom (SLfold X)
-                 (H.mkIsHom {M = SLMonoid (Monoid.setoid X)} {X} (SLfold X) {!!} {!!} {!!})
+                 (H.mkIsHom {M = SLMonoid (Monoid.setoid X)} {X} (SLfold X)
+                            SLfold-cong
+                            (λ _ _ → Monoid.refl X) -- ∙-homo is free
+                            (Monoid.refl X))        -- ε-pres is free
+    zig : {S : Setoid o o} (x : SillyList S) →
+      SLfold (SLMonoid S) (SLmap (singleton S) x) ≈ x
+    zig []       = []
+    zig {S = S} (Leaf x) = Leaf (Setoid.refl S)
+    zig (x ++ y) = zig x ++ zig y
