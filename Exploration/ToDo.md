@@ -19,6 +19,7 @@ Vaguely in order
 - derive a Position type from each of the above
 - implement derivative (and show how it corresponds to an action on Position)
 - show what the orbits are
+- Q: can SillyList be over Set?
 
 # Things that are done
 

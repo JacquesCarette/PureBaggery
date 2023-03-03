@@ -4,7 +4,7 @@
 -- as possible, while also trying to use its style.
 module PermJ where
 
-open import Data.List.Base using (List; []; _∷_; [_])
+open import Data.List.Base using (List; []; _∷_; [_]; _++_)
 open import Data.Product using (_,_; _,′_; _×_; Σ-syntax; ∃)
 open import Level using (Level)
 open import Relation.Binary.Definitions using (Reflexive)
@@ -72,7 +72,8 @@ module _ {ℓ : Level} {X : Set ℓ} where
   isAllLPar (y ∷ˡ p) = cong (y ∷_) (isAllLPar p)
   isAllLPar []       = refl
 
-  infix 10 _≈_
+  ---------------------------------------------------------------
+  infix 8 _≈_
 
   -- xs ≈ ys means xs is a permutation of ys
   -- Unpacking the definition: a permutation is a list of
@@ -104,9 +105,10 @@ module _ {ℓ : Level} {X : Set ℓ} where
   insPerm (_ ∷ˡ x) y p = y ∷ help where
     help : _
     help with refl <- isAllRPar x = p
-  insPerm (_ ∷ʳ x) y (z ∷ p) = let _ , a , b = rotr (_ , z , swap y) in
-    a ∷ insPerm x (swap b) p
-
+  insPerm {x} {.w ∷ ws} {._ ∷ zs} {ys} {ys'} (w ∷ʳ x↣zs↢ws) x↣ys'↢ys (w↣ys↢ts ∷ ws≈ts) =
+    let _ , w↣ys'↢rs , ts↣rs↢x = rotr (_ , w↣ys↢ts , swap x↣ys'↢ys) in
+     w↣ys'↢rs ∷ insPerm x↣zs↢ws (swap ts↣rs↢x) ws≈ts
+     
   -- Permutations are symmetric
   sym : forall {xs ys} -> xs ≈ ys -> ys ≈ xs
   sym (x ∷ p) = insPerm x (_ ∷ˡ allRPar) (sym p)
@@ -132,3 +134,44 @@ module _ {ℓ : Level} {X : Set ℓ} where
   trans (pa ∷ p) q =
     let _ , q' , pa′ = delPerm (_ , pa , q) in pa′ ∷ trans p q'
   trans [] [] = []
+
+  -- we can add to the head of a permutation
+  congˡ-≈ : {x : X} {xs ys : List X} → xs ≈ ys → (x ∷ xs) ≈ (x ∷ ys)
+  congˡ-≈ eq = (_ ∷ˡ allRPar) ∷ eq
+  
+  -- we can express one of the most basic operations: swapping heads
+  -- of equivalent lists
+  swap-heads : {x y : X} {ws zs : List X} → ws ≈ zs → (x ∷ y ∷ ws) ≈ (y ∷ x ∷ zs)
+  swap-heads {x} {y} ws≈zs = (y ∷ʳ (x ∷ˡ allRPar)) ∷ (y ∷ˡ allRPar) ∷ ws≈zs 
+
+  -- given a partition, we can extend it to a partition of an append
+  extend-part : {x : X} {xs ys zs : List X} → [ x ] ↣ xs ↢ zs →
+    [ x ] ↣ xs ++ ys ↢ (zs ++ ys)
+  extend-part (_ ∷ˡ p) with refl <- isAllRPar p = _ ∷ˡ allRPar
+  extend-part (y ∷ʳ p) = y ∷ʳ extend-part p
+  
+  -- partitions with equivalent rhs induce an append-equivalence
+  -- done by casing on both partitions.
+  swap-part : {x y : X} {xs ys zs ws : List X} →
+    [ x ] ↣ xs ↢ zs → [ y ] ↣ ys ↢ ws → ws ≈ zs → (x ∷ ys) ≈ (y ∷ xs)
+  swap-part (_ ∷ˡ x∈xs) (_ ∷ˡ y∈ys) ws≈zs
+    with refl <- isAllRPar x∈xs
+    with refl <- isAllRPar y∈ys = swap-heads ws≈zs
+  swap-part (y ∷ˡ x∈xs) (x ∷ʳ t∈ys) zs≈ys
+    with refl <- isAllRPar x∈xs
+    with a ∷ b <- zs≈ys = (_ ∷ʳ (y ∷ˡ x∈xs)) ∷ swap-part a t∈ys b
+  swap-part (y ∷ʳ x∈xs) (_ ∷ˡ y∈ys) zs≈ws
+    with refl <- isAllRPar y∈ys = (_ ∷ʳ (y ∷ʳ x∈xs)) ∷ congˡ-≈ zs≈ws
+  swap-part (tt ∷ʳ x∈xs) (uu ∷ʳ y∈ys) zs≈ws
+    with a ∷ b <- zs≈ws = (_ ∷ʳ (_ ∷ʳ x∈xs)) ∷ swap-part a y∈ys b
+  
+  -- permutations play well with concatenation
+  ++-cong : {x y u v : List X} → x ≈ y → u ≈ v → (x ++ u) ≈ (y ++ v)
+  ++-cong ((x ∷ˡ z) ∷ xs≈ys) u≈v with isAllRPar z
+  ... | refl  = insPerm (x ∷ˡ allRPar) (x ∷ˡ allRPar) (++-cong xs≈ys u≈v)
+  ++-cong ((y ∷ʳ z) ∷ (x ∷ p) ) u≈v = (y ∷ʳ extend-part z) ∷ extend-part x ∷ ++-cong p u≈v 
+{-    with a ∷ b <- insPerm x (_ ∷ˡ allRPar) (sym p)
+      with q <- sym b =
+      swap-part (extend-part z) (extend-part a) (++-cong q u≈v)
+-}
+  ++-cong [] u≈v = u≈v
