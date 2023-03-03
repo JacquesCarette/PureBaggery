@@ -274,3 +274,9 @@ TSWLatexianTemp*
 
 # Makeindex log files
 *.lpz
+
+# And Agda stuff
+*.agdai
+
+# Editor stuff
+*.agda~
