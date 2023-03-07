@@ -5,8 +5,8 @@ module Bag where
 
 open import Algebra using (Monoid; CommutativeMonoid; Congruent₂)
 open import Algebra.Morphism.Structures using (IsMonoidHomomorphism; IsMagmaHomomorphism)
-open import Data.List using (List; map; []; _∷_; _++_; [_]; foldr)
-open import Data.List.Properties
+open import Data.List as List using (List; []; _∷_; _++_; [_]; foldr)
+open import Data.List.Properties using (++-assoc; ++-identityˡ; ++-identityʳ)
 open import Data.Product using (_,_)
 open import Function              using (id ; _∘_ )
 open import Level using (Level; suc; _⊔_)
@@ -15,11 +15,12 @@ open import Relation.Binary.Structures using (IsEquivalence)
 
 open import Categories.Category using (Category)
 open import Categories.Functor using (Functor; _∘F_) renaming (id to idF)
-open import Categories.Category.Instance.Sets using (Sets)
+open import Categories.Category.Instance.Setoids using (Setoids)
 open import Categories.Adjoint using (Adjoint)
 open import Categories.NaturalTransformation using (ntHelper)
 
 open import PermJ
+open import SillyList using (Hom; hom; HomId; module H; _H∘_) -- split!
 
 private
   variable
@@ -31,6 +32,7 @@ private
 ≈-equiv = record { refl = idPerm ; sym = sym ; trans = trans }
 
 -- lists quotiented by ≈ are commutative monoids
+--   Is using resp-≡ a good idea? It gives the right result *eventually*
 comm-monoid : Set o → CommutativeMonoid o o
 comm-monoid S = record
   { Carrier = List S
@@ -44,153 +46,51 @@ comm-monoid S = record
           { isEquivalence = ≈-equiv
           ; ∙-cong = ++-cong
           }
-        ; assoc = {!!} -- λ x y z → assoc++ˡ {_} {_} {_} {x} {y} {z}
+        ; assoc = λ x y z → resp-≡ (++-assoc x y z)
         }
-      ; identity = {!!} -- (λ x → []++ˡ) , λ x → ++[]ˡ
+      ; identity = (λ x → resp-≡ (++-identityˡ x)) , (λ x → resp-≡ (++-identityʳ x))
       }
-    ; comm = {!!}
+    ; comm = ≈-commutative
     }
   }
 
-{-
-list-monoid : Set o → Monoid o o
-list-monoid S = record
-  { Carrier = List S
-  ; _∙_ = _++_
-  ; ε = []
-  ; isMonoid = record
-    { isSemigroup = record
-      { isMagma = record
-        { isEquivalence = isEquivalence
-        ; ∙-cong = cong₂ _++_
-        }
-      ; assoc = ++-assoc
-      }
-    ; identity = ++-identity
-    }
-  }
-  
--- We still need to define monoid homomorphism.
--- Note how all the things to do with monoid homs are duplicate from SillyList
-record Hom (M₁ : Monoid o₁ e₁) (M₂ : Monoid o₂ e₂) : Set (o₁ ⊔ o₂ ⊔ e₁ ⊔ e₂) where
-  constructor hom
-  field
-     mmap : Monoid.Carrier M₁ → Monoid.Carrier M₂
-     isHom : IsMonoidHomomorphism (Monoid.rawMonoid M₁) (Monoid.rawMonoid M₂) mmap
-
-  open IsMonoidHomomorphism isHom public
-  open IsRelHomomorphism isRelHomomorphism public
-
--- Identity homomorphism
-HomId : {M : Monoid o e} → Hom M M
-HomId {M = M} = hom id (record { isMagmaHomomorphism = record
-                         { isRelHomomorphism = record { cong = id }
-                         ; homo = λ _ _ → ≡.refl }
-                       ; ε-homo = ≡.refl })
-
--- Homomorphism composition.
--- First, some kit to make later things less ugly
-module H {M : Monoid o₁ e₁} {N : Monoid o₂ e₂} where
-  open IsMonoidHomomorphism
-  open IsMagmaHomomorphism
-  open IsRelHomomorphism
-  private
-    module M = Monoid M
-    module N = Monoid N
-
-  -- constructor for homomorphism
-  mkIsHom : (f : M.Carrier → N.Carrier) →
-    ({x y : M.Carrier} → x ≡ y → f x ≡ f y) →
-    ((x y : M.Carrier) → f (x M.∙ y) ≡ f x N.∙ f y) →
-    (f M.ε ≡ N.ε) →
-    IsMonoidHomomorphism M.rawMonoid N.rawMonoid f
-  cong (isRelHomomorphism (isMagmaHomomorphism (mkIsHom f c _ _))) = c
-  homo (isMagmaHomomorphism (mkIsHom f _ h _)) = h
-  ε-homo (mkIsHom _ _ _ pres-ε) = pres-ε
-
-_H∘_ : {M₁ : Monoid o₁ e₁} {M₂ : Monoid o₂ e₂} {M₃ : Monoid o₃ e₃} →
-  Hom M₂ M₃ → Hom M₁ M₂ → Hom M₁ M₃
-_H∘_ {M₁ = M₁} {M₃ = M₃} f g =
-    let h = F.mmap ∘ G.mmap in
-    hom h (H.mkIsHom {M = M₁} {M₃} h (F.cong ∘ G.cong)
-                     (λ x y → ≡.trans (F.cong (G.homo x y)) (F.homo (G.mmap x) (G.mmap y)))
-                     (≡.trans (F.cong G.ε-homo)  F.ε-homo))
-  where
-    module F = Hom f
-    module G = Hom g
-
--- We also have that fold has a number of properties over a Monoid.
-
--- foldr over a _++_ turns into a _∙_
-module _ {M : Monoid o e} where
-  open Monoid M renaming (Carrier to W)
-  private
-    fold = foldr _∙_ ε
-
-  -- There might be an equational way to do this, but let's brute force it
-  -- This relies on two properties of Monoid (so would hold or left unital magmas)
-  foldr-++-∙ : (x y : List W) → fold (x ++ y) ≡ fold x ∙ fold y
-  foldr-++-∙ [] y = sym (identityˡ _)
-  foldr-++-∙ (x ∷ xs) y = ≡.trans (≡.cong (x ∙_) (foldr-++-∙ xs y)) (sym (assoc _ _ _))
-
--- foldr over map-singleton does nothing. Maybe should be in stdlib?
-foldr-map-singleton : {A : Set o} (l : List A) → foldr _++_ [] (map [_] l) ≡ l
-foldr-map-singleton [] = ≡.refl
-foldr-map-singleton (x ∷ l) = ≡.cong (x ∷_) (foldr-map-singleton l)
-
--- foldr is natural, i.e. foldr ∘ map is the same as Hom.mmap ∘ foldr
-module _ {M N : Monoid o e} (f : Hom M N) where
-  private
-    module M = Monoid M
-    module N = Monoid N
-    foldrM = foldr M._∙_ M.ε
-    foldrN = foldr N._∙_ N.ε
-  open Hom f
-
-  -- naturality follows from f being a monoid homomorphism:
-  foldr-natural : (l : List M.Carrier) → foldrN (map mmap l) ≡ mmap (foldrM l)
-  foldr-natural [] = ≡.sym ε-homo
-  foldr-natural (x ∷ xs) = begin
-    mmap x N.∙ foldrN (map mmap xs) ≡⟨ ≡.cong (mmap x N.∙_) (foldr-natural xs) ⟩
-    mmap x N.∙ mmap (foldrM xs)     ≡˘⟨ homo x (foldrM xs) ⟩
-    mmap (x M.∙ foldrM xs)          ∎
-    where open ≡-Reasoning
-  
--- The collection of monoids form a Category
-MonoidCat : (o e : Level) → Category (suc (o ⊔ e)) (o ⊔ e) o
-MonoidCat o e = record
-  { Obj = Monoid o e
-  ; _⇒_ = Hom
-  ; _≈_ = λ f g → (∀ x → mmap f x ≡ mmap g x)
+-- The collection of commutative monoids forms a Category
+-- (Duplicate code, factor out)
+CMonoidCat : (o e : Level) → Category (suc (o ⊔ e)) (o ⊔ e) (o ⊔ e)
+CMonoidCat o e = record
+  { Obj = CommutativeMonoid o e
+  ; _⇒_ = λ m n → Hom (monoid m) (monoid n)
+  ; _≈_ = λ {_} {B} f g → (∀ x → CommutativeMonoid._≈_ B (map f x) (map g x))
   ; id = HomId
   ; _∘_ = _H∘_
-  ; assoc = λ _ → ≡.refl
-  ; sym-assoc = λ _ → ≡.refl
-  ; identityˡ = λ _ → ≡.refl
-  ; identityʳ = λ _ → ≡.refl
-  ; identity² = λ _ → ≡.refl
-  ; equiv = record
-    { refl = λ _ → ≡.refl
-    ; sym = λ Fx≈Fy x → ≡.sym (Fx≈Fy x)
-    ; trans = λ Ix≈Jx Jx≈Hx x → ≡.trans (Ix≈Jx x) (Jx≈Hx x)
+  ; assoc = λ { {D = D} _ → refl D}
+  ; sym-assoc = λ { {D = D} _ → refl D}
+  ; identityˡ = λ {_} {B} _ → refl B
+  ; identityʳ = λ {_} {B} _ → refl B
+  ; identity² = λ {A} _ → refl A
+  ; equiv = λ {A} {B} → record
+    { refl = λ _ → refl B
+    ; sym = λ Fx≈Fy x → CommutativeMonoid.sym B (Fx≈Fy x)
+    ; trans = λ Ix≈Jx Jx≈Hx x → CommutativeMonoid.trans B (Ix≈Jx x) (Jx≈Hx x)
     }
-  ; ∘-resp-≈ = λ {_} {_} {_} {f} {h} {g} {i} fx≈hx gx≈ix x →
-                ≡.trans (cong f (gx≈ix x)) (fx≈hx (mmap i x))
+  ; ∘-resp-≈ = λ {_} {_} {C} {f} {h} {g} {i} fx≈hx gx≈ix x →
+                CommutativeMonoid.trans C (cong f (gx≈ix x)) (fx≈hx (Hom.map i x))
   }
   where
-    open Hom using (mmap; cong)
+    open Hom using (map; cong)
+    open CommutativeMonoid using (refl; monoid)
 
 -- There is an obvious forgetful Functor. Best to call it Underlying.
--- Note how we 'lose' the Level e
-Underlying : (o e : Level) → Functor (MonoidCat o e) (Sets o)
+-- (also duplicate)
+Underlying : (o e : Level) → Functor (CMonoidCat o e) (Setoids o e)
 Underlying o e = record
-  { F₀             =   Monoid.Carrier
-  ; F₁             =   Hom.mmap
-  ; identity       =   ≡.refl
-  ; homomorphism   =   ≡.refl
-  ; F-resp-≈       =   λ f≡g {x} → f≡g x
+  { F₀             =   CommutativeMonoid.setoid
+  ; F₁             =   ?
+  ; identity       =   {!!} -- ≡.refl
+  ; homomorphism   =   {!!} -- ≡.refl
+  ; F-resp-≈       =   λ f≡g {x} → {!!} -- f≡g x
   }
-
+{-
 -- Lists induce a (Free) functor from Sets to the category of Monoids
 Free : (o : Level) → Functor (Sets o) (MonoidCat o o)
 Free o = record
