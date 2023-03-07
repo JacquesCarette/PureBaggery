@@ -5,10 +5,11 @@
 module PermJ where
 
 open import Data.List.Base using (List; []; _∷_; [_]; _++_)
+open import Data.List.Properties using (++-identityʳ)
 open import Data.Product using (_,_; _,′_; _×_; Σ-syntax; ∃)
 open import Level using (Level)
 open import Relation.Binary.Definitions using (Reflexive)
-open import Relation.Binary.PropositionalEquality.Core using (_≡_; refl; cong)
+open import Relation.Binary.PropositionalEquality.Core as ≡ using (_≡_; refl; cong)
 open import Relation.Unary using (_∩_)
 
 module _ {ℓ : Level} {X : Set ℓ} where
@@ -169,9 +170,19 @@ module _ {ℓ : Level} {X : Set ℓ} where
   ++-cong : {x y u v : List X} → x ≈ y → u ≈ v → (x ++ u) ≈ (y ++ v)
   ++-cong ((x ∷ˡ z) ∷ xs≈ys) u≈v with isAllRPar z
   ... | refl  = insPerm (x ∷ˡ allRPar) (x ∷ˡ allRPar) (++-cong xs≈ys u≈v)
-  ++-cong ((y ∷ʳ z) ∷ (x ∷ p) ) u≈v = (y ∷ʳ extend-part z) ∷ extend-part x ∷ ++-cong p u≈v 
-{-    with a ∷ b <- insPerm x (_ ∷ˡ allRPar) (sym p)
-      with q <- sym b =
-      swap-part (extend-part z) (extend-part a) (++-cong q u≈v)
--}
+  ++-cong ((y ∷ʳ z) ∷ (x ∷ p) ) u≈v =
+    (y ∷ʳ extend-part z) ∷ extend-part x ∷ ++-cong p u≈v 
   ++-cong [] u≈v = u≈v
+
+  -- inserting into the middle of a partition given by ++
+  insert-into-++ : {x : X} (xs : List X) {ys : List X} →
+    [ x ] ↣ xs ++ x ∷ ys ↢ (xs ++ ys)
+  insert-into-++ [] = _ ∷ˡ allRPar
+  insert-into-++ (x ∷ xs) = _ ∷ʳ insert-into-++ xs
+  
+  -- We can swap two lists. Easiest done by induction on the lists
+  ≈-commutative : (xs ys : List X) → (xs ++ ys) ≈ (ys ++ xs)
+  ≈-commutative [] ys = resp-≡ (≡.sym (++-identityʳ ys))
+  ≈-commutative (x ∷ xs) [] = resp-≡ (++-identityʳ (x ∷ xs))
+  ≈-commutative (x ∷ xs) (y ∷ ys) =
+    swap-part (insert-into-++ ys) (insert-into-++ xs) (≈-commutative xs ys)
