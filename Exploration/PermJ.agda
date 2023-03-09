@@ -4,7 +4,7 @@
 -- as possible, while also trying to use its style.
 module PermJ where
 
-open import Data.List.Base using (List; []; _∷_; [_]; _++_)
+open import Data.List.Base as List using (List; []; _∷_; [_]; _++_)
 open import Data.List.Properties using (++-identityʳ)
 open import Data.Product using (_,_; _,′_; _×_; Σ-syntax; ∃)
 open import Level using (Level)
@@ -73,7 +73,15 @@ module _ {ℓ : Level} {X : Set ℓ} where
   isAllLPar (y ∷ˡ p) = cong (y ∷_) (isAllLPar p)
   isAllLPar []       = refl
 
+
+map-par : {ℓ₁ ℓ₂ : Level} {X : Set ℓ₁} {Y : Set ℓ₂} {xs ys zs : List X}
+   (f : X → Y) → xs ↣ zs ↢ ys →  List.map f xs ↣ List.map f zs ↢ List.map f ys
+map-par f (x ∷ˡ p) = f x ∷ˡ map-par f p
+map-par f (y ∷ʳ p) = f y ∷ʳ map-par f p
+map-par f [] = []
+  
   ---------------------------------------------------------------
+module _ {ℓ : Level} {X : Set ℓ} where
   infix 8 _≈_
 
   -- xs ≈ ys means xs is a permutation of ys
@@ -186,3 +194,12 @@ module _ {ℓ : Level} {X : Set ℓ} where
   ≈-commutative (x ∷ xs) [] = resp-≡ (++-identityʳ (x ∷ xs))
   ≈-commutative (x ∷ xs) (y ∷ ys) =
     swap-part (insert-into-++ ys) (insert-into-++ xs) (≈-commutative xs ys)
+
+map-perm : {ℓ₁ ℓ₂ : Level} {X : Set ℓ₁} {Y : Set ℓ₂} {xs ys : List X}
+   (f : X → Y) → xs ≈ ys →  List.map f xs ≈ List.map f ys
+map-perm f (x ∷ eq) = map-par f x ∷ map-perm f eq
+map-perm f [] = []
+
+-- oh but permutations really are nasty:
+perm-to-≡ : {ℓ : Level} {X : Set ℓ} {x y : X} → [ x ] ≈ [ y ] → x ≡ y
+perm-to-≡ ((_ ∷ˡ []) ∷ []) = refl
