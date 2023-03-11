@@ -5,14 +5,13 @@ module Partition where
 
 open import Data.List.Base as List using (List; []; _∷_; [_]; _++_)
 open import Data.Product using (_,_; _,′_; _×_; Σ-syntax; ∃)
-open import Level using (Level)
--- open import Relation.Binary.Definitions using (Reflexive)
+open import Level using (Level; _⊔_)
 open import Relation.Binary.PropositionalEquality.Core as ≡ using (_≡_; refl; cong)
 open import Relation.Unary using (_∩_)
 
-module _ {ℓ : Level} {X : Set ℓ} where
+module _ {ℓ ℓ′ : Level} {X : Set ℓ} where
   -- read as "Possibly T"
-  <_> : (X -> Set ℓ) -> Set ℓ
+  <_> : (X -> Set ℓ′) -> Set (ℓ′ ⊔ ℓ)
   < T > = ∃ T
 
   infix 5 <_>
@@ -83,7 +82,6 @@ module _ {ℓ : Level} {X : Set ℓ} where
   insert-into-++ [] = _ ∷ˡ allRPar
   insert-into-++ (x ∷ xs) = _ ∷ʳ insert-into-++ xs
   
-
 map-par : {ℓ₁ ℓ₂ : Level} {X : Set ℓ₁} {Y : Set ℓ₂} {xs ys zs : List X}
    (f : X → Y) → xs ↣ zs ↢ ys →  List.map f xs ↣ List.map f zs ↢ List.map f ys
 map-par f (x ∷ˡ p) = f x ∷ˡ map-par f p
