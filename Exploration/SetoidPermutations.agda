@@ -15,16 +15,17 @@ open import Relation.Binary.Definitions using (Reflexive)
 open import Relation.Binary.PropositionalEquality.Core as ≡ using (_≡_)
 open import Relation.Unary using (_∩_)
 
-open import Partition
+open import SetoidPartition
 
   ---------------------------------------------------------------
 module _ {o e : Level} {S : Setoid o e} where
   infix 8 _≈_
 
+  open Build S -- for Partitions based on Setoids
+  
   private
     X : Set o
     X = Setoid.Carrier S
-    _≋_ = Setoid._≈_ S
     module S = Setoid S
     
   -- xs ≈ ys means xs is a permutation of ys
@@ -36,61 +37,71 @@ module _ {o e : Level} {S : Setoid o e} where
     cons : forall {x y xs ys zs}    -- if we can
       -> [ x ] ↣ zs ↢ ys           -- partition zs into singleton x and ys
       -> xs ≈ ys                    -- and xs is equivalent to ys
-      -> x ≋ y                      -- and x is equivalent to y
+      -> x S.≈ y                      -- and x is equivalent to y
       -> (y ∷ xs) ≈ zs              -- then (y ∷ xs) is equivalent to zs
     [] : [] ≈ []
 
   -- Prove that _≈_ is reflexive
   idPerm : Reflexive _≈_
   idPerm {[]} = []
-  idPerm {x ∷ xs} = cons (x ∷ˡ allRPar) idPerm S.refl
+  idPerm {x ∷ xs} = cons (onleft x allRPar S.refl) idPerm S.refl
 
   -- and _≈_ respects _≡_
   resp-≡ : forall {xs ys} → xs ≡ ys → xs ≈ ys
   resp-≡ ≡.refl = idPerm
 
-  -- if we can insert equivalent elements into two lists, such the their right
-  -- parts are permutation equivalent, the lists are themselves equivalent
-  insPerm : forall {x x' xs xs' ys ys'}
-    -> [ x ] ↣ xs' ↢ xs
-    -> [ x' ] ↣ ys' ↢ ys
-    -> x ≋ x'
-    -> xs ≈ ys
-    -> xs' ≈ ys'
-  insPerm (_ ∷ˡ x) insert-y x≋y p = cons insert-y help (S.sym x≋y) where
-    help : _
-    help with ≡.refl <- isAllRPar x = p
-  insPerm {x} {y} {.w ∷ ws} {._ ∷ zs} {ys} {ys'} (w ∷ʳ x↣zs↢ws) x↣ys'↢ys x≋y (cons w↣ys↢ts ws≈ts ≋w) =
-    let _ , w↣ys'↢rs , ts↣rs↢x = rotr (_ , w↣ys↢ts , swap x↣ys'↢ys) in
-     cons w↣ys'↢rs (insPerm x↣zs↢ws (swap ts↣rs↢x) x≋y ws≈ts) ≋w
-     
-  -- Permutations are symmetric
-  sym : forall {xs ys} -> xs ≈ ys -> ys ≈ xs
-  sym (cons x p eq) = insPerm x (_ ∷ˡ allRPar) eq (sym p)
-  sym [] = []
+  allRPart⇒Perm : ∀ {xs zs} → [] ↣ zs ↢ xs → zs ≈ xs
+  allRPart⇒Perm (onright y p y≈z) = cons (onleft y allRPar S.refl) (allRPart⇒Perm p) y≈z
+  allRPart⇒Perm empty = []
 
+  allRPart⇒Perm′ : ∀ {xs zs} → [] ↣ zs ↢ xs → xs ≈ zs
+  allRPart⇒Perm′ (onright y p y≈z) = cons (onleft y allRPar y≈z) (allRPart⇒Perm′ p) S.refl
+  allRPart⇒Perm′ empty = []
+{-
   -- if we have a list ws that contains exactly x on the left and xs on the
   -- right, and we have that ws ≈ ys
   -- then we can build a list zs ≈ xs that doesn't contain x which is the
   -- right partition of ys. In other words, we delete x from ws.
   delPerm : forall {x x' xs ys}
          -> <  [ x ]  ↣_↢ xs  ∩  _≈ ys          >
-         -> x ≋ x'
+         -> x S.≈ x'
          -> <          xs ≈_  ∩ [ x' ] ↣ ys ↢_  >
-  delPerm (_ , (_ ∷ˡ pa) , (cons y p eq)) x≋y = _ , p' , {!y!} where
+  delPerm (_ , (onleft x pa x≈y₁) , (cons {_} {_} {xs} {ys} {zs} y p eq)) x≋y = ys , {!!} , {!!} where
       p' : _
-      p' with ≡.refl <- isAllRPar pa = p
-  delPerm (_ , (_ ∷ʳ pa) , (cons y p eq)) x≋y =
+      p' = allRPart⇒Perm′ pa
+  delPerm (_ , (onright _ pa _) , (cons y p eq)) x≋y =
     let _ , q , z = delPerm (_ , pa , p) x≋y
         _ , a , b = rotr (_ , z , swap y) in
-     _ , cons (swap b) q eq , a
-{-
+     _ , cons (swap b) q {!!} , a
+-}
   -- permutations are transitive
   trans : forall {xs ys zs} -> xs ≈ ys -> ys ≈ zs -> xs ≈ zs
-  trans (pa ∷ p) q =
-    let _ , q' , pa′ = delPerm (_ , pa , q) in pa′ ∷ trans p q'
+  trans (cons (onleft _ pa x) p x≈y) (cons x₁ q x₂) = cons {!!} p (S.trans (S.sym x) x≈y)
+  trans (cons (onright y pa x) p x≈y) q = cons {!onright ? ? ?!} (trans p {!!}) x≈y
+    {- let _ , q' , pa′ = delPerm (_ , pa , q) x≈y in cons pa′ (trans p q') S.refl -}
   trans [] [] = []
 
+  -- if we can insert equivalent elements into two lists, such the their right
+  -- parts are permutation equivalent, the lists are themselves equivalent
+  insPerm : forall {x x' xs xs' ys ys'}
+    -> [ x ] ↣ xs' ↢ xs
+    -> [ x' ] ↣ ys' ↢ ys
+    -> x S.≈ x'
+    -> xs ≈ ys
+    -> xs' ≈ ys'
+  insPerm (onleft _ x x≈y) insert-y x≋y p = cons insert-y help (S.trans (S.sym x≋y) x≈y) where
+    help : _
+    help = {!allRPart⇒Perm x!} -- with ≡.refl <- isAllRPar x = p
+  insPerm {x} {y} {.w ∷ ws} {._ ∷ zs} {ys} {ys'} (onright w x↣zs↢ws _) x↣ys'↢ys x≋y (cons w↣ys↢ts ws≈ts ≋w) =
+    let _ , w↣ys'↢rs , ts↣rs↢x = rotr (_ , w↣ys↢ts , swap x↣ys'↢ys) in
+     cons w↣ys'↢rs (insPerm x↣zs↢ws (swap ts↣rs↢x) x≋y ws≈ts) {!!}
+     
+  -- Permutations are symmetric
+  sym : forall {xs ys} -> xs ≈ ys -> ys ≈ xs
+  sym (cons x p eq) = insPerm x (onleft _ allRPar S.refl) eq (sym p)
+  sym [] = []
+
+{-
   -- we can add to the head of a permutation
   congˡ-≈ : {x : X} {xs ys : List X} → xs ≈ ys → (x ∷ xs) ≈ (x ∷ ys)
   congˡ-≈ eq = (_ ∷ˡ allRPar) ∷ eq
