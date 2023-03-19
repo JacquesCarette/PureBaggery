@@ -4,6 +4,7 @@
 module SetoidPartition where
 
 open import Data.List.Base as List using (List; []; _∷_; [_]; _++_)
+open import Data.List.Properties using (++-identityʳ)
 open import Data.List.Relation.Binary.Pointwise as PW using (Pointwise)
 open import Data.Product using (_,_; _,′_; _×_; Σ-syntax; ∃)
 open import Function.Equality as SF using (Π; _⟨$⟩_; _⟶_)
@@ -34,6 +35,15 @@ module Build {o e : Level} (XS : Setoid o e) where
     onright : ∀ y {z xs zs ys} -> xs ↣ zs ↢ ys -> y ≈ z → xs ↣ z ∷ zs ↢ (y ∷ ys)
     empty   : [] ↣ [] ↢ []
 
+  resp-≈ : forall {xs ys zs xs' ys' zs'} → xs ↣ zs ↢ ys →
+    Pointwise _≈_ xs xs' → Pointwise _≈_ ys ys' → Pointwise _≈_ zs zs' →
+    xs' ↣ zs' ↢ ys'
+  resp-≈ (onleft x p x≈y) (x≈x' PW.∷ xq) yq (z≈z' PW.∷ zq) =
+    onleft _ (resp-≈ p xq yq zq) (trans (sym x≈x') (trans x≈y z≈z'))
+  resp-≈ (onright y p y≈z) xq (x∼y PW.∷ yq) (x∼y₁ PW.∷ zq) =
+    onright _ (resp-≈ p xq yq zq) (trans (sym x∼y) (trans y≈z x∼y₁)) 
+  resp-≈ empty PW.[] PW.[] PW.[] = empty
+  
   -- swap a partition around
   swap : {xs zs ys : List X} -> xs ↣ zs ↢ ys -> ys ↣ zs ↢ xs
   swap (onleft x p x≈y) = onright x (swap p) x≈y
@@ -78,12 +88,20 @@ module Build {o e : Level} (XS : Setoid o e) where
   isAllLPar (onleft x p x≈y) = x≈y PW.∷ isAllLPar p
   isAllLPar empty            = PW.[]
 
+  part-resp-++ : {xs ys zs xs' ys' zs' : List X} → xs ↣ ys ↢ zs → xs' ↣ ys' ↢ zs' →
+    (xs ++ xs') ↣ (ys ++ ys') ↢ (zs ++ zs')
+  part-resp-++ (onleft x p x≈y) q = onleft x (part-resp-++ p q) x≈y
+  part-resp-++ (onright y p y≈z) q = onright y (part-resp-++ p q) y≈z
+  part-resp-++ empty q = q
+
+  -- missing from Pointwise?
+  ≡⇒Pointwise : {xs ys : List X} → xs ≡ ys → Pointwise _≈_ xs ys
+  ≡⇒Pointwise {xs} ≡.refl = PW.refl refl {xs}
+  
   -- given a partition, we can extend it to a partition of an append
   extend-part : {xs ys zs ws : List X} → ws ↣ xs ↢ zs →
     ws ↣ xs ++ ys ↢ (zs ++ ys)
-  extend-part (onleft x p x≈y)  = onleft x (extend-part p) x≈y
-  extend-part (onright y p y≈z) = onright y (extend-part p) y≈z
-  extend-part empty             = allRPar
+  extend-part {ys = ys} p = resp-≈ (part-resp-++ p (allRPar {ys})) (≡⇒Pointwise (++-identityʳ _)) (PW.refl refl) (PW.refl refl)
 
   -- inserting into the middle of a partition given by ++
   insert-into-++ : {x : X} (xs : List X) {ys : List X} →

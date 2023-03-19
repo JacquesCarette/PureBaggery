@@ -6,6 +6,7 @@
 --  on-the-nose equality.
 module SetoidPermutations where
 
+open import Data.List.Relation.Binary.Pointwise as PW using (Pointwise)
 open import Data.List.Base as List using (List; []; _∷_; [_]; _++_)
 open import Data.List.Properties using (++-identityʳ)
 open import Data.Product using (_,_; _,′_; _×_; Σ-syntax; ∃)
@@ -57,45 +58,52 @@ module _ {o e : Level} {S : Setoid o e} where
   allRPart⇒Perm′ : ∀ {xs zs} → [] ↣ zs ↢ xs → xs ≈ zs
   allRPart⇒Perm′ (onright y p y≈z) = cons (onleft y allRPar y≈z) (allRPart⇒Perm′ p) S.refl
   allRPart⇒Perm′ empty = []
-{-
+
+  perm-resp-≈ : forall {xs ys xs' ys'} → xs ≈ ys →
+    Pointwise S._≈_ xs xs' → Pointwise S._≈_ ys ys' → xs' ≈ ys'
+  perm-resp-≈ (cons part xs≈ys₁ x₂≈y) (x∼y PW.∷ xq) yq =
+    cons (resp-≈ part (PW.refl S.refl) (PW.refl S.refl) yq) (perm-resp-≈ xs≈ys₁ xq (PW.refl S.refl)) (S.trans x₂≈y x∼y) 
+  perm-resp-≈ [] PW.[] PW.[] = []
+
   -- if we have a list ws that contains exactly x on the left and xs on the
   -- right, and we have that ws ≈ ys
   -- then we can build a list zs ≈ xs that doesn't contain x which is the
   -- right partition of ys. In other words, we delete x from ws.
-  delPerm : forall {x x' xs ys}
-         -> <  [ x ]  ↣_↢ xs  ∩  _≈ ys          >
-         -> x S.≈ x'
-         -> <          xs ≈_  ∩ [ x' ] ↣ ys ↢_  >
-  delPerm (_ , (onleft x pa x≈y₁) , (cons {_} {_} {xs} {ys} {zs} y p eq)) x≋y = ys , {!!} , {!!} where
-      p' : _
-      p' = allRPart⇒Perm′ pa
-  delPerm (_ , (onright _ pa _) , (cons y p eq)) x≋y =
-    let _ , q , z = delPerm (_ , pa , p) x≋y
-        _ , a , b = rotr (_ , z , swap y) in
-     _ , cons (swap b) q {!!} , a
--}
+  delPerm : forall {x xs ys}
+         -> < [ x ]  ↣_↢ xs  ∩  _≈ ys          >
+         -> Σ[ y ∈ X ] (Σ[ zs ∈ List X ] (xs ≈ zs × [ y ] ↣ ys ↢ zs × x S.≈ y ))
+  delPerm (_ , onleft _ part x , cons x₁ perm x₂) =
+    _ , _ ,
+      perm-resp-≈ perm (PW.symmetric S.sym (isAllRPar part))
+      (PW.refl S.refl) ,
+      x₁ ,
+      S.trans x (S.sym x₂)
+  delPerm (_ , onright y part y≈z , cons part' perm eq-z) =
+    let _ , _ , q , z , eq = delPerm (_ , part , perm)
+        _ , a , b = rotr (_ , z , swap part' ) in
+    _ , _ , cons (swap b) q (S.trans eq-z (S.sym y≈z)) , a , eq
+
   -- permutations are transitive
   trans : forall {xs ys zs} -> xs ≈ ys -> ys ≈ zs -> xs ≈ zs
-  trans (cons (onleft _ pa x) p x≈y) (cons x₁ q x₂) = cons {!!} p (S.trans (S.sym x) x≈y)
-  trans (cons (onright y pa x) p x≈y) q = cons {!onright ? ? ?!} (trans p {!!}) x≈y
-    {- let _ , q' , pa′ = delPerm (_ , pa , q) x≈y in cons pa′ (trans p q') S.refl -}
+  trans (cons pa p x≈y) q =
+    let _ , _ , q' , pa′ , eq = delPerm (_ , pa , q) in
+    cons pa′ (trans p q') (S.trans (S.sym eq) x≈y)
   trans [] [] = []
-
+  
   -- if we can insert equivalent elements into two lists, such the their right
   -- parts are permutation equivalent, the lists are themselves equivalent
-  insPerm : forall {x x' xs xs' ys ys'}
+  insPerm : forall {x xs xs' y ys ys'}
     -> [ x ] ↣ xs' ↢ xs
-    -> [ x' ] ↣ ys' ↢ ys
-    -> x S.≈ x'
+    -> [ y ] ↣ ys' ↢ ys
+    -> x S.≈ y
     -> xs ≈ ys
     -> xs' ≈ ys'
-  insPerm (onleft _ x x≈y) insert-y x≋y p = cons insert-y help (S.trans (S.sym x≋y) x≈y) where
-    help : _
-    help = {!allRPart⇒Perm x!} -- with ≡.refl <- isAllRPar x = p
-  insPerm {x} {y} {.w ∷ ws} {._ ∷ zs} {ys} {ys'} (onright w x↣zs↢ws _) x↣ys'↢ys x≋y (cons w↣ys↢ts ws≈ts ≋w) =
-    let _ , w↣ys'↢rs , ts↣rs↢x = rotr (_ , w↣ys↢ts , swap x↣ys'↢ys) in
-     cons w↣ys'↢rs (insPerm x↣zs↢ws (swap ts↣rs↢x) x≋y ws≈ts) {!!}
-     
+  insPerm (onleft _ p x) insert-y x≈y perm =
+    cons insert-y (perm-resp-≈ perm (isAllRPar p) (PW.refl S.refl)) (S.trans (S.sym x≈y) x)
+  insPerm (onright y p y≈z) insert-y eq (cons p' perm eq-y) =
+    let _ , pp , qq = rotr (_ , p' , swap insert-y) in
+    cons pp (insPerm p (swap qq) eq perm) (S.trans eq-y y≈z)
+    
   -- Permutations are symmetric
   sym : forall {xs ys} -> xs ≈ ys -> ys ≈ xs
   sym (cons x p eq) = insPerm x (onleft _ allRPar S.refl) eq (sym p)
@@ -146,4 +154,7 @@ map-perm : {ℓ₁ ℓ₂ : Level} {X : Set ℓ₁} {Y : Set ℓ₂} {xs ys : Li
 map-perm f (x ∷ eq) = map-par f x ∷ map-perm f eq
 map-perm f [] = []
 
+-- two proofs:
+-- 1. there is no container that satisfies X ≃ derivative X
+-- 2. there is no container that satisfied the Bag interface
 -}
