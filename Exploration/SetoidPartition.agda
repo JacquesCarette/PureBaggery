@@ -104,8 +104,7 @@ module Build {o e : Level} (XS : Setoid o e) where
   extend-part {ys = ys} p = resp-≈ (part-resp-++ p (allRPar {ys})) (≡⇒Pointwise (++-identityʳ _)) (PW.refl refl) (PW.refl refl)
 
   -- inserting into the middle of a partition given by ++
-  insert-into-++ : {x : X} (xs : List X) {ys : List X} →
-    [ x ] ↣ xs ++ x ∷ ys ↢ (xs ++ ys)
+  insert-into-++ : {x : X} (xs : List X) {ys : List X} → [ x ] ↣ xs ++ x ∷ ys ↢ (xs ++ ys)
   insert-into-++ [] = onleft _ allRPar refl
   insert-into-++ (x ∷ xs) = onright _ (insert-into-++ xs) refl
 
@@ -113,12 +112,18 @@ module _ {o₁ o₂ e₁ e₂ : Level} {XS : Setoid o₁ e₁} {YS : Setoid o₂
   open Setoid XS using () renaming (Carrier to X)
   open Setoid YS using () renaming (Carrier to Y)
   private
+    module XS = Setoid XS
+    module YS = Setoid YS
     module XP = Build XS
     module YP = Build YS
+
+  map-resp-S≈ : {xs ys zs : List X } (f g : XS ⟶ YS) →
+    (∀ {x x' : X} → x XS.≈ x' → f ⟨$⟩ x YS.≈ g ⟨$⟩ x') → xs XP.↣ zs ↢ ys →
+    List.map (f ⟨$⟩_) xs YP.↣ List.map (g ⟨$⟩_) zs ↢ List.map (f ⟨$⟩_) ys
+  map-resp-S≈ f g resp (XP.onleft x eq x≈y) = YP.onleft (f ⟨$⟩ x) (map-resp-S≈ f g resp eq) (resp x≈y)
+  map-resp-S≈ f g resp (XP.onright y eq y≈z) = YP.onright (f ⟨$⟩ y) (map-resp-S≈ f g resp eq) (resp y≈z)
+  map-resp-S≈ f g resp XP.empty = YP.empty
   
   map-par :  {xs ys zs : List X }
      (f : XS ⟶ YS) → xs XP.↣ zs ↢ ys →  List.map (f ⟨$⟩_) xs YP.↣ List.map (f ⟨$⟩_) zs ↢ List.map (f ⟨$⟩_) ys
-  map-par f (XP.onleft x p x≈y) = YP.onleft (f ⟨$⟩ x) (map-par f p) (Π.cong f x≈y) 
-  map-par f (XP.onright y p y≈z) = YP.onright (f ⟨$⟩ y) (map-par f p) (Π.cong f y≈z)
-  map-par f XP.empty = YP.empty
-  
+  map-par f par = map-resp-S≈ f f (Π.cong f) par

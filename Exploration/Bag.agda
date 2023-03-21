@@ -23,7 +23,8 @@ open import Categories.Category.Instance.Setoids using (Setoids)
 open import Categories.Adjoint using (Adjoint)
 open import Categories.NaturalTransformation using (ntHelper)
 
-open import PermJ
+open import SetoidPartition using (module Build)
+open import SetoidPermutations
 open import SillyList using (Hom; hom; HomId; module H; _H∘_) -- split!
 
 private
@@ -34,14 +35,15 @@ private
 ∣_∣ : Setoid o e → Set o
 ∣ S ∣ = Setoid.Carrier S
 
--- it really is an equivalence relation:
-≈-equiv : {X : Set o} → IsEquivalence (_≈_ {X = X})
-≈-equiv = record { refl = idPerm ; sym = sym ; trans = trans }
+module _ {X : Setoid o e} where
+  open BuildPerm {S = X}
+  -- it really is an equivalence relation:
+  ≈-equiv : IsEquivalence (BuildPerm._≈_ {S = X})
+  ≈-equiv = record { refl = idPerm ; sym = sym ; trans = trans }
 
 -- lists quotiented by ≈ are commutative monoids
 --   Is using resp-≡ a good idea? It gives the right result *eventually*
---   Note how we never ever looks at S's equivalence!! 
-comm-monoid : Setoid o e → CommutativeMonoid o o
+comm-monoid : Setoid o e → CommutativeMonoid o (o ⊔ e)
 comm-monoid S = record
   { Carrier = List (Setoid.Carrier S)
   ; _≈_ = _≈_
@@ -61,6 +63,7 @@ comm-monoid S = record
     ; comm = ≈-commutative
     }
   }
+  where open BuildPerm {S = S}
 
 -- The collection of commutative monoids forms a Category
 -- (Duplicate code, factor out)
@@ -107,14 +110,12 @@ Underlying o e = record
   }
 
 -- let's see if this is the only blocker
+{-
 postulate
-  map-resp-≈ : {f g : A ⟶ B} →
-      ({x y : ∣ A ∣} → Setoid._≈_ A x y → Setoid._≈_ B (f ⟨$⟩ x) (g ⟨$⟩ y)) →
-      {x : List ∣ A ∣} → List.map (f ⟨$⟩_) x ≈ List.map (g ⟨$⟩_) x
-
+-}
 -- Properly quotiented Lists induce a (Free) functor from (Carrier) Setoids
 -- to the category of Commutative Monoids
-Free : (o e : Level) → Functor (Setoids o e) (CMonoidCat o o)
+Free : (o e : Level) → Functor (Setoids o e) (CMonoidCat o (o ⊔ e))
 Free o e = record
   { F₀ = comm-monoid
   ; F₁ = λ {A} {B} f →
@@ -123,22 +124,44 @@ Free o e = record
                F = λ x → f ⟨$⟩ x in
            hom (List.map F)
                (H.mkIsHom {M = monoid M} {monoid N} (List.map F)
-                   (map-perm F)
+                   (map-perm f)
                    (λ xs ys → trans (resp-≡ (map-++-commute F xs ys))
-                                    (++-cong {x = List.map F xs} idPerm idPerm))
+                                    (++-cong {xs = List.map F xs} idPerm idPerm))
                    [])
   ; identity = λ _ → resp-≡ (map-id _) 
   ; homomorphism = λ x → resp-≡ (map-compose x)
-    ; F-resp-≈ = λ {_} {_} {f} {g} f≈g x → map-resp-≈ {f = f} {g} f≈g {x}
+    ; F-resp-≈ = λ {_} {_} {f} {g} f≈g x → map-resp-≈ f g f≈g idPerm
   }
-  where open CommutativeMonoid using (refl; monoid)
+  where
+    open CommutativeMonoid using (refl; monoid)
+    open BuildPerm
+    
 ListLeft : (o : Level) → Adjoint (Free o o) (Underlying o o)
 ListLeft o = record
-  { unit = ntHelper (record { η = λ X → record { _⟨$⟩_ = [_] ; cong = {!!} }
-                            ; commute = {!!}
-                            })
-  ; counit = ntHelper (record { η = {!!} ; commute = {!!} })
+  { unit = ntHelper (record
+    { η = λ X → record
+      { _⟨$⟩_ = [_]
+      ; cong = λ x≈y → cons (onleft _ empty (Setoid.refl X)) [] (Setoid.sym X x≈y)
+      }
+    ; commute = λ {X} {Y} f x≈y → cons (onleft _ empty (Π.cong f x≈y)) [] (Π.cong f (Setoid.refl X))
+    })
+  ; counit = ntHelper (record
+    { η = λ X → let open CommutativeMonoid X in
+                hom (foldr _∙_ ε)
+                    (record
+                      { isMagmaHomomorphism = record
+                        { isRelHomomorphism = record { cong = λ x≈y → {!!} }
+                        ; homo = {!!}
+                        }
+                      ; ε-homo = {!!}
+                      })
+    ; commute = {!!}
+    })
   ; zig = {!!}
-  ; zag = {!!}
+  ; zag = λ {B} x≈y → let open CommutativeMonoid B in
+                      trans (identityʳ _) x≈y
   }
+  where
+    open BuildPerm hiding (trans)
+    open Build
 

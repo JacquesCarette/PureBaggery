@@ -10,6 +10,7 @@ open import Data.List.Relation.Binary.Pointwise as PW using (Pointwise)
 open import Data.List.Base as List using (List; []; _∷_; [_]; _++_)
 open import Data.List.Properties using (++-identityʳ)
 open import Data.Product using (_,_; _,′_; _×_; Σ-syntax; ∃)
+open import Function.Equality as SF using (Π; _⟨$⟩_; _⟶_)
 open import Level using (Level; _⊔_)
 open import Relation.Binary.Bundles using (Setoid)
 open import Relation.Binary.Definitions using (Reflexive)
@@ -19,7 +20,7 @@ open import Relation.Unary using (_∩_)
 open import SetoidPartition
 
   ---------------------------------------------------------------
-module _ {o e : Level} {S : Setoid o e} where
+module BuildPerm {o e : Level} {S : Setoid o e} where
   infix 8 _≈_
 
   open Build S -- for Partitions based on Setoids
@@ -108,52 +109,41 @@ module _ {o e : Level} {S : Setoid o e} where
   sym : forall {xs ys} -> xs ≈ ys -> ys ≈ xs
   sym (cons x p eq) = insPerm x (onleft _ allRPar S.refl) eq (sym p)
   sym [] = []
-
-{-
-  -- we can add to the head of a permutation
-  congˡ-≈ : {x : X} {xs ys : List X} → xs ≈ ys → (x ∷ xs) ≈ (x ∷ ys)
-  congˡ-≈ eq = (_ ∷ˡ allRPar) ∷ eq
-  
-  -- we can express one of the most basic operations: swapping heads
-  -- of equivalent lists
-  swap-heads : {x y : X} {ws zs : List X} → ws ≈ zs → (x ∷ y ∷ ws) ≈ (y ∷ x ∷ zs)
-  swap-heads {x} {y} ws≈zs = (y ∷ʳ (x ∷ˡ allRPar)) ∷ (y ∷ˡ allRPar) ∷ ws≈zs 
-
-  -- partitions with equivalent rhs induce an append-equivalence
-  -- done by casing on both partitions.
-  swap-part : {x y : X} {xs ys zs ws : List X} →
-    [ x ] ↣ xs ↢ zs → [ y ] ↣ ys ↢ ws → ws ≈ zs → (x ∷ ys) ≈ (y ∷ xs)
-  swap-part (_ ∷ˡ x∈xs) (_ ∷ˡ y∈ys) ws≈zs
-    with refl <- isAllRPar x∈xs
-    with refl <- isAllRPar y∈ys = swap-heads ws≈zs
-  swap-part (y ∷ˡ x∈xs) (x ∷ʳ t∈ys) zs≈ys
-    with refl <- isAllRPar x∈xs
-    with a ∷ b <- zs≈ys = (_ ∷ʳ (y ∷ˡ x∈xs)) ∷ swap-part a t∈ys b
-  swap-part (y ∷ʳ x∈xs) (_ ∷ˡ y∈ys) zs≈ws
-    with refl <- isAllRPar y∈ys = (_ ∷ʳ (y ∷ʳ x∈xs)) ∷ congˡ-≈ zs≈ws
-  swap-part (tt ∷ʳ x∈xs) (uu ∷ʳ y∈ys) zs≈ws
-    with a ∷ b <- zs≈ws = (_ ∷ʳ (_ ∷ʳ x∈xs)) ∷ swap-part a y∈ys b
   
   -- permutations play well with concatenation
-  ++-cong : {x y u v : List X} → x ≈ y → u ≈ v → (x ++ u) ≈ (y ++ v)
-  ++-cong ((x ∷ˡ z) ∷ xs≈ys) u≈v with isAllRPar z
-  ... | refl  = insPerm (x ∷ˡ allRPar) (x ∷ˡ allRPar) (++-cong xs≈ys u≈v)
-  ++-cong ((y ∷ʳ z) ∷ (x ∷ p) ) u≈v =
-    (y ∷ʳ extend-part z) ∷ extend-part x ∷ ++-cong p u≈v 
-  ++-cong [] u≈v = u≈v
+  ++-cong : {xs ys us vs : List X} → xs ≈ ys → us ≈ vs → (xs ++ us) ≈ (ys ++ vs)
+  ++-cong (cons part xs≈ys x≈y) us≈vs = cons (part-resp-++ part allRPar) (++-cong xs≈ys us≈vs) x≈y
+  ++-cong [] us≈vs = us≈vs
 
   -- We can swap two lists. Easiest done by induction on the lists
   ≈-commutative : (xs ys : List X) → (xs ++ ys) ≈ (ys ++ xs)
   ≈-commutative [] ys = resp-≡ (≡.sym (++-identityʳ ys))
-  ≈-commutative (x ∷ xs) [] = resp-≡ (++-identityʳ (x ∷ xs))
-  ≈-commutative (x ∷ xs) (y ∷ ys) =
-    swap-part (insert-into-++ ys) (insert-into-++ xs) (≈-commutative xs ys)
+  ≈-commutative (x ∷ xs) ys = cons (insert-into-++ ys) (≈-commutative xs ys) S.refl
 
-map-perm : {ℓ₁ ℓ₂ : Level} {X : Set ℓ₁} {Y : Set ℓ₂} {xs ys : List X}
-   (f : X → Y) → xs ≈ ys →  List.map f xs ≈ List.map f ys
-map-perm f (x ∷ eq) = map-par f x ∷ map-perm f eq
-map-perm f [] = []
+module _ {o₁ o₂ e₁ e₂ : Level} {SX : Setoid o₁ e₁} {SY : Setoid o₂ e₂} where
+  private
+    module X = Setoid SX
+    module Y = Setoid SY
+    X = ∣ SX ∣
+    Y = ∣ SY ∣
+    module BX = BuildPerm {S = SX}
+    module BY = BuildPerm {S = SY}
+    open BX using (cons; [])
+    
+  map-perm : {xs ys : List X}
+     (f : SX ⟶ SY) → xs BX.≈ ys →  List.map (f ⟨$⟩_) xs BY.≈ List.map (f ⟨$⟩_) ys
+  map-perm f (cons x eq x≈y) = BY.cons (map-par f x) (map-perm f eq) (Π.cong f x≈y)
+  map-perm f [] = BY.[]
 
+  map-resp-≈ : (f g : SX ⟶ SY) →
+      ({x y : X} → x X.≈ y → (f ⟨$⟩ x) Y.≈ (g ⟨$⟩ y)) →
+      {xs ys : List X} → xs BX.≈ ys → List.map (f ⟨$⟩_) xs BY.≈ List.map (g ⟨$⟩_) ys
+  map-resp-≈ f g resp (cons insert-x xs≈ys x≈y) =
+    BY.cons (map-par g insert-x)
+            (map-resp-≈ f g resp xs≈ys)
+            (Y.trans (Π.cong g x≈y) (Y.sym (resp X.refl)))
+  map-resp-≈ f g resp [] = BY.[]
+{-
 -- two proofs:
 -- 1. there is no container that satisfies X ≃ derivative X
 -- 2. there is no container that satisfied the Bag interface
