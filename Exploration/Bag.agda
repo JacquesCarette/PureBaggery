@@ -30,7 +30,7 @@ open import SillyList using (Hom; hom; HomId; module H; _H∘_) -- split!
 private
   variable
     o o₁ o₂ o₃ e e₁ e₂ e₃ : Level
-    A B X Y Z : Setoid o e
+    A B : Setoid o e
 
 ∣_∣ : Setoid o e → Set o
 ∣ S ∣ = Setoid.Carrier S
@@ -109,10 +109,6 @@ Underlying o e = record
                          CommutativeMonoid.trans B (f≈g x) (Hom.cong g x≈y)
   }
 
--- let's see if this is the only blocker
-{-
-postulate
--}
 -- Properly quotiented Lists induce a (Free) functor from (Carrier) Setoids
 -- to the category of Commutative Monoids
 Free : (o e : Level) → Functor (Setoids o e) (CMonoidCat o (o ⊔ e))
@@ -135,7 +131,28 @@ Free o e = record
   where
     open CommutativeMonoid using (refl; monoid)
     open BuildPerm
-    
+
+-- This stuff will need to move elsewhere, but for now, here is good enough
+module _ {o : Level} (CM : CommutativeMonoid o o) where
+  open CommutativeMonoid CM using (_∙_; ε; refl; ∙-cong; sym; trans; identityˡ; comm; assoc)
+    renaming (Carrier to X; _≈_ to _≋_; setoid to SX)
+  open Build SX using (_↣_↢_; onleft; onright; empty)
+  open BuildPerm {S = SX} using (_≈_; cons; []; allRPart⇒Perm′) renaming (trans to ≈trans)
+  fold : List X → X
+  fold = foldr _∙_ ε
+
+  -- it doesn't make sense to do this in SetoidPartition because it ultimately
+  -- has good properties only for CommutativeMonoid
+  fold-part : {xs ys zs : List X} → xs ↣ zs ↢ ys → fold xs ∙ fold ys ≋ fold zs
+  fold-part (onleft x {xs = xs} {ys} {zs} p x≋y) =
+    trans (assoc x (fold xs) (fold zs)) (∙-cong x≋y (fold-part p)) 
+  fold-part (onright y p y≋z) = {!!}
+  fold-part empty = identityˡ ε
+  
+  fold-cong : {x y : List X} → x ≈ y → fold x ≋ fold y
+  fold-cong (cons insert-x xs≈ys x≋y) = {!!}
+  fold-cong [] = refl
+  
 ListLeft : (o : Level) → Adjoint (Free o o) (Underlying o o)
 ListLeft o = record
   { unit = ntHelper (record
@@ -146,11 +163,10 @@ ListLeft o = record
     ; commute = λ {X} {Y} f x≈y → cons (onleft _ empty (Π.cong f x≈y)) [] (Π.cong f (Setoid.refl X))
     })
   ; counit = ntHelper (record
-    { η = λ X → let open CommutativeMonoid X in
-                hom (foldr _∙_ ε)
+    { η = λ X → hom (fold X)
                     (record
                       { isMagmaHomomorphism = record
-                        { isRelHomomorphism = record { cong = λ x≈y → {!!} }
+                        { isRelHomomorphism = record { cong = fold-cong X }
                         ; homo = {!!}
                         }
                       ; ε-homo = {!!}
