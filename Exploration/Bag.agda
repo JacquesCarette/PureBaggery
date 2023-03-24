@@ -15,6 +15,7 @@ open import Level using (Level; suc; _⊔_)
 open import Relation.Binary.Bundles using (Setoid)
 open import Relation.Binary.Morphism.Structures using (IsRelHomomorphism)
 import Relation.Binary.PropositionalEquality.Core as PE
+import Relation.Binary.Reasoning.Setoid as Reasoning
 open import Relation.Binary.Structures using (IsEquivalence)
 
 open import Categories.Category using (Category)
@@ -134,10 +135,10 @@ Free o e = record
 
 -- This stuff will need to move elsewhere, but for now, here is good enough
 module _ {o : Level} (CM : CommutativeMonoid o o) where
-  open CommutativeMonoid CM using (_∙_; ε; refl; ∙-cong; sym; trans; identityˡ; comm; assoc)
-    renaming (Carrier to X; _≈_ to _≋_; setoid to SX)
+  open CommutativeMonoid CM renaming (Carrier to X; _≈_ to _≋_; setoid to SX)
   open Build SX using (_↣_↢_; onleft; onright; empty)
   open BuildPerm {S = SX} using (_≈_; cons; []; allRPart⇒Perm′) renaming (trans to ≈trans)
+  open Reasoning SX
   fold : List X → X
   fold = foldr _∙_ ε
 
@@ -146,12 +147,29 @@ module _ {o : Level} (CM : CommutativeMonoid o o) where
   fold-part : {xs ys zs : List X} → xs ↣ zs ↢ ys → fold xs ∙ fold ys ≋ fold zs
   fold-part (onleft x {xs = xs} {ys} {zs} p x≋y) =
     trans (assoc x (fold xs) (fold zs)) (∙-cong x≋y (fold-part p)) 
-  fold-part (onright y p y≋z) = {!!}
+  fold-part (onright y {xs = xs} {ys} {zs} p y≋z) = begin
+    fold xs ∙ (y ∙ fold zs) ≈˘⟨ assoc (fold xs) y (fold zs) ⟩
+    fold xs ∙ y ∙ fold zs   ≈⟨ ∙-congʳ (comm (fold xs) y)  ⟩
+    y ∙ fold xs ∙ fold zs   ≈⟨ assoc y (fold xs) (fold zs) ⟩
+    y ∙ (fold xs ∙ fold zs) ≈⟨ ∙-cong y≋z (fold-part p) ⟩
+    _ ∙ fold ys ∎
   fold-part empty = identityˡ ε
   
-  fold-cong : {x y : List X} → x ≈ y → fold x ≋ fold y
-  fold-cong (cons insert-x xs≈ys x≋y) = {!!}
+  fold-cong : {xs ys : List X} → xs ≈ ys → fold xs ≋ fold ys
+  fold-cong (cons {x} {y} {xs} {ys} {zs} insert-x xs≈ys x≋y) = begin
+    y ∙ fold xs     ≈⟨ ∙-congˡ (fold-cong xs≈ys) ⟩
+    y ∙ fold ys     ≈˘⟨ ∙-congʳ (identityʳ y) ⟩
+    y ∙ ε ∙ fold ys ≈˘⟨ ∙-congʳ (∙-congʳ x≋y) ⟩
+    x ∙ ε ∙ fold ys ≈⟨ fold-part insert-x ⟩
+    fold zs ∎
   fold-cong [] = refl
+
+  fold-++ : (xs ys : List X) → fold (xs ++ ys) ≋ fold xs ∙ fold ys
+  fold-++ [] ys = sym (identityˡ _)
+  fold-++ (x ∷ xs) ys = begin
+    x ∙ fold (xs ++ ys)     ≈⟨ ∙-congˡ (fold-++ xs ys) ⟩
+    x ∙ (fold xs ∙ fold ys) ≈˘⟨ assoc _ _ _ ⟩
+    x ∙ fold xs ∙ fold ys   ∎
   
 ListLeft : (o : Level) → Adjoint (Free o o) (Underlying o o)
 ListLeft o = record
@@ -163,21 +181,26 @@ ListLeft o = record
     ; commute = λ {X} {Y} f x≈y → cons (onleft _ empty (Π.cong f x≈y)) [] (Π.cong f (Setoid.refl X))
     })
   ; counit = ntHelper (record
-    { η = λ X → hom (fold X)
+    { η = λ X → let open CommutativeMonoid X in
+                hom (fold X)
                     (record
                       { isMagmaHomomorphism = record
                         { isRelHomomorphism = record { cong = fold-cong X }
-                        ; homo = {!!}
+                        ; homo = fold-++ X
                         }
-                      ; ε-homo = {!!}
+                      ; ε-homo = refl
                       })
     ; commute = {!!}
     })
-  ; zig = {!!}
+  ; zig = λ x → resp-≡ (fold-singleton x)
   ; zag = λ {B} x≈y → let open CommutativeMonoid B in
                       trans (identityʳ _) x≈y
   }
   where
     open BuildPerm hiding (trans)
     open Build
+    -- this is always true, should put somewhere else
+    fold-singleton : {A : Set o} (xs : List A) → foldr _++_ [] (List.map [_] xs) PE.≡ xs
+    fold-singleton [] = PE.refl
+    fold-singleton (x ∷ xs) = PE.cong (x ∷_) (fold-singleton xs)
 
