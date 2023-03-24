@@ -170,6 +170,25 @@ module _ {o : Level} (CM : CommutativeMonoid o o) where
     x ∙ fold (xs ++ ys)     ≈⟨ ∙-congˡ (fold-++ xs ys) ⟩
     x ∙ (fold xs ∙ fold ys) ≈˘⟨ assoc _ _ _ ⟩
     x ∙ fold xs ∙ fold ys   ∎
+
+-- homomorphism related properties need 2 commutative monoids
+module _ {o : Level} (X Y : CommutativeMonoid o o) where
+  private
+    module CX = CommutativeMonoid X
+    module CY = CommutativeMonoid Y
+    foldX : List CX.Carrier → CX.Carrier
+    foldX xs = foldr CX._∙_ CX.ε xs
+    foldY : List CY.Carrier → CY.Carrier
+    foldY ys = foldr CY._∙_ CY.ε ys
+    
+  fold-map-comm : (f : Hom CX.monoid CY.monoid) → (xs : List CX.Carrier) →
+    foldY (List.map (Hom.map f) xs) CY.≈ Hom.map f (foldX xs)
+  fold-map-comm f [] = CY.sym (Hom.ε-homo f)
+  fold-map-comm f (x ∷ xs) = begin
+    Hom.map f x CY.∙ foldY (List.map (Hom.map f) xs) ≈⟨ CY.∙-congˡ (fold-map-comm f xs) ⟩
+    Hom.map f x CY.∙ Hom.map f (foldX xs)            ≈⟨ CY.sym (Hom.homo f x (foldX xs)) ⟩
+    Hom.map f (x CX.∙ foldX xs)                      ∎
+    where open Reasoning CY.setoid
   
 ListLeft : (o : Level) → Adjoint (Free o o) (Underlying o o)
 ListLeft o = record
@@ -190,7 +209,7 @@ ListLeft o = record
                         }
                       ; ε-homo = refl
                       })
-    ; commute = {!!}
+    ; commute = λ {X} {Y} → fold-map-comm X Y
     })
   ; zig = λ x → resp-≡ (fold-singleton x)
   ; zag = λ {B} x≈y → let open CommutativeMonoid B in
