@@ -19,39 +19,14 @@ open import Categories.Category.Instance.Setoids using (Setoids)
 open import Categories.Adjoint using (Adjoint)
 open import Categories.NaturalTransformation using (ntHelper)
 
+open import SillyList.Core public
+
 private
   variable
     o ℓ e o₁ o₂ o₃ e₁ e₂ e₃ : Level
     A B X Y Z : Setoid o e
 
-∣_∣ : Setoid o e → Set o
-∣ S ∣ = Setoid.Carrier S
-
-infixr 4 _++_
 infix  2 _≈_
-
--- Here's what could be called the "mathematician's list", as it is
--- the literal free monoid (over A)
-data SillyList (A : Setoid o e) : Set o where
-  [] : SillyList A
-  Leaf : ∣ A ∣ → SillyList A
-  _++_ : SillyList A → SillyList A → SillyList A
-
--- We can map on it; note the Setoid map (long _⟶_ )
-SLmap : (f : A ⟶ B) → SillyList A → SillyList B
-SLmap f [] = []
-SLmap f (Leaf x) = Leaf (f ⟨$⟩ x)
-SLmap f (l₀ ++ l₁) = SLmap f l₀ ++ SLmap f l₁
-
--- We can fold too. But note how this is intricately
--- tied to Monoid?
-module _ (M : Monoid o e) where
-  open Monoid M using (ε; _∙_) renaming (setoid to W)
-  
-  SLfold : SillyList W → ∣ W ∣
-  SLfold [] = ε
-  SLfold (Leaf x) = x
-  SLfold (l₀ ++ l₁) = SLfold l₀ ∙ SLfold l₁
 
 -- Since that's quotiented, exhibit that as well:
 -- Note well the level here.
