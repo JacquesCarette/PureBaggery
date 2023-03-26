@@ -1,3 +1,5 @@
+{-# OPTIONS --exact-split #-}
+-- this one's neither safe nor without-K !
 module GroupActPosition where
 
 module _ {X : Set} where

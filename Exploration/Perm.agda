@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K --exact-split --safe #-}
 module Perm where
 
 record _><_ (S : Set)(T : S -> Set) : Set where

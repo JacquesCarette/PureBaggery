@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K --exact-split --safe #-}
 module FinUni where
 
 data _~_ {X : Set}(x : X) : X -> Set where
