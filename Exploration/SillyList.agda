@@ -52,37 +52,6 @@ SLMonoid S = record
     }
   }
 -- Note how we end up using all the pieces of _≈_ somewhere.
--- We also have that SLfold has a number of properties.
--- These are here because some properties involve monoid homomorphisms.
-
-module _ {M : Monoid o e} where
-  open Monoid M renaming (_≈_ to _≈M_; setoid to W)
-
-  -- SLfold respects monoid SL equivalence
-  SLfold-cong : {x y : SillyList W} → x ≈ y → SLfold M x ≈M SLfold M y
-  SLfold-cong (Leaf x) = x
-  SLfold-cong [] = refl
-  SLfold-cong (eq₀ ++ eq₁) = ∙-cong (SLfold-cong eq₀) (SLfold-cong eq₁)
-  SLfold-cong []++ˡ = identityˡ _
-  SLfold-cong ++[]ˡ = identityʳ _
-  SLfold-cong []++ʳ = sym (identityˡ _)
-  SLfold-cong ++[]ʳ = sym (identityʳ _)
-  SLfold-cong assoc++ˡ = assoc _ _ _
-  SLfold-cong assoc++ʳ = sym (assoc _ _ _)
-  SLfold-cong (eq₀ ⊚ eq₁) = trans (SLfold-cong eq₀) (SLfold-cong eq₁)
-
--- SLfold is natural, i.e. SLfold ∘ map is the same as Hom.map ∘ SLfold
-module _ {M N : Monoid o e} (f : Hom M N) where
-  open Monoid M using () renaming (_∙_ to _∙M_; setoid to MX)
-  open Monoid N using (sym; refl; trans; ∙-cong) renaming (_≈_ to _≈N_; _∙_ to _∙N_)
-  open Hom f renaming (setoid⟶ to F)
-  
-  SLfold-natural : (x : SillyList MX) → SLfold N (SLmap F x) ≈N map (SLfold M x)
-  SLfold-natural [] = sym ε-homo
-  SLfold-natural (Leaf x) = refl
-  SLfold-natural (x ++ y) = trans
-    (∙-cong (SLfold-natural x) (SLfold-natural y))
-    (sym (homo (SLfold M x) (SLfold M y)))
 
 -- The collection of monoids form a Category
 MonoidCat : (o e : Level) → Category (suc (o ⊔ e)) (o ⊔ e) (o ⊔ e)

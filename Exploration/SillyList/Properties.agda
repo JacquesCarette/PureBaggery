@@ -1,13 +1,16 @@
 {-# OPTIONS --without-K --safe #-}
 
+-- properties of map and fold
 module SillyList.Properties where
 
+open import Algebra using (Monoid)
 open import Function.Equality as SF using (Π; _⟨$⟩_; _⟶_) -- SF = Setoid Functions
 open import Level using (Level; _⊔_; suc)
 open import Relation.Binary.Bundles using (Setoid)
 
-open import SillyList.Core using (SillyList; []; Leaf; _++_; SLmap; ∣_∣ )
+open import SillyList.Core using (SillyList; []; Leaf; _++_; SLmap; SLfold; ∣_∣ )
 open import SillyList.Equivalence hiding (++-cong; ≈-equiv) -- we just need _≈_
+open import SetoidMonoid.Hom using (Hom)
 
 private
   variable
@@ -49,3 +52,35 @@ SLmap-S-cong : {f g : X ⟶ Y} → ({x y : ∣ X ∣} → Setoid._≈_ X x y →
 SLmap-S-cong resp [] = []
 SLmap-S-cong {X = X} resp (Leaf x) = Leaf (resp (Setoid.refl X))
 SLmap-S-cong resp (x ++ y) = SLmap-S-cong resp x ++ SLmap-S-cong resp y
+
+-- We also have that SLfold has a number of properties.
+-- These are here because some properties involve monoid homomorphisms.
+
+module _ {M : Monoid o e} where
+  open Monoid M renaming (_≈_ to _≈M_; setoid to W)
+
+  -- SLfold respects monoid SL equivalence
+  SLfold-cong : {x y : SillyList W} → x ≈ y → SLfold M x ≈M SLfold M y
+  SLfold-cong (Leaf x) = x
+  SLfold-cong [] = refl
+  SLfold-cong (eq₀ ++ eq₁) = ∙-cong (SLfold-cong eq₀) (SLfold-cong eq₁)
+  SLfold-cong []++ˡ = identityˡ _
+  SLfold-cong ++[]ˡ = identityʳ _
+  SLfold-cong []++ʳ = sym (identityˡ _)
+  SLfold-cong ++[]ʳ = sym (identityʳ _)
+  SLfold-cong assoc++ˡ = assoc _ _ _
+  SLfold-cong assoc++ʳ = sym (assoc _ _ _)
+  SLfold-cong (eq₀ ⊚ eq₁) = trans (SLfold-cong eq₀) (SLfold-cong eq₁)
+
+-- SLfold is natural, i.e. SLfold ∘ map is the same as Hom.map ∘ SLfold
+module _ {M N : Monoid o e} (f : Hom M N) where
+  open Monoid M using () renaming (_∙_ to _∙M_; setoid to MX)
+  open Monoid N using (sym; refl; trans; ∙-cong) renaming (_≈_ to _≈N_; _∙_ to _∙N_)
+  open Hom f renaming (setoid⟶ to F)
+  
+  SLfold-natural : (x : SillyList MX) → SLfold N (SLmap F x) ≈N map (SLfold M x)
+  SLfold-natural [] = sym ε-homo
+  SLfold-natural (Leaf x) = refl
+  SLfold-natural (x ++ y) = trans
+    (∙-cong (SLfold-natural x) (SLfold-natural y))
+    (sym (homo (SLfold M x) (SLfold M y)))
