@@ -26,8 +26,8 @@ open import Categories.NaturalTransformation using (ntHelper)
 
 -- Note how we re-use SLfold. The point is that to define it, we don't care
 -- about commutativity as a property, it only shows up later.
-open import SillyList using (SillyList; []; Leaf; _++_; Hom; hom; HomId; module H;
-  _H∘_)
+open import SetoidMonoid.Hom using (Hom; hom; idH; _∘H_; mkIsHom)
+open import SillyList using (SillyList; []; Leaf; _++_)
   renaming (SLmap to SBmap; SLfold to SBfold; SLfold-natural to SBfold-natural)
 
 private
@@ -194,8 +194,8 @@ CMonoidCat o e = record
   { Obj = CommutativeMonoid o e
   ; _⇒_ = λ m n → Hom (monoid m) (monoid n)
   ; _≈_ = λ {_} {B} f g → (∀ x → CommutativeMonoid._≈_ B (map f x) (map g x))
-  ; id = HomId
-  ; _∘_ = _H∘_
+  ; id = idH
+  ; _∘_ = _∘H_
   ; assoc = λ { {D = D} _ → refl D}
   ; sym-assoc = λ { {D = D} _ → refl D}
   ; identityˡ = λ {_} {B} _ → refl B
@@ -233,10 +233,10 @@ Free o e = record
            let M = SBCommMonoid A
                N = SBCommMonoid B in
            hom (SBmap f)
-               (H.mkIsHom {M = monoid M} {monoid N} (SBmap f)
-                   (SBmap-cong f)
-                   (λ _ _ → refl N)
-                   [])
+               (mkIsHom {M = monoid M} {monoid N} (SBmap f)
+                 (SBmap-cong f)
+                 (λ _ _ → refl N)
+                 [])
   ; identity = SBmap-id
   ; homomorphism = SBmap-hom
   ; F-resp-≈ = SBmap-S-cong
@@ -274,11 +274,11 @@ ListLeft o = record
     module FU = Functor FU
     fold : (X : CommutativeMonoid o o) → Hom (monoid (FU.₀ X)) (monoid X)
     fold X = hom (SBfold (monoid X))
-                 (H.mkIsHom {M = monoid (SBCommMonoid (setoid X))} {N = monoid X}
-                            (SBfold (monoid X))
-                            (SBfold-cong {CM = X})
-                            (λ _ _ → refl X) -- ∙-homo is free
-                            (refl X))        -- ε-pres is free
+                 (mkIsHom {M = monoid (SBCommMonoid (setoid X))} {N = monoid X}
+                          (SBfold (monoid X))
+                          (SBfold-cong {CM = X})
+                          (λ _ _ → refl X) -- ∙-homo is free
+                          (refl X))        -- ε-pres is free
     zig : {S : Setoid o o} (x : SillyList S) →
       SBfold (monoid (SBCommMonoid S)) (SBmap (singleton S) x) ≈ x
     zig []       = []

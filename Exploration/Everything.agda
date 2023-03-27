@@ -19,6 +19,10 @@ open import GroupActPosition
 
 -- Jacques' version of similar, split up
 
+-- some kit for monoids
+open import SetoidMonoid.Hom
+
+-- SillyList, aka the full Term Algebra version of List
 open import SillyList.Core
 open import SillyList.Equivalence
 open import SillyList.Properties

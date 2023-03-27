@@ -26,7 +26,7 @@ open import Categories.NaturalTransformation using (ntHelper)
 
 open import SetoidPartition using (module Build)
 open import SetoidPermutations
-open import SillyList using (Hom; hom; HomId; module H; _H∘_) -- split!
+open import SetoidMonoid.Hom using (Hom; hom; idH; _∘H_; mkIsHom)
 
 private
   variable
@@ -73,8 +73,8 @@ CMonoidCat o e = record
   { Obj = CommutativeMonoid o e
   ; _⇒_ = λ m n → Hom (monoid m) (monoid n)
   ; _≈_ = λ {_} {B} f g → (∀ x → CommutativeMonoid._≈_ B (map f x) (map g x))
-  ; id = HomId
-  ; _∘_ = _H∘_
+  ; id = idH
+  ; _∘_ = _∘H_
   ; assoc = λ { {D = D} _ → refl D}
   ; sym-assoc = λ { {D = D} _ → refl D}
   ; identityˡ = λ {_} {B} _ → refl B
@@ -120,11 +120,11 @@ Free o e = record
                N = comm-monoid B
                F = λ x → f ⟨$⟩ x in
            hom (List.map F)
-               (H.mkIsHom {M = monoid M} {monoid N} (List.map F)
-                   (map-perm f)
-                   (λ xs ys → trans (resp-≡ (map-++-commute F xs ys))
-                                    (++-cong {xs = List.map F xs} idPerm idPerm))
-                   [])
+               (mkIsHom {M = monoid M} {monoid N} (List.map F)
+                 (map-perm f)
+                 (λ xs ys → trans (resp-≡ (map-++-commute F xs ys))
+                                  (++-cong {xs = List.map F xs} idPerm idPerm))
+                 [])
   ; identity = λ _ → resp-≡ (map-id _) 
   ; homomorphism = λ x → resp-≡ (map-compose x)
     ; F-resp-≈ = λ {_} {_} {f} {g} f≈g x → map-resp-≈ f g f≈g idPerm

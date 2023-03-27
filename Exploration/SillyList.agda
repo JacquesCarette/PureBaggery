@@ -25,6 +25,8 @@ open import SillyList.Core public
 open import SillyList.Equivalence public
 -- Some useful properties of SLmap
 open import SillyList.Properties public
+-- We need to talk about homomorphisms of Setoid-based monoids
+open import SetoidMonoid.Hom
 
 private
   variable
@@ -50,63 +52,6 @@ SLMonoid S = record
     }
   }
 -- Note how we end up using all the pieces of _≈_ somewhere.
-
--- We have a clear definition of monoid homomorphism:
-record Hom (M₁ : Monoid o₁ e₁) (M₂ : Monoid o₂ e₂) : Set (o₁ ⊔ o₂ ⊔ e₁ ⊔ e₂) where
-  constructor hom
-  field
-     map : Monoid.Carrier M₁ → Monoid.Carrier M₂
-     isHom : IsMonoidHomomorphism (Monoid.rawMonoid M₁) (Monoid.rawMonoid M₂) map
-
-  open IsMonoidHomomorphism isHom public
-  open IsRelHomomorphism isRelHomomorphism public
-
--- For re-use:
--- Identity homomorphism
-HomId : {M : Monoid o e} → Hom M M
-HomId {M = M} = hom id (record { isMagmaHomomorphism = record
-                         { isRelHomomorphism = record { cong = id }
-                         ; homo = λ _ _ → refl }
-                       ; ε-homo = refl })
-  where open Monoid M using (refl)
-
-
--- Homomorphism composition.
--- First, some kit to make later things less ugly
-module H {M : Monoid o₁ e₁} {N : Monoid o₂ e₂} where
-  open IsMonoidHomomorphism
-  open IsMagmaHomomorphism
-  open IsRelHomomorphism
-  private
-    module M = Monoid M
-    module N = Monoid N
-
-  -- constructor for homomorphism
-  mkIsHom : (f : M.Carrier → N.Carrier) →
-    ({x y : M.Carrier} → x M.≈ y → f x N.≈ f y) →
-    ((x y : M.Carrier) → f (x M.∙ y) N.≈ f x N.∙ f y) →
-    (f M.ε N.≈ N.ε) →
-    IsMonoidHomomorphism M.rawMonoid N.rawMonoid f
-  cong (isRelHomomorphism (isMagmaHomomorphism (mkIsHom f c _ _))) = c
-  homo (isMagmaHomomorphism (mkIsHom f _ h _)) = h
-  ε-homo (mkIsHom _ _ _ pres-ε) = pres-ε
-
-_H∘_ : {M₁ : Monoid o₁ e₁} {M₂ : Monoid o₂ e₂} {M₃ : Monoid o₃ e₃} →
-  Hom M₂ M₃ → Hom M₁ M₂ → Hom M₁ M₃
-_H∘_ {M₁ = M₁} {M₃ = M₃} f g =
-    let h = F.map ∘ G.map in
-    hom h (H.mkIsHom {M = M₁} {M₃} h (F.cong ∘ G.cong)
-                     (λ x y → trans (F.cong (G.homo x y)) (F.homo (G.map x) (G.map y)))
-                     (trans (F.cong G.ε-homo)  F.ε-homo))
-  where
-    module F = Hom f
-    module G = Hom g
-    open Monoid M₃ using (trans)
-
--- the underlying setoid map from a monoid homomorphism
-setoid⟶ : {M N : Monoid o e} → Hom M N → Monoid.setoid M ⟶ Monoid.setoid N
-setoid⟶ h = record { _⟨$⟩_ = Hom.map h; cong = Hom.cong h }
-
 -- We also have that SLfold has a number of properties.
 -- These are here because some properties involve monoid homomorphisms.
 
@@ -128,12 +73,11 @@ module _ {M : Monoid o e} where
 
 -- SLfold is natural, i.e. SLfold ∘ map is the same as Hom.map ∘ SLfold
 module _ {M N : Monoid o e} (f : Hom M N) where
-  open Monoid M using () renaming (_∙_ to _∙M_)
+  open Monoid M using () renaming (_∙_ to _∙M_; setoid to MX)
   open Monoid N using (sym; refl; trans; ∙-cong) renaming (_≈_ to _≈N_; _∙_ to _∙N_)
-  open Hom f
+  open Hom f renaming (setoid⟶ to F)
   
-  SLfold-natural : (x : SillyList (Monoid.setoid M)) →
-        SLfold N (SLmap (setoid⟶ f) x) ≈N Hom.map f (SLfold M x)
+  SLfold-natural : (x : SillyList MX) → SLfold N (SLmap F x) ≈N map (SLfold M x)
   SLfold-natural [] = sym ε-homo
   SLfold-natural (Leaf x) = refl
   SLfold-natural (x ++ y) = trans
@@ -146,8 +90,8 @@ MonoidCat o e = record
   { Obj = Monoid o e
   ; _⇒_ = Hom
   ; _≈_ = λ {_} {B} f g → (∀ x → Monoid._≈_ B (map f x) (map g x))
-  ; id = HomId
-  ; _∘_ = _H∘_
+  ; id = idH
+  ; _∘_ = _∘H_
   ; assoc = λ { {D = D} _ → refl D}
   ; sym-assoc = λ { {D = D} _ → refl D}
   ; identityˡ = λ {_} {B} _ → refl B
@@ -169,7 +113,7 @@ MonoidCat o e = record
 Underlying : (o e : Level) → Functor (MonoidCat o e) (Setoids o e)
 Underlying o e = record
   { F₀             =   Monoid.setoid
-  ; F₁             =   setoid⟶
+  ; F₁             =   Hom.setoid⟶
   ; identity       =   id
   ; homomorphism   =   λ {_} {_} {Z} {f} {g} x≈y → Hom.cong g (Hom.cong f x≈y) 
   ; F-resp-≈       =   λ {_} {B} {f} {g} f≈g {x} {y} x≈y → Monoid.trans B (f≈g x) (Hom.cong g x≈y)
@@ -183,7 +127,7 @@ Free o e = record
            let M = SLMonoid A
                N = SLMonoid B in
            hom (SLmap f)
-               (H.mkIsHom {M = M} {N} (SLmap f)
+               (mkIsHom {M = M} {N} (SLmap f)
                    (SLmap-cong f)
                    (λ _ _ → Monoid.refl N)
                    [])
@@ -229,10 +173,10 @@ ListLeft o = record
     module FU = Functor FU
     fold : (X : Monoid o o) → Hom (FU.₀ X) X
     fold X = hom (SLfold X)
-                 (H.mkIsHom {M = SLMonoid (Monoid.setoid X)} {X} (SLfold X)
-                            SLfold-cong
-                            (λ _ _ → Monoid.refl X) -- ∙-homo is free
-                            (Monoid.refl X))        -- ε-pres is free
+                 (mkIsHom {M = SLMonoid (Monoid.setoid X)} {X} (SLfold X)
+                          SLfold-cong
+                          (λ _ _ → Monoid.refl X) -- ∙-homo is free
+                          (Monoid.refl X))        -- ε-pres is free
     zig : {S : Setoid o o} (x : SillyList S) →
       SLfold (SLMonoid S) (SLmap (singleton S) x) ≈ x
     zig []       = []
