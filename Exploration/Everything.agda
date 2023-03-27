@@ -20,6 +20,8 @@ open import GroupActPosition
 -- Jacques' version of similar, split up
 
 open import SillyList.Core
+open import SillyList.Equivalence
+open import SillyList.Properties
 open import SillyList
 
 open import Partition

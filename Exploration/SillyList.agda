@@ -19,103 +19,17 @@ open import Categories.Category.Instance.Setoids using (Setoids)
 open import Categories.Adjoint using (Adjoint)
 open import Categories.NaturalTransformation using (ntHelper)
 
+-- The definition of SillyList, map and fold
 open import SillyList.Core public
+-- The definition of the equivalence relation to use
+open import SillyList.Equivalence public
+-- Some useful properties of SLmap
+open import SillyList.Properties public
 
 private
   variable
     o ℓ e o₁ o₂ o₃ e₁ e₂ e₃ : Level
     A B X Y Z : Setoid o e
-
-infix  2 _≈_
-
--- Since that's quotiented, exhibit that as well:
--- Note well the level here.
-data _≈_ {A : Setoid o e} : SillyList A → SillyList A → Set (o ⊔ e) where
-  -- it's a congruence
-  Leaf : {a b : ∣ A ∣} → Setoid._≈_ A a b → Leaf a ≈ Leaf b
-  []   : [] ≈ []
-  _++_ : {l₁ l₂ s₁ s₂ : SillyList A} → l₁ ≈ s₁ → l₂ ≈ s₂ → l₁ ++ l₂ ≈ s₁ ++ s₂
-  -- [] on left and right don't matter, on either side
-  -- one could also assume ≈ is symmetric, but this leads to other problems.
-  -- this way turns out more economical.
-  []++ˡ : {l : SillyList A} → [] ++ l ≈ l
-  ++[]ˡ : {l : SillyList A} → l ++ [] ≈ l
-  []++ʳ : {l : SillyList A} → l ≈ [] ++ l
-  ++[]ʳ : {l : SillyList A} → l ≈ l ++ []
-  -- it is associative
-  assoc++ˡ : {l₁ l₂ l₃ : SillyList A} → (l₁ ++ l₂) ++ l₃ ≈ l₁ ++ (l₂ ++ l₃)
-  assoc++ʳ : {l₁ l₂ l₃ : SillyList A} → l₁ ++ (l₂ ++ l₃) ≈ (l₁ ++ l₂) ++ l₃
-  -- and it is transitive too
-  _⊚_ : {l₁ l₂ l₃ : SillyList A} → l₁ ≈ l₂ → l₂ ≈ l₃ → l₁ ≈ l₃ 
-
--- It really is an equivalence relation:
-private
-  module _ {A : Setoid o e} where
-    open Setoid A hiding (_≈_)
-    -- This is tedious, but rightly so: we're asking for something odd.
-    -- Just because it workds doesn't mean it's a good idea!
-    ≈-refl : Reflexive (_≈_ {A = A})
-    ≈-refl {[]} = []
-    ≈-refl {Leaf x} = Leaf refl
-    ≈-refl {l₀ ++ l₁} = ≈-refl ++ ≈-refl
-
-    ≈-sym : Symmetric (_≈_ {A = A})
-    ≈-sym (Leaf x) = Leaf (sym x)
-    ≈-sym [] = []
-    ≈-sym (eq₀ ++ eq₁) = ≈-sym eq₀ ++ ≈-sym eq₁
-    ≈-sym []++ˡ = []++ʳ
-    ≈-sym []++ʳ = []++ˡ
-    ≈-sym ++[]ˡ = ++[]ʳ
-    ≈-sym ++[]ʳ = ++[]ˡ
-    ≈-sym assoc++ˡ = assoc++ʳ
-    ≈-sym assoc++ʳ = assoc++ˡ
-    ≈-sym (eq₀ ⊚ eq₁) = ≈-sym eq₁ ⊚ ≈-sym eq₀
-
-    ++-cong : Congruent₂ (_≈_ {A = A}) _++_
-    ++-cong = _++_
-    
-≈-equiv : {A : Setoid o e} → IsEquivalence (_≈_ {A = A})
-≈-equiv = record
-  { refl = ≈-refl
-  ; sym = ≈-sym
-  ; trans = _⊚_
-  }
-
--- We're going to need to know that SLmap preserves ≈
--- And this is yet another split on the proof of ≈
-SLmap-cong : {x y : SillyList A} (f : A ⟶ B) → x ≈ y → SLmap f x ≈ SLmap f y
-SLmap-cong f (Leaf x≈y) = Leaf (Π.cong f x≈y)
-SLmap-cong f [] = []
-SLmap-cong f (x≈y ++ z≈w) = SLmap-cong f x≈y ++ SLmap-cong f z≈w
-SLmap-cong f []++ˡ = []++ˡ
-SLmap-cong f ++[]ˡ = ++[]ˡ
-SLmap-cong f []++ʳ = []++ʳ
-SLmap-cong f ++[]ʳ = ++[]ʳ
-SLmap-cong f assoc++ˡ = assoc++ˡ
-SLmap-cong f assoc++ʳ = assoc++ʳ
-SLmap-cong f (x≈y ⊚ z≈w) = SLmap-cong f x≈y ⊚ SLmap-cong f z≈w
-
--- The following 3 proofs have all the same pattern. They are all
--- "by induction" on SillyList. We could encapsulate this in an
--- induction principle and then use it. Perhaps worth it for
--- pedagogical reasons?
-SLmap-id : (x : SillyList A) → SLmap SF.id x ≈ x
-SLmap-id [] = []
-SLmap-id {A = A} (Leaf x) = Leaf (Setoid.refl A)
-SLmap-id (x ++ y) = SLmap-id x ++ SLmap-id y
-
-SLmap-hom : {f : X ⟶ Y} {g : Y ⟶ Z} (x : SillyList X) →
-  SLmap (g SF.∘ f) x ≈ SLmap g (SLmap f x)
-SLmap-hom [] = []
-SLmap-hom {Z = Z} (Leaf x) = Leaf (Setoid.refl Z)
-SLmap-hom (x ++ y) = SLmap-hom x ++ SLmap-hom y
-
--- SLmap respects when two Setoid functions are ≈
-SLmap-S-cong : {f g : X ⟶ Y} → ({x y : ∣ X ∣} → Setoid._≈_ X x y →
-  Setoid._≈_ Y (f ⟨$⟩ x) (g ⟨$⟩ y)) → (x : SillyList X) → SLmap f x ≈ SLmap g x
-SLmap-S-cong resp [] = []
-SLmap-S-cong {X = X} resp (Leaf x) = Leaf (resp (Setoid.refl X))
-SLmap-S-cong resp (x ++ y) = SLmap-S-cong resp x ++ SLmap-S-cong resp y
 
 -- Silly lists are monoids
 SLMonoid : Setoid o e → Monoid o (o ⊔ e)
