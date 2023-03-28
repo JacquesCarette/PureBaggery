@@ -27,31 +27,13 @@ open import SillyList.Equivalence public
 open import SillyList.Properties public
 -- We need to talk about homomorphisms of Setoid-based monoids
 open import SetoidMonoid.Hom
+-- These are monoids
+open import SillyList.Monoid
 
 private
   variable
     o ℓ e o₁ o₂ o₃ e₁ e₂ e₃ : Level
     A B X Y Z : Setoid o e
-
--- Silly lists are monoids
-SLMonoid : Setoid o e → Monoid o (o ⊔ e)
-SLMonoid S = record
-  { Carrier = SillyList S
-  ; _≈_ = _≈_
-  ; _∙_ = _++_
-  ; ε = []
-  ; isMonoid = record
-    { isSemigroup = record
-      { isMagma = record
-        { isEquivalence = ≈-equiv
-        ; ∙-cong = ++-cong
-        }
-      ; assoc = λ x y z → assoc++ˡ {_} {_} {_} {x} {y} {z}
-      }
-    ; identity = (λ x → []++ˡ) , λ x → ++[]ˡ
-    }
-  }
--- Note how we end up using all the pieces of _≈_ somewhere.
 
 -- The collection of monoids form a Category
 MonoidCat : (o e : Level) → Category (suc (o ⊔ e)) (o ⊔ e) (o ⊔ e)
