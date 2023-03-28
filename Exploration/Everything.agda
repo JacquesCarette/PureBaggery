@@ -26,6 +26,8 @@ open import SetoidMonoid.Hom
 open import SillyList.Core
 open import SillyList.Equivalence
 open import SillyList.Properties
+open import SillyList.Monoid
+open import SillyList.Categorical
 open import SillyList
 
 open import Partition
