@@ -30,13 +30,23 @@ open import SillyList.Monoid
 open import SillyList.Categorical
 open import SillyList
 
-open import Partition
-open import Perm
-
+-- FreeMonoid, i.e. the List-based Monoid, over propositional equality
+open import SetMonoid.Core
 open import FreeMonoid
+
+-- Partitions and Permutations over ≡
+-- Not actually used, since Bag has to be over Setoid.
+open import Partition
+open import Permutation
+
+-- Partitions and Permutations over Setoids
 open import SetoidPartition
 open import SetoidPermutations
+
+-- Bags as a 'silly' term algebra
 open import SillyBag
+
+-- Bags as a quotient of lists, induced by permutations
 open import Bag
 
 -- open import NoBag -- not ready at all

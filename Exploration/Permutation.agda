@@ -2,7 +2,7 @@
 
 -- This is a version of Perm that uses as much of stdlib
 -- as possible, while also trying to use its style.
-module PermJ where
+module Permutation where
 
 open import Data.List.Base as List using (List; []; _∷_; [_]; _++_)
 open import Data.List.Properties using (++-identityʳ)
