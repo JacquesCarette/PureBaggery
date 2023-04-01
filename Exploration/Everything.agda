@@ -22,6 +22,14 @@ open import GroupActPosition
 -- some kit for monoids
 open import SetoidMonoid.Hom
 
+-- partitions and permutations (implicitly) based on ≡
+open import Partition
+open import Perm
+
+-- partitions and permutations based on Setoid
+open import SetoidPartition
+open import SetoidPermutations
+
 -- SillyList, aka the full Term Algebra version of List
 open import SillyList.Core
 open import SillyList.Equivalence

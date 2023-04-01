@@ -82,15 +82,15 @@ CMonoidCat o e = record
   ; identity² = λ {A} _ → refl A
   ; equiv = λ {A} {B} → record
     { refl = λ _ → refl B
-    ; sym = λ Fx≈Fy x → CommutativeMonoid.sym B (Fx≈Fy x)
-    ; trans = λ Ix≈Jx Jx≈Hx x → CommutativeMonoid.trans B (Ix≈Jx x) (Jx≈Hx x)
+    ; sym = λ Fx≈Fy x → sym B (Fx≈Fy x)
+    ; trans = λ Ix≈Jx Jx≈Hx x → trans B (Ix≈Jx x) (Jx≈Hx x)
     }
   ; ∘-resp-≈ = λ {_} {_} {C} {f} {h} {g} {i} fx≈hx gx≈ix x →
-                CommutativeMonoid.trans C (cong f (gx≈ix x)) (fx≈hx (Hom.map i x))
+                trans C (cong f (gx≈ix x)) (fx≈hx (map i x))
   }
   where
     open Hom using (map; cong)
-    open CommutativeMonoid using (refl; monoid)
+    open CommutativeMonoid using (refl; sym; trans; monoid)
 
 -- the underlying setoid map from a commutative monoid homomorphism
 setoid⟶ : {M N : CommutativeMonoid o e} →
