@@ -3,8 +3,6 @@ module ActionGroupoid where
 open import Data.Product using (Σ; _,_; proj₁; proj₂)
 open import Level
 
-open import Relation.Binary.PropositionalEquality.Core using ()
-
 open import GroupActPosition
 
 open import Categories.Category.Core using (Category)
