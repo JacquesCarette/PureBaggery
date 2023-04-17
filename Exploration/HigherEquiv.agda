@@ -1,7 +1,7 @@
 module HigherEquiv where
 
 open import Data.Fin using (Fin)
-open import Data.Product using (_×_; _,_)
+open import Data.Product using (Σ; _×_; _,_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Unit.Polymorphic using (⊤; tt)
 open import Function.Base using (_∘_)
@@ -83,3 +83,31 @@ HigherAct {P = P} {G} A n = record
               ∀ pn qn → liftPred _c=_ n pn qn → liftPred _c=_ n (liftFun (_% h) n pn) (liftFun (_% h) n qn)
     distrib h zero R _ _ = tt
     distrib h (suc n) (a , s) (b , t) (a≤b , s~t) = actc= a b h a≤b , distrib h n s t s~t
+
+record IsEquivalence {A : Set} (_≈_ : A → A → Set) : Set where
+  field
+    refl : ∀ {a} → a ≈ a
+    sym : ∀ {a b} → a ≈ b → b ≈ a
+    trans : ∀ {a b c} → a ≈ b → b ≈ c → a ≈ c
+
+module _ {P : Poset} {G : Group} (A : Action P G) where
+  open Poset P
+  open Action A
+  open Group G
+  open IsEquivalence
+  
+  Act⇒Equiv : Pos → Pos → Set
+  Act⇒Equiv p q = Σ Grp (λ g → p % g ~ q)
+
+  isEquiv : IsEquivalence Act⇒Equiv
+  refl isEquiv {a} = neu , (a %neu)
+  sym isEquiv {a} {b} (g , a%g~b) = inv g ,
+    b % inv g        < (_% inv g) $~ a%g~b ]~
+    a % g % inv g    < act& a g (inv g) ]~
+    a % (g & inv g)  ~[ actrinv a g >
+    a                [QED]
+  trans isEquiv {a} {b} {c} (g , a%g~b) (h , b%h~c) = g & h ,
+    a % (g & h) ~[ act& a g h >
+    a % g % h   ~[ _% h $~ a%g~b >
+    b % h       ~[ b%h~c >
+    c            [QED]
