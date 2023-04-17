@@ -117,25 +117,21 @@ record Action (P : Poset)(G : Group) : Set where
     _%neu : (p : Pos) -> p % neu ~ p
     act&  : (p : Pos)(g h : Grp) -> p % (g & h) ~ p % g % h
     actc= : (p q : Pos)(g : Grp) -> p c= q -> (p % g) c= (q % g)
+  actrinv : (p : Pos)(g : Grp) → p % (g & inv g) ~ p
+  actrinv p g = 
+    p % (g & inv g) ~[ p %_ $~ (g &inv) >
+    p % neu         ~[ p %neu >
+    p               [QED]
+   
   actinj : (p q : Pos)(g : Grp) ->
     p % g ~ q % g -> p ~ q
   actinj p q g h =
-    p
-      < p %neu ]~
-    p % neu
-      < p %_ $~ g &inv ]~
-    p % (g & inv g)
-      ~[ act& p g (inv g) >
-    p % g % inv g
-      ~[ _% inv g $~ h >
-    q % g % inv g
-      < act& q g (inv g) ]~
-    q % (g & inv g) 
-      ~[ q %_ $~ g &inv >
-    q % neu
-      ~[ q %neu >
-    q
-      [QED]
+    p                 < actrinv p g ]~
+    p % (g & inv g)   ~[ act& p g (inv g) >
+    p % g % inv g     ~[ _% inv g $~ h >
+    q % g % inv g     < act& q g (inv g) ]~
+    q % (g & inv g)   ~[ actrinv q g >
+    q                 [QED]
 
 module _ (X : Set) where
   open Poset
