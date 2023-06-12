@@ -6,8 +6,8 @@
 -- and work with propositional equality!!
 module FreeMonoid where
 
-open import Algebra using (RawMonoid; Op₂; IsMonoid)
-open import Algebra.Morphism.Structures using (IsMonoidHomomorphism; IsMagmaHomomorphism)
+-- open import Algebra using (RawMonoid; Op₂; IsMonoid)
+-- open import Algebra.Morphism.Structures using (IsMonoidHomomorphism; IsMagmaHomomorphism)
 open import Data.List as List using (List; []; _∷_; _++_; [_]; foldr)
 open import Data.List.Properties
 open import Data.Product using (_,_)
