@@ -4,6 +4,7 @@ record Hide (X : Set) : Set where
   constructor hide
   field
     .expose : X
+open Hide public
 
 data Zero' : Set where
 Zero = Hide Zero'
@@ -30,6 +31,31 @@ _-_ : forall {i j k}{A : Set i}{B : A -> Set j}{C : (a : A) -> B a -> Set k}
   -> C a (f a)
 (f - g) a = g (f a)
 
+data QC (X : Set)(R : X -> X -> Set)(x : X) : X -> Set where
+  one : {y : X} -> R x y -> QC X R x y
+  rfl : QC X R x x
+  sym : {y : X} -> QC X R y x -> QC X R x y
+  xtv : {y z : X} -> QC X R x y -> QC X R y z -> QC X R x z
+
+{-
+PathOverQC : {X : Set}{R : X -> X -> Set}
+  (P : X -> Set)(Q : (X >< P) -> (X >< P) -> Set)
+  -> {x0 x1 : X} -> QC X R x0 x1
+  -> P x0 -> P x1 -> Set
+PathOverQC P Q (one r01) p0 p1 = Q (_ , p0) (_ , p1)
+PathOverQC P Q {x0} rfl p0 p1 = QC (P x0) (\ _ _ -> Zero) p0 p1  -- BOO! HISS!
+PathOverQC P Q (sym x10) p0 p1 = PathOverQC P Q x10 p1 p0
+PathOverQC P Q (xtv x01 x12) p0 p2 =
+  _ >< \ p1 ->
+  PathOverQC P Q x01 p0 p1 >< \ _ ->
+  PathOverQC P Q x12 p1 p2
+-}
+
+record _/_ (X : Set)(R : X -> X -> Set) : Set where
+  constructor `[_]
+  field
+    rep : X
+
 data P : Set
 Pr : P -> Set
 data U : Set
@@ -39,11 +65,15 @@ data P where
   `Zero `One : P
   _`/\_ : (S : P)(T : P) -> P
   _`->_ : (S : U)(T : El S -> P) -> P
+  `In : (T : U) -> P
+  `QC   : (T : U)(R : El T -> El T -> P) -> El T -> El T -> P
 
 Pr `Zero = Zero
 Pr `One = One
-Pr (P `/\ Q) = Pr P * Pr Q
-Pr (S `-> P) = (s : El S) -> Pr (P s)
+Pr (A `/\ B) = Pr A * Pr B
+Pr (S `-> B) = (s : El S) -> Pr (B s)
+Pr (`In T) = Hide (El T)
+Pr (`QC T R i j) = QC (El T) (\ i j -> Pr (R i j)) i j
 
 Eq : (S T : U) -> El S -> El T -> P
 
@@ -51,14 +81,18 @@ data U where
   `Zero `One `Two : U
   _`><_ _`->_ : (S : U)(T : El S -> U) -> U
   `Pr : P -> U
+  _`/_ : (T : U)(R : El T -> El T -> P) -> U
 
 El `Zero = Zero
 El `One = One
 El `Two = Two
 El (S `>< T) = El S >< \ s -> El (T s)
 El (S `-> T) = (s : El S) -> El (T s)
-El (`Pr P)   = Hide (Pr P)
+El (`Pr A)   = Hide (Pr A)
+El (T `/ R)  = El T / \ x y -> Hide (Pr (R x y))
 
+-- This is Pious heterogeneous equality:
+-- "if the types are equal, then so are the values"
 Eq `One `One  _  _ = `One
 Eq `Two `Two `0 `0 = `One
 Eq `Two `Two `0 `1 = `Zero
@@ -68,7 +102,13 @@ Eq (S0 `>< T0) (S1 `>< T1) (s0 , t0) (s1 , t1) =
   Eq S0 S1 s0 s1 `/\ Eq (T0 s0) (T1 s1) t0 t1 
 Eq (S0 `-> T0) (S1 `-> T1) f0 f1 =
   S0 `-> \ s0 -> S1 `-> \ s1 -> `Pr (Eq S0 S1 s0 s1) `-> \ _ ->
-  Eq (T0 s0) (T1 s1) (f0 s0) (f1 s1) 
+  Eq (T0 s0) (T1 s1) (f0 s0) (f1 s1)
+Eq (T0 `/ R0) (T1 `/ R1) `[ t0 ] `[ t1 ] = `In
+  (T0 `>< \ m0 -> T1 `>< \ m1 -> 
+   `Pr (`QC T0 R0 t0 m0) `>< \ _ ->
+   `Pr (Eq T0 T1 m0 m1) `>< \ _ ->
+   `Pr (`QC T1 R1 m1 t1) )
+-- off the type diagonal, Pious equality holds vacuously
 Eq _ _ _ _ = `One
 
 record EQ (S T : U)(s : El S)(t : El T) : Set where
@@ -76,19 +116,33 @@ record EQ (S T : U)(s : El S)(t : El T) : Set where
   field [=_=] : Pr (Eq S T s t)
 open EQ public
 
+_`=>_ : P -> P -> P
+A `=> B = `Pr A `-> \ _ -> B
+
+postulate
+  InPr : (T : U)(A : P) -> El (T `-> \ _ -> `Pr A) -> Pr (`In T `=> A)
+
+PrIn : (T : U)(A : P) -> Pr (`In T `=> A) -> El (T `-> \ _ -> `Pr A)
+PrIn T A f t = hide (f (hide (hide t)))
+
+-- *structural* type equality
 _<~>_ : U -> U -> P
 `Zero <~> `Zero = `One
 `One <~> `One = `One
 `Two <~> `Two = `One
 (S0 `>< T0) <~> (S1 `>< T1) =
-  (S0 <~> S1) `/\ (
-  S0 `-> \ s0 -> S1 `-> \ s1 -> `Pr (Eq S0 S1 s0 s1) `-> \ _ ->
-  T0 s0 <~> T1 s1 )
+  (S0 <~> S1) `/\
+  (S0 `-> \ s0 -> S1 `-> \ s1 -> Eq S0 S1 s0 s1 `=> (T0 s0 <~> T1 s1))
 (S0 `-> T0) <~> (S1 `-> T1) = 
-  (S1 <~> S0) `/\ (
-  S0 `-> \ s0 -> S1 `-> \ s1 -> `Pr (Eq S1 S0 s1 s0) `-> \ _ ->
-  T0 s0 <~> T1 s1 )
-`Pr P0 <~> `Pr P1 = (`Pr P0 `-> \ _ -> P1) `/\ (`Pr P1 `-> \ _ -> P0)
+  (S1 <~> S0) `/\
+  (S0 `-> \ s0 -> S1 `-> \ s1 -> Eq S1 S0 s1 s0 `=> (T0 s0 <~> T1 s1))
+`Pr P0 <~> `Pr P1 = (P0 `=> P1) `/\ (P1 `=> P0)
+(T0 `/ R0) <~> (T1 `/ R1) = (T0 <~> T1) `/\
+  (T0 `-> \ s0 -> T1 `-> \ s1 -> Eq T0 T1 s0 s1 `=>
+   (T0 `-> \ t0 -> T1 `-> \ t1 -> Eq T0 T1 t0 t1 `=>
+   let P0 = R0 s0 t0 ; P1 = R1 s1 t1 in
+   (P0 `=> P1) `/\ (P1 `=> P0)
+  ))
 _ <~> _ = `Zero
 
 coe : (X Y : U)(q : Hide (Pr (X <~> Y))) -> El X -> El Y
@@ -119,6 +173,7 @@ coe (S0 `-> T0) (S1 `-> T1) (hide q) f0 s1
   with s0 <- coe S1 S0 (hide (fst q)) s1
      = coe (T0 s0) (T1 s1) (hide (snd q s0 s1 (hide [= sq =]))) (f0 s0)
 coe (`Pr P0) (`Pr P1) (hide q) p0 = hide (fst q p0)
+coe (T0 `/ R0) (T1 `/ R1) (hide q) `[ t0 ] = `[ coe T0 T1 (hide (fst q)) t0 ]
 
 J : {X : U}{x y : El X}(q : Hide (EQ X X x y))
     (P : (y : El X) -> Hide (EQ X X x y) -> U)
@@ -133,6 +188,23 @@ J {X}{x}{y} (hide q) P p =
 
 infixr 2 _-[_>_ _<_]-_
 infixr 3 _[QED]
+
+
+--------------------------------------------------------------
+-- these two are the interface to quotients we should export
+--------------------------------------------------------------
+quotElim : (X : U)(R : El X -> El X -> P)
+  (c : El (X `/ R))
+  (P : El (X `/ R) -> U)
+  -> (p : El (X `-> \ x -> P `[ x ]))
+  -> El (`Pr (X `-> \ x -> X `-> \ y -> (`QC X R x y `=>
+        Eq (P `[ x ]) (P `[ y ]) (p x) (p y))))
+  -> El (P c)
+quotElim X R `[ x ] P p q = p x
+
+[_] : forall {X}{R : El X -> El X -> P} -> El X -> El (X `/ R)
+[ x ] = `[ x ]
+--------------------------------------------------------------
 
 _<=>_ : U -> U -> U
 S <=> T
@@ -189,9 +261,15 @@ Vu `One = `One
 Vu `Two = `Two
 Vu (S `>< T) = Vu S `>< \ s -> Vu (T s)
 Vu (S `-> T) = Vu S `-> \ s -> Vu (T s)
-Vu (`Pr P) = `Pr P
+Vu (`Pr A) = `Pr A
 Vu (S `<=> T) = Vu S <=> Vu T
-Vu ([ S <! P / G / p ] X) =
-  Vu S `>< \ s -> Vu (P s) `-> \ p -> Vu X
-  -- LIES!
-  
+Vu ([ Sh <! Po / Gr / gr ] X) =
+  Vu Sh `>< \ s -- choose a shape
+  ->
+  -- then get the lookup functions quotiented by the group
+  ((Vu (Po s) `-> \ _ -> Vu X) `/ \ f0 f1
+    -> (Vu (Po s) <=> Vu (Po s)) `-> \ g
+    -> Gr s g `=> (Vu (Po s) `-> \ p -> Eq (Vu X) (Vu X) (f0 p) (f1 (fst g p))))
+
+{- We didn't use gr because QC imposes equivalence closure. Perhaps we should
+demand an equivalence rather than extending to one. -}
