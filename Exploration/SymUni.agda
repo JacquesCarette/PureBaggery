@@ -1,3 +1,5 @@
+{-# OPTIONS --irrelevant-projections #-}
+
 module SymUni where
 
 record Hide (X : Set) : Set where
@@ -6,10 +8,20 @@ record Hide (X : Set) : Set where
     .expose : X
 open Hide public
 
+.join : {X : Set} -> Hide (Hide X) -> Hide X
+join h = expose h
+
+
+
+
 data Zero' : Set where
 Zero = Hide Zero'
 record One : Set where constructor <>
 data Two : Set where `0 `1 : Two
+_<01>_ : forall {k}{P : Two -> Set k} -> P `0 -> P `1 -> (b : Two) -> P b
+(p0 <01> p1) `0 = p0
+(p0 <01> p1) `1 = p1
+
 record _><_ (S : Set)(T : S -> Set) : Set where
   constructor _,_
   field
@@ -20,6 +32,8 @@ infixr 10 _,_
 _+_ _*_ : Set -> Set -> Set
 S + T = Two >< \ { `0 -> S ; `1 -> T }
 S * T = S >< \ _ -> T
+
+data Nat : Set where ze : Nat ; su : Nat -> Nat
 
 id : forall {k}{X : Set k} -> X -> X
 id x = x
@@ -78,7 +92,7 @@ Pr (`QC T R i j) = QC (El T) (\ i j -> Pr (R i j)) i j
 Eq : (S T : U) -> El S -> El T -> P
 
 data U where
-  `Zero `One `Two : U
+  `Zero `One `Two `Nat : U
   _`><_ _`->_ : (S : U)(T : El S -> U) -> U
   `Pr : P -> U
   _`/_ : (T : U)(R : El T -> El T -> P) -> U
@@ -86,6 +100,7 @@ data U where
 El `Zero = Zero
 El `One = One
 El `Two = Two
+El `Nat = Nat
 El (S `>< T) = El S >< \ s -> El (T s)
 El (S `-> T) = (s : El S) -> El (T s)
 El (`Pr A)   = Hide (Pr A)
@@ -98,6 +113,10 @@ Eq `Two `Two `0 `0 = `One
 Eq `Two `Two `0 `1 = `Zero
 Eq `Two `Two `1 `0 = `Zero
 Eq `Two `Two `1 `1 = `One
+Eq `Nat `Nat ze ze = `One
+Eq `Nat `Nat ze (su y) = `Zero
+Eq `Nat `Nat (su x) ze = `Zero
+Eq `Nat `Nat (su x) (su y) = Eq `Nat `Nat x y
 Eq (S0 `>< T0) (S1 `>< T1) (s0 , t0) (s1 , t1) =
   Eq S0 S1 s0 s1 `/\ Eq (T0 s0) (T1 s1) t0 t1 
 Eq (S0 `-> T0) (S1 `-> T1) f0 f1 =
@@ -130,6 +149,7 @@ _<~>_ : U -> U -> P
 `Zero <~> `Zero = `One
 `One <~> `One = `One
 `Two <~> `Two = `One
+`Nat <~> `Nat = `One
 (S0 `>< T0) <~> (S1 `>< T1) =
   (S0 <~> S1) `/\
   (S0 `-> \ s0 -> S1 `-> \ s1 -> Eq S0 S1 s0 s1 `=> (T0 s0 <~> T1 s1))
@@ -163,6 +183,7 @@ postulate
 
 coe `One `One q _ = _
 coe `Two `Two q b = b
+coe `Nat `Nat q n = n
 coe (S0 `>< T0) (S1 `>< T1) (hide q) (s0 , t0)
   with hide sq <- hide (coh S0 S1 (hide (fst q)) s0)
   with s1 <- coe S0 S1 (hide (fst q)) s0
@@ -182,7 +203,7 @@ J : {X : U}{x y : El X}(q : Hide (EQ X X x y))
 J {X}{x}{y} (hide q) P p =
   coe (P x (hide refl)) (P y (hide q)) (hide (
     Resp {X `>< \ y -> `Pr (Eq X X x y)}
-      {x , hide [= refl =]}{y , hide [= q =]}
+      {x , hide [= refl{X}{x} =]}{y , hide [= q =]}
       (eq ([= q =] , _))
       (\ (y , hide q) -> P y (hide (eq q))))) p
 
@@ -215,7 +236,7 @@ S <=> T
          )
 
 idIso : (X : U) -> El (X <=> X)
-idIso X = id , id , hide ((\ x -> [= refl =]) , (\ x -> [= refl =]))
+idIso X = id , id , hide ((\ x -> [= refl{X}{x} =]) , (\ x -> [= refl{X}{x} =]))
 
 invIso : (S T : U) -> El (S <=> T) -> El (T <=> S)
 invIso S T (f , g , hide p) = g , f , hide (snd p , fst p)
@@ -247,7 +268,7 @@ data V : Set
 Vu : V -> U
 
 data V where
-  `Zero `One `Two : V
+  `Zero `One `Two `Nat : V
   _`><_ _`->_ : (S : V)(T : El (Vu S) -> V) -> V
   `Pr : P -> V
   _`<=>_ : (S T : V) -> V
@@ -259,6 +280,7 @@ data V where
 Vu `Zero = `Zero
 Vu `One = `One
 Vu `Two = `Two
+Vu `Nat = `Nat
 Vu (S `>< T) = Vu S `>< \ s -> Vu (T s)
 Vu (S `-> T) = Vu S `-> \ s -> Vu (T s)
 Vu (`Pr A) = `Pr A
@@ -273,3 +295,23 @@ Vu ([ Sh <! Po / Gr / gr ] X) =
 
 {- We didn't use gr because QC imposes equivalence closure. Perhaps we should
 demand an equivalence rather than extending to one. -}
+
+Fin : Nat -> V
+Fin ze     = `Zero
+Fin (su n) = `Two `>< (Fin n <01> `One)
+
+{- need trivial groups for lists
+.Trivial : (X : U) -> Pr (Aut X \ f -> Eq (X <=> X) (X <=> X) f (idIso X))
+Trivial X = ((\ { x y q -> expose q }) , (\ x y q -> expose q) , _)
+      , (\ (f , g , q) y -> {!!})
+      , {!!}
+-}
+
+Liberal : (X : U) -> Pr (Aut X \ f -> `One)
+Liberal X = _
+
+SymmetricGroup : (n : Nat) -> El (Vu (Fin n) <=> Vu (Fin n)) -> P
+SymmetricGroup n = \ _ -> `One
+
+Bag : V -> V
+Bag X = [ `Nat <! Fin / (\ n f -> `One ) / _ ] X
