@@ -18,9 +18,11 @@ record Hide (X : Set) : Set where
     .expose : X
 open Hide public
 
+{-
 -- Agda's not happy when expose is used directly, but fine with:
 .join : {X : Set} -> Hide (Hide X) -> Hide X
 join h = expose h
+-}
 
 --------------
 -- empty, singleton and (exactly) 2 point set along with eliminator
@@ -100,6 +102,7 @@ Pr : P -> Set
 data U : Set
 El : U -> Set
 
+
 -- false, true, and, implication, inhabitation and
 --  equivalence under the (closure of) a relation
 data P where
@@ -108,6 +111,8 @@ data P where
   _`->_ : (S : U)(T : El S -> P) -> P
   `In : (T : U) -> P
   `QC   : (T : U)(R : El T -> El T -> P) -> El T -> El T -> P
+  -- It might be tempting to add a code for equality, but it's hard to decode.
+  -- `Eq   : (S T : U) -> El S -> El T -> P
 
 -- Straightforward Curry-Howard style representation
 Pr `Zero = Zero
@@ -116,11 +121,11 @@ Pr (A `/\ B) = Pr A * Pr B
 Pr (S `-> B) = (s : El S) -> Pr (B s)
 Pr (`In T) = Hide (El T)
 Pr (`QC T R i j) = QC (El T) (\ i j -> Pr (R i j)) i j
+-- Decoding `Eq makes a not obviously structural recursive call to Pr.
+-- Pr (`Eq S T s t) = Pr (Eq S T s t)
 
--- We need to be able to talk about equality of
---  representations
--- Note that P/Pr don't depend on this directly
-Eq : (S T : U) -> El S -> El T -> P
+infixr 10 _`/\_
+infixr 5  _`->_
 
 -- empty, singleton, 2, naturals,
 -- sigma, pi, proofs and quotients
@@ -137,8 +142,26 @@ El `Two = Two
 El `Nat = Nat
 El (S `>< T) = El S >< \ s -> El (T s)
 El (S `-> T) = (s : El S) -> El (T s)
-El (`Pr A)   = Hide (Pr A)
+El (`Pr A)   = Pr A -- Hide (Pr A)
 El (T `/ R)  = El T / \ x y -> Hide (Pr (R x y)) -- should explain
+
+-- nondependent abbreviations
+_`>_ _`*_ : U -> U -> U
+S `> T = S `-> \ _ -> T
+S `* T = S `>< \ _ -> T
+infixr 5 _`>_
+infixr 10 _`*_
+
+
+-- "ordinary" implication, aka non-dependent
+_`=>_ : P -> P -> P
+A `=> B = `Pr A `-> \ _ -> B
+infixr 5 _`=>_
+
+Eq : (S T : U) -> El S -> El T -> P
+-- We need to be able to talk about equality of
+--  representations
+-- Note that P/Pr don't depend on this directly
 
 -- This is Pious heterogeneous equality:
 -- "if the types are equal, then so are the values"
@@ -154,28 +177,17 @@ Eq `Nat `Nat (su x) (su y) = Eq `Nat `Nat x y
 Eq (S0 `>< T0) (S1 `>< T1) (s0 , t0) (s1 , t1) =
   Eq S0 S1 s0 s1 `/\ Eq (T0 s0) (T1 s1) t0 t1 
 Eq (S0 `-> T0) (S1 `-> T1) f0 f1 =
-  S0 `-> \ s0 -> S1 `-> \ s1 -> `Pr (Eq S0 S1 s0 s1) `-> \ _ ->
+  S0 `-> \ s0 -> S1 `-> \ s1 -> Eq S0 S1 s0 s1 `=>
   Eq (T0 s0) (T1 s1) (f0 s0) (f1 s1)
 Eq (T0 `/ R0) (T1 `/ R1) `[ t0 ] `[ t1 ] = `In
+  -- to cope with heterogeneity, we have to find our way
+  -- using R0 on t0 and R1 on t1 to a pair
+  -- of representatives which are T0-T1-equal
   (T0 `>< \ m0 -> T1 `>< \ m1 -> 
-   `Pr (`QC T0 R0 t0 m0) `>< \ _ ->
-   `Pr (Eq T0 T1 m0 m1) `>< \ _ ->
-   `Pr (`QC T1 R1 m1 t1) )
+   `Pr (`QC T0 R0 t0 m0 `/\ Eq T0 T1 m0 m1 `/\ `QC T1 R1 m1 t1))
 -- off the type diagonal, Pious equality holds vacuously
 Eq _ _ _ _ = `One
 
--- Equality of representatives of given types, which must
--- by done as a proof of said (Pious heterogeneous) equality
---
--- S, T made implicit; Eq makes sure that is fine
-record EQ {S T : U}(s : El S)(t : El T) : Set where
-  constructor eq
-  field [=_=] : Pr (Eq S T s t)
-open EQ public
-
--- "ordinary" implication, aka non-dependent
-_`=>_ : P -> P -> P
-A `=> B = `Pr A `-> \ _ -> B
 
 -- If we have an element of a (quotient) type with non-dependent
 -- witness, then we
@@ -186,7 +198,8 @@ postulate
 
 -- The other direction is easy to prove
 PrIn : (T : U)(A : P) -> Pr (`In T `=> A) -> El (T `-> \ _ -> `Pr A)
-PrIn T A f t = hide (f (hide (hide t)))
+PrIn T A f t = f (hide t) -- hide (f (hide (hide t)))
+
 
 -- *structural* type equality
 -- i.e. this one is false off the diagonal
@@ -211,61 +224,67 @@ _<~>_ : U -> U -> P
   ))
 _ <~> _ = `Zero
 
+
 -- coercion: if we have proof that X and Y are the same type,
 -- then we can coerce an element of X to an element of Y
-coe : (X Y : U)(q : Hide (Pr (X <~> Y))) -> El X -> El Y
+coe : (X Y : U)(q : Pr (X <~> Y)) -> El X -> El Y
 
--- We need to postulate that EQ is well behaved, i.e.
+-- We need to postulate that Eq is well behaved, i.e.
 -- reflexive, symmetric, transitive,
 -- coherent (if X and Y are structurally equal, so are x:X and
 -- y:Y gotten from coe of x)
--- and predicates (provably) respect EQ
+-- and predicates (provably) respect Eq
 postulate
-  .refl : {X : U}{x : El X} -> EQ x x
-  ._-[_>_ : forall {X : U}(x : El X){y z : El X}
-    -> Pr (Eq X X x y)
-    -> EQ y z
-    -> EQ x z
-  ._<_]-_ : forall {X : U}(x : El X){y z : El X}
-    -> EQ y x
-    -> EQ y z
-    -> EQ x z
-  .coh : (X Y : U)(q : Hide (Pr (X <~> Y)))(x : El X) -> EQ x (coe X Y q x)
-  .Resp : {X : U}{x y : El X} -> EQ x y -> (P : El X -> U) -> Pr (P x <~> P y)
+  refl : (X : U)(x : El X) -> Pr (Eq X X x x)
+  coh : (X Y : U)(q : Pr (X <~> Y))(x : El X) -> Pr (Eq X Y x (coe X Y q x))
+  Resp : {X : U}{x y : El X} -> Pr (Eq X X x y) -> (P : El X -> U) -> Pr (P x <~> P y)
 
-._[QED] : {X : U}(x : El X) -> EQ x x
-x [QED] = refl
 
 -- coercions involve a lot of shuffling data around
 coe `One `One q _ = _
 coe `Two `Two q b = b
 coe `Nat `Nat q n = n
-coe (S0 `>< T0) (S1 `>< T1) (hide q) (s0 , t0)
-  with hide sq <- hide (coh S0 S1 (hide (fst q)) s0)
-  with s1 <- coe S0 S1 (hide (fst q)) s0
-     = s1 , coe (T0 s0) (T1 s1) (hide (snd q s0 s1 (hide [= sq =]))) t0
-
-coe (S0 `-> T0) (S1 `-> T1) (hide q) f0 s1
-  with hide sq <- hide (coh S1 S0 (hide (fst q)) s1)
-  with s0 <- coe S1 S0 (hide (fst q)) s1
-     = coe (T0 s0) (T1 s1) (hide (snd q s0 s1 (hide [= sq =]))) (f0 s0)
-coe (`Pr P0) (`Pr P1) (hide q) p0 = hide (fst q p0)
-coe (T0 `/ R0) (T1 `/ R1) (hide q) `[ t0 ] = `[ coe T0 T1 (hide (fst q)) t0 ]
+coe (S0 `>< T0) (S1 `>< T1) (qS , qT) (s0 , t0)
+  with sq <- coh S0 S1 qS s0
+  with s1 <- coe S0 S1 qS s0
+  = s1 , coe (T0 s0) (T1 s1) (qT s0 s1 sq) t0
+coe (S0 `-> T0) (S1 `-> T1) (qS , qT) f0 s1
+  with sq <- coh S1 S0 qS s1
+  with s0 <- coe S1 S0 qS s1
+  = coe (T0 s0) (T1 s1) (qT s0 s1 sq) (f0 s0)
+coe (`Pr P0) (`Pr P1) q p0 = fst q p0
+coe (T0 `/ R0) (T1 `/ R1) q `[ t0 ] = `[ coe T0 T1 (fst q) t0 ]
 
 -- The J combinator in this setting. This is where Resp is needed
-J : {X : U}{x y : El X}(q : Hide (EQ x y))
-    (P : (y : El X) -> Hide (EQ x y) -> U)
- -> El (P x (hide refl))
- -> El (P y q)
-J {X}{x}{y} (hide q) P p =
-  coe (P x (hide refl)) (P y (hide q)) (hide (
-    Resp {X `>< \ y -> `Pr (Eq X X x y)}
-      {x , hide [= refl{X}{x} =]}{y , hide [= q =]}
-      (eq ([= q =] , _))
-      (\ (y , hide q) -> P y (hide (eq q))))) p
+module _ (X : U){x y : El X}(q : Pr (Eq X X x y)) where
+  J : (P : (y : El X) -> Pr (Eq X X x y) -> U)
+   -> El (P x (refl X x))
+   -> El (P y q)
+  J P p =
+    coe (P x (refl X x)) (P y q)
+      (Resp {X `>< \ y -> `Pr (Eq X X x y)}
+        {x , refl X x}
+        {y , q}
+        (q , _)
+        (\ (y , q) -> P y q))
+      p
 
-infixr 2 _-[_>_ _<_]-_
-infixr 3 _[QED]
+
+module EQPRF (X : U) where
+  module _ {y z : El X} where
+    _-[_>_ : (x : El X) -> Pr (Eq X X x y) -> Pr (Eq X X y z) -> Pr (Eq X X x z)
+    x -[ p > q -- to prove Pr (Eq X X x z), use J with whichever of p and q
+               -- has x or z on the right, somewhere we'd like a y
+               -- q has z on the right
+      = J X q (\ z _ -> `Pr (Eq X X x z)) p
+    _<_]-_ : (x : El X) -> Pr (Eq X X y x) -> Pr (Eq X X y z) -> Pr (Eq X X x z)
+    x < p ]- q -- this time, p has x on the right (J-ing q needs sym)
+      = J X p (\ x _ -> `Pr (Eq X X x z)) q
+    infixr 2 _-[_>_ _<_]-_
+  _[QED] : (x : El X) -> Pr (Eq X X x x)
+  _[QED] x = refl X x
+  infixr 3 _[QED]
+  
 
 
 --------------------------------------------------------------
@@ -284,6 +303,7 @@ quotElim p q `[ x ] = p x
 [ x ] = `[ x ]
 --------------------------------------------------------------
 
+
 -- type equivalence via explicit morphisms
 -- and irrelevant proofs of left/right inverse
 -- aka type isomorphism (strictly speaking, quasi-equivalence)
@@ -298,27 +318,28 @@ S <=> T
 -------------------------------------------------------------
 -- construct some explicit type isomorphisms
 
--- show Iso is an equivalence relation
-idIso : {X : U} -> El (X <=> X)
-idIso {X} = id , id , hide ((\ x -> [= refl{X}{x} =]) , (\ x -> [= refl{X}{x} =]))
+-- show Iso is a proof-relevant equivalence, aka groupoid
+idIso : (X : U) -> El (X <=> X)
+idIso X = id , id , refl X , refl X
 
-invIso : {S T : U} -> El (S <=> T) -> El (T <=> S)
-invIso (f , g , hide p) = g , f , hide (snd p , fst p)
+invIso : (S T : U) -> El (S <=> T) -> El (T <=> S)
+invIso S T (f , g , p , q) = g , f , q , p
 
-compIso : {R S T : U} -> El (R <=> S) -> El (S <=> T) -> El (R <=> T)
-compIso (f , g , hide p) (h , k , hide q)
+compIso : (R S T : U) -> El (R <=> S) -> El (S <=> T) -> El (R <=> T)
+compIso R S T (f , g , gf , fg) (h , k , kh , hk)
   = (f - h)
   , (k - g)
-  , hide ((\ r -> 
-     [= r              -[ fst p r >
-        g (f r)        -[ [= g [QED] =] (f r) (k (h (f r))) (hide (fst q (f r))) >
-        g (k (h (f r))) [QED]
-     =])
-   , \ t ->
-     [= t              -[ snd q t >
-        h (k t)        -[ [= h [QED] =] (k t) (f (g (k t))) (hide (snd p (k t))) >
-        h (f (g (k t))) [QED]
-     =])
+  , (\ r -> let open EQPRF R in
+       r               -[ gf r >
+       g (f r)         -[ refl (S `> R) g (f r) (k (h (f r))) (kh (f r)) >
+       g (k (h (f r)))  [QED]
+    )
+  , (\ t -> let open EQPRF T in
+       t               -[ hk t >
+       h (k t)         -[ refl (S `> T) h (k t) (f (g (k t))) (fg (k t)) >
+       h (f (g (k t)))  [QED]
+    )
+
 
 ---------------------------------------------------------
 -- An Aut(omorphism) of a subGroup of the group of
@@ -330,11 +351,12 @@ compIso (f , g , hide p) (h , k , hide q)
 -- - elements compose
 Aut : (X : U)(G : El (X <=> X) -> P) -> P
 Aut X G =
-  G idIso `/\
-  (((X <=> X) `-> \ f -> `Pr (G f) `-> \ _ -> G (invIso f)) `/\
+  G (idIso X) `/\
+  ((X <=> X) `-> \ f -> G f `=> G (invIso X X f)) `/\
   ((X <=> X) `-> \ f -> (X <=> X) `-> \ g ->
-   `Pr (G f) `-> \ _ -> `Pr (G g) `-> \ _ ->
-   G (compIso f g)))
+   G f `=> G g `=> G (compIso X X X f g)
+   )
+
 
 ------------------------------------------------------------
 -- Universe of description of containers
@@ -344,18 +366,20 @@ Aut X G =
 -- (Should explain why V/U stratification is needed)
 data V : Set
 Vu : V -> U
+Ev : V -> Set
+Ev T = El (Vu T)
 
 -- Very similar to U except
 -- - structural equivalence of types
 -- - containers with automorphism
 data V where
   `Zero `One `Two `Nat : V
-  _`><_ _`->_ : (S : V)(T : El (Vu S) -> V) -> V
+  _`><_ _`->_ : (S : V)(T : Ev S -> V) -> V
   `Pr : P -> V
   _`<=>_ : (S T : V) -> V
-  [_<!_/_/_] : (Sh : V)(Po : El (Vu Sh) -> V)
-             (G : (s : El (Vu Sh)) -> El (Vu (Po s) <=> Vu (Po s)) -> P)
-             (p : (s : El (Vu Sh)) -> Hide (Pr (Aut (Vu (Po s)) (G s))))
+  [_<!_/_/_] : (Sh : V)(Po : Ev Sh -> V)
+             (G : (s : Ev Sh) -> El (Vu (Po s) <=> Vu (Po s)) -> P)
+             (p : (s : Ev Sh) -> Pr (Aut (Vu (Po s)) (G s)))
              (X : V) -> V
 
 Vu `Zero = `Zero
@@ -370,7 +394,7 @@ Vu ([ Sh <! Po / Gr / gr ] X) =
   Vu Sh `>< \ s -- choose a shape
   ->
   -- then get the lookup functions quotiented by the group
-  ((Vu (Po s) `-> \ _ -> Vu X) `/ \ f0 f1
+  ((Vu (Po s) `> Vu X) `/ \ f0 f1
     -> (Vu (Po s) <=> Vu (Po s)) `-> \ g
     -> Gr s g `=> (Vu (Po s) `-> \ p -> Eq (Vu X) (Vu X) (f0 p) (f1 (fst g p))))
 
@@ -381,12 +405,25 @@ Fin : Nat -> V
 Fin ze     = `Zero
 Fin (su n) = `Two `>< (Fin n <01> `One)
 
-{- need trivial groups for lists
-.Trivial : (X : U) -> Pr (Aut X \ f -> Eq (X <=> X) (X <=> X) f (idIso X))
-Trivial X = ((\ { x y q -> expose q }) , (\ x y q -> expose q) , _)
-      , (\ (f , g , q) y -> {!!})
-      , {!!}
--}
+
+Trivial : (X : U) -> Pr (Aut X \ f -> Eq (X <=> X) (X <=> X) f (idIso X))
+-- ha ha
+Trivial X
+  = ( (\ _ _ q -> q)
+    , (\ _ _ q -> q)
+    , <>)
+  , (\ _ (fid , gid , <>) -> gid , fid , <> )
+  , \ (f , g , _) (h , k , _)
+      (fid , gid , <>) (hid , kid , <>)
+    -> (\ x y q -> hid (f x) y (fid x y q))
+     , (\ x y q -> gid (k x) y (kid x y q))
+     , <>
+
+List : V -> V
+List Y = [ `Nat <! Fin
+         / (\ n f -> let X = Vu (Fin n) in Eq (X <=> X) (X <=> X) f (idIso X))
+         / (\ n -> Trivial (Vu (Fin n))) ] Y
+
 
 -- Everything is related to everything else, trivially
 Liberal : (X : U) -> Pr (Aut X \ f -> `One)
@@ -399,3 +436,4 @@ SymmetricGroup n = \ _ -> `One
 -- Bags are rather the simplest case in this setting!
 Bag : V -> V
 Bag X = [ `Nat <! Fin / (\ n f -> `One ) / _ ] X
+
