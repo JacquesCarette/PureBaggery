@@ -48,6 +48,11 @@ S * T = S >< \ _ -> T
 
 -- Nat is useful for non-trivial examples
 data Nat : Set where ze : Nat ; su : Nat -> Nat
+{-# BUILTIN NATURAL Nat #-}
+_+N_ : Nat -> Nat -> Nat
+ze +N m = m
+su n +N m = su (n +N m)
+
 
 id : forall {k}{X : Set k} -> X -> X
 id x = x
@@ -60,12 +65,27 @@ _-_ : forall {i j k}{A : Set i}{B : A -> Set j}{C : (a : A) -> B a -> Set k}
   -> C a (f a)
 (f - g) a = g (f a)
 
+module _  (X : Set)(R : X -> X -> Set) where
 -- reflexive, symmetric, transitive closure of a binary relation
-data QC (X : Set)(R : X -> X -> Set)(x : X) : X -> Set where
-  one : {y : X} -> R x y -> QC X R x y
-  rfl : QC X R x x
-  sym : {y : X} -> QC X R y x -> QC X R x y
-  xtv : {y z : X} -> QC X R x y -> QC X R y z -> QC X R x z
+  data QC (x : X) : X -> Set where
+    one : {y : X} -> R x y -> QC x y
+    rfl : QC x x
+    sym : {y : X} -> QC y x -> QC x y
+    xtv : {y z : X} -> QC x y -> QC y z -> QC x z
+
+  respQC : (P : X -> Set)
+        -> ((x y : X) -> R x y -> P x -> P y)
+        -> ((x y : X) -> R x y -> P y -> P x)
+        -> (x y : X) -> QC x y -> (P x -> P y) * (P y -> P x)
+  respQC P lr rl x y (one r) = lr x y r , rl x y r
+  respQC P lr rl x .x rfl = id , id
+  respQC P lr rl x y (sym q) = let f , g = respQC P lr rl y x q in g , f
+  respQC P lr rl x y (xtv q w) =
+    let f , g = respQC P lr rl x _ q in
+    let h , k = respQC P lr rl _ y w in
+    (f - h) , (k - g)
+
+
 
 {-
 PathOverQC : {X : Set}{R : X -> X -> Set}
@@ -143,7 +163,7 @@ El `Nat = Nat
 El (S `>< T) = El S >< \ s -> El (T s)
 El (S `-> T) = (s : El S) -> El (T s)
 El (`Pr A)   = Pr A -- Hide (Pr A)
-El (T `/ R)  = El T / \ x y -> Hide (Pr (R x y)) -- should explain
+El (T `/ R)  = El T / \ x y -> Pr (R x y) -- should explain
 
 -- nondependent abbreviations
 _`>_ _`*_ : U -> U -> U
@@ -290,14 +310,14 @@ module EQPRF (X : U) where
 --------------------------------------------------------------
 -- these two are the interface to quotients we should export
 --------------------------------------------------------------
-quotElim : {X : U}{R : El X -> El X -> P}
-  {P : El (X `/ R) -> U}
+quotElim : (X : U)(R : El X -> El X -> P)
+  -> (c : El (X `/ R))
+  -> (P : El (X `/ R) -> U)
   -> (p : El (X `-> \ x -> P `[ x ]))
   -> El (`Pr (X `-> \ x -> X `-> \ y -> (`QC X R x y `=>
         Eq (P `[ x ]) (P `[ y ]) (p x) (p y))))
-  -> (c : El (X `/ R))
   -> El (P c)
-quotElim p q `[ x ] = p x
+quotElim X R `[ x ] P p q  = p x
 
 [_] : forall {X}{R : El X -> El X -> P} -> El X -> El (X `/ R)
 [ x ] = `[ x ]
@@ -403,7 +423,7 @@ demand an equivalence rather than extending to one. -}
 
 Fin : Nat -> V
 Fin ze     = `Zero
-Fin (su n) = `Two `>< (Fin n <01> `One)
+Fin (su n) = `Two `>< (`One <01> Fin n)
 
 
 Trivial : (X : U) -> Pr (Aut X \ f -> Eq (X <=> X) (X <=> X) f (idIso X))
@@ -424,6 +444,67 @@ List Y = [ `Nat <! Fin
          / (\ n f -> let X = Vu (Fin n) in Eq (X <=> X) (X <=> X) f (idIso X))
          / (\ n -> Trivial (Vu (Fin n))) ] Y
 
+nilL : forall Y -> Ev (List Y)
+nilL Y = 0 , `[ (\ ()) ]
+
+oneL : forall Y -> Ev Y -> Ev (List Y)
+oneL Y y = 1 , `[ (\ _ -> y) ]
+
+Vec : V -> Nat -> U
+Vec Y n
+  =  (Vu (Fin n) `> Vu Y)
+  `/ \ f0 f1 ->
+        (Vu (Fin n) <=> Vu (Fin n)) `-> \ g ->
+           Eq (Vu (Fin n) <=> Vu (Fin n)) (Vu (Fin n) <=> Vu (Fin n)) g
+           (idIso (Vu (Fin n)))
+           `=>
+           Vu (Fin n) `-> \ p -> Eq (Vu Y) (Vu Y) (f0 p) (f1 (fst g p))
+
+vecElim : (Y : V)(n : Nat)(ys : El (Vec Y n))
+  (P : El (Vec Y n) -> U)
+  (p : (f : El (Vu (Fin n) `> Vu Y)) -> El (P `[ f ]))
+  ->
+  El (P ys)
+vecElim Y n ys P p = 
+  quotElim (Vu (Fin n) `> Vu Y)
+    (\ f0 f1 ->
+        (Vu (Fin n) <=> Vu (Fin n)) `-> \ g ->
+           Eq (Vu (Fin n) <=> Vu (Fin n)) (Vu (Fin n) <=> Vu (Fin n)) g
+           (idIso (Vu (Fin n)))
+           `=>
+           Vu (Fin n) `-> \ p -> Eq (Vu Y) (Vu Y) (f0 p) (f1 (fst g p)))
+    ys
+    P
+    p
+    \ f g q ->
+      fst (respQC _ _ (\ g -> Pr (Eq (P `[ f ]) (P `[ g ]) (p f) (p g)))
+        (\ { a b fun pa -> J (Vu (Fin n) `> Vu Y) {a}{b}
+            (\ i j ij -> J (Vu (Fin n)) {i}{j} ij (\ j _ -> `Pr (Eq (Vu Y) (Vu Y) (a i) (b j)))
+              (fun (idIso (Vu (Fin n))) (refl (Vu (Fin n) <=> Vu (Fin n)) (idIso (Vu (Fin n)))) i))
+            (\ b _ -> `Pr (Eq (P `[ f ]) (P `[ b ]) (p f) (p b))) pa })
+        (\ { a b fun -> J (Vu (Fin n) `> Vu Y) {a}{b}
+             (\ i j ij -> J (Vu (Fin n)) {i}{j} ij (\ j _ -> `Pr (Eq (Vu Y) (Vu Y) (a i) (b j)))
+              (fun (idIso (Vu (Fin n))) (refl (Vu (Fin n) <=> Vu (Fin n)) (idIso (Vu (Fin n)))) i))
+             (\ b _ -> `Pr (Eq (P `[ f ]) (P `[ b ]) (p f) (p b) `=>
+                            Eq (P `[ f ]) (P `[ a ]) (p f) (p a)))
+             id
+            })
+        f g q)
+      (refl (P `[ f ]) (p f))
+
+catFinFun : {X : Set}(n0 n1 : Nat)(f : Ev (Fin n0) -> X)(g : Ev (Fin n1) -> X)
+  -> Ev (Fin (n0 +N n1)) -> X
+catFinFun ze n1 f g i = g i
+catFinFun (su n0) n1 f g (`0 , i) = f (`0 , <>)
+catFinFun (su n0) n1 f g (`1 , i) = catFinFun n0 n1 ((`1 ,_) - f) g i
+
+catL : forall Y -> Ev (List Y) -> Ev (List Y) -> Ev (List Y)
+catL Y (n0 , c0) (n1 , c1)
+  = (n0 +N n1)
+  , `[( vecElim Y n0 c0 (\ _ -> Vu (Fin (n0 +N n1)) `> Vu Y) \ ys0 ->
+        vecElim Y n1 c1 (\ _ -> Vu (Fin (n0 +N n1)) `> Vu Y) \ ys1 ->
+        catFinFun n0 n1 ys0 ys1 )]
+
 
 -- Everything is related to everything else, trivially
 Liberal : (X : U) -> Pr (Aut X \ f -> `One)
@@ -437,3 +518,8 @@ SymmetricGroup n = \ _ -> `One
 Bag : V -> V
 Bag X = [ `Nat <! Fin / (\ n f -> `One ) / _ ] X
 
+nilB : forall Y -> Ev (Bag Y)
+nilB Y = 0 , `[ (\ ()) ]
+
+oneB : forall Y -> Ev Y -> Ev (Bag Y)
+oneB Y y = 1 , `[ (\ _ -> y) ]
