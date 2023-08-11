@@ -46,6 +46,11 @@ _+_ _*_ : Set -> Set -> Set
 S + T = Two >< \ { `0 -> S ; `1 -> T }
 S * T = S >< \ _ -> T
 
+/\_ : {S : Set}{T : S -> Set}{P : S >< T -> Set}
+   -> ((s : S)(t : T s) -> P (s , t))
+   -> (st : S >< T) -> P st
+(/\ k) (s , t) = k s t
+
 -- Nat is useful for non-trivial examples
 data Nat : Set where ze : Nat ; su : Nat -> Nat
 {-# BUILTIN NATURAL Nat #-}
@@ -65,6 +70,7 @@ _-_ : forall {i j k}{A : Set i}{B : A -> Set j}{C : (a : A) -> B a -> Set k}
   -> C a (f a)
 (f - g) a = g (f a)
 
+{-
 module _  (X : Set)(R : X -> X -> Set) where
 -- reflexive, symmetric, transitive closure of a binary relation
   data QC (x : X) : X -> Set where
@@ -84,7 +90,7 @@ module _  (X : Set)(R : X -> X -> Set) where
     let f , g = respQC P lr rl x _ q in
     let h , k = respQC P lr rl _ y w in
     (f - h) , (k - g)
-
+-}
 
 
 {-
@@ -106,10 +112,19 @@ PathOverQC P Q (xtv x01 x12) p0 p2 =
 --   interface exposed, so that no one can inspect the
 --   implementation details. We'll just promise to be
 --   good for now.
-record _/_ (X : Set)(R : X -> X -> Set) : Set where
+
+record Equiv (X : Set)(R : X -> X -> Set) : Set where
+  field
+    eqR : (x : X) -> R x x
+    eqS : (x y : X) -> R x y -> R y x
+    eqT : (x y z : X) -> R x y -> R y z -> R x z
+
+record Quotient (X : Set)(R : X -> X -> Set)(Q : Equiv X R) : Set where
   constructor `[_]
   field
     rep : X
+
+
 
 -----------------------------------------------------------
 -- A first universe of descriptions and interpretations
@@ -130,7 +145,8 @@ data P where
   _`/\_ : (S : P)(T : P) -> P
   _`->_ : (S : U)(T : El S -> P) -> P
   `In : (T : U) -> P
-  `QC   : (T : U)(R : El T -> El T -> P) -> El T -> El T -> P
+  -- `Equiv : (T : U)(R : El T -> El T -> P) -> P
+  -- `QC   : (T : U)(R : El T -> El T -> P) -> El T -> El T -> P
   -- It might be tempting to add a code for equality, but it's hard to decode.
   -- `Eq   : (S T : U) -> El S -> El T -> P
 
@@ -140,7 +156,8 @@ Pr `One = One
 Pr (A `/\ B) = Pr A * Pr B
 Pr (S `-> B) = (s : El S) -> Pr (B s)
 Pr (`In T) = Hide (El T)
-Pr (`QC T R i j) = QC (El T) (\ i j -> Pr (R i j)) i j
+-- Pr (`Equiv T R) = Equiv (El T) \ i j -> Pr (R i j)
+-- Pr (`QC T R i j) = QC (El T) (\ i j -> Pr (R i j)) i j
 -- Decoding `Eq makes a not obviously structural recursive call to Pr.
 -- Pr (`Eq S T s t) = Pr (Eq S T s t)
 
@@ -153,7 +170,8 @@ data U where
   `Zero `One `Two `Nat : U
   _`><_ _`->_ : (S : U)(T : El S -> U) -> U
   `Pr : P -> U
-  _`/_ : (T : U)(R : El T -> El T -> P) -> U
+  `Quotient : (T : U)(R : El T -> El T -> P)
+              (Q : Equiv (El T) (\ i j -> Pr (R i j))) -> U
 
 -- Straightforward rep. 
 El `Zero = Zero
@@ -163,7 +181,8 @@ El `Nat = Nat
 El (S `>< T) = El S >< \ s -> El (T s)
 El (S `-> T) = (s : El S) -> El (T s)
 El (`Pr A)   = Pr A -- Hide (Pr A)
-El (T `/ R)  = El T / \ x y -> Pr (R x y) -- should explain
+El (`Quotient T R Q)  = Quotient (El T) (\ i j -> Pr (R i j)) Q
+
 
 -- nondependent abbreviations
 _`>_ _`*_ : U -> U -> U
@@ -199,12 +218,12 @@ Eq (S0 `>< T0) (S1 `>< T1) (s0 , t0) (s1 , t1) =
 Eq (S0 `-> T0) (S1 `-> T1) f0 f1 =
   S0 `-> \ s0 -> S1 `-> \ s1 -> Eq S0 S1 s0 s1 `=>
   Eq (T0 s0) (T1 s1) (f0 s0) (f1 s1)
-Eq (T0 `/ R0) (T1 `/ R1) `[ t0 ] `[ t1 ] = `In
+Eq (`Quotient T0 R0 Q0) (`Quotient T1 R1 Q1) `[ t0 ] `[ t1 ] = `In
   -- to cope with heterogeneity, we have to find our way
   -- using R0 on t0 and R1 on t1 to a pair
   -- of representatives which are T0-T1-equal
   (T0 `>< \ m0 -> T1 `>< \ m1 -> 
-   `Pr (`QC T0 R0 t0 m0 `/\ Eq T0 T1 m0 m1 `/\ `QC T1 R1 m1 t1))
+   `Pr (R0 t0 m0 `/\ Eq T0 T1 m0 m1 `/\ R1 m1 t1))
 -- off the type diagonal, Pious equality holds vacuously
 Eq _ _ _ _ = `One
 
@@ -219,7 +238,6 @@ postulate
 -- The other direction is easy to prove
 PrIn : (T : U)(A : P) -> Pr (`In T `=> A) -> El (T `-> \ _ -> `Pr A)
 PrIn T A f t = f (hide t) -- hide (f (hide (hide t)))
-
 
 -- *structural* type equality
 -- i.e. this one is false off the diagonal
@@ -236,8 +254,8 @@ _<~>_ : U -> U -> P
   (S1 <~> S0) `/\
   (S0 `-> \ s0 -> S1 `-> \ s1 -> Eq S1 S0 s1 s0 `=> (T0 s0 <~> T1 s1))
 `Pr P0 <~> `Pr P1 = (P0 `=> P1) `/\ (P1 `=> P0)
-(T0 `/ R0) <~> (T1 `/ R1) = (T0 <~> T1) `/\
-  (T0 `-> \ s0 -> T1 `-> \ s1 -> Eq T0 T1 s0 s1 `=>
+(`Quotient T0 R0 Q0) <~> (`Quotient T1 R1 Q1) = (T0 <~> T1) `/\
+   (T0 `-> \ s0 -> T1 `-> \ s1 -> Eq T0 T1 s0 s1 `=>
    (T0 `-> \ t0 -> T1 `-> \ t1 -> Eq T0 T1 t0 t1 `=>
    let P0 = R0 s0 t0 ; P1 = R1 s1 t1 in
    (P0 `=> P1) `/\ (P1 `=> P0)
@@ -273,7 +291,7 @@ coe (S0 `-> T0) (S1 `-> T1) (qS , qT) f0 s1
   with s0 <- coe S1 S0 qS s1
   = coe (T0 s0) (T1 s1) (qT s0 s1 sq) (f0 s0)
 coe (`Pr P0) (`Pr P1) q p0 = fst q p0
-coe (T0 `/ R0) (T1 `/ R1) q `[ t0 ] = `[ coe T0 T1 (fst q) t0 ]
+coe (`Quotient T0 R0 Q0) (`Quotient T1 R1 Q1) (qT , _) `[ t0 ] = `[ coe T0 T1 qT t0 ]
 
 -- The J combinator in this setting. This is where Resp is needed
 module _ (X : U){x y : El X}(q : Pr (Eq X X x y)) where
@@ -307,23 +325,6 @@ module EQPRF (X : U) where
   
 
 
---------------------------------------------------------------
--- these two are the interface to quotients we should export
---------------------------------------------------------------
-quotElim : (X : U)(R : El X -> El X -> P)
-  -> (c : El (X `/ R))
-  -> (P : El (X `/ R) -> U)
-  -> (p : El (X `-> \ x -> P `[ x ]))
-  -> El (`Pr (X `-> \ x -> X `-> \ y -> (`QC X R x y `=>
-        Eq (P `[ x ]) (P `[ y ]) (p x) (p y))))
-  -> El (P c)
-quotElim X R `[ x ] P p q  = p x
-
-[_] : forall {X}{R : El X -> El X -> P} -> El X -> El (X `/ R)
-[ x ] = `[ x ]
---------------------------------------------------------------
-
-
 -- type equivalence via explicit morphisms
 -- and irrelevant proofs of left/right inverse
 -- aka type isomorphism (strictly speaking, quasi-equivalence)
@@ -334,6 +335,7 @@ S <=> T
   -> `Pr ( (S `-> \ s -> Eq S S s (g (f s)))
        `/\ (T `-> \ t -> Eq T T t (f (g t)))
          )
+
 
 -------------------------------------------------------------
 -- construct some explicit type isomorphisms
@@ -377,7 +379,6 @@ Aut X G =
    G f `=> G g `=> G (compIso X X X f g)
    )
 
-
 ------------------------------------------------------------
 -- Universe of description of containers
 -- V : Universe
@@ -388,6 +389,7 @@ data V : Set
 Vu : V -> U
 Ev : V -> Set
 Ev T = El (Vu T)
+record Grp : Set
 
 -- Very similar to U except
 -- - structural equivalence of types
@@ -397,10 +399,50 @@ data V where
   _`><_ _`->_ : (S : V)(T : Ev S -> V) -> V
   `Pr : P -> V
   _`<=>_ : (S T : V) -> V
-  [_<!_/_/_] : (Sh : V)(Po : Ev Sh -> V)
-             (G : (s : Ev Sh) -> El (Vu (Po s) <=> Vu (Po s)) -> P)
-             (p : (s : Ev Sh) -> Pr (Aut (Vu (Po s)) (G s)))
-             (X : V) -> V
+  [_<!_] : (Sh : V)(Po : Ev Sh -> Grp)(X : V) -> V
+
+record Grp where
+  inductive
+  field
+    Carrier : V
+    automok : El (Vu Carrier <=> Vu Carrier) -> P
+    closure : Pr (Aut (Vu Carrier) automok)
+
+module _ (G : Grp)(X : U) where
+  open Grp G
+
+  GrpQuoRel : (f0 f1 : El (Vu Carrier `> X)) -> U
+  GrpQuoRel f0 f1 = (Vu Carrier <=> Vu Carrier) `>< \ g ->
+                `Pr (automok g `/\ ((Vu Carrier `-> \ p -> Eq X X (f0 p) (f1 (fst g p)))))
+
+GrpQuo : Grp -> V -> U
+GrpQuo G X = let open Grp G in
+  `Quotient
+    (Vu Carrier `> Vu X)
+    (\ f0 f1 -> `In (GrpQuoRel G (Vu X) f0 f1))
+    ( (record
+      { eqR = \ f -> hide (idIso (Vu Carrier) , fst closure , \ p -> refl (Vu X) (f p))
+      ; eqS = \ { f0 f1 (hide g) -> hide
+          (invIso (Vu Carrier) (Vu Carrier) (fst g)
+          , fst (snd closure) (fst g) (fst (snd g)) 
+          , \ p -> let open EQPRF (Vu X) in
+              f1 p
+                -[ refl (Vu Carrier `> Vu X) f1 p (fst (fst g) (fst (snd (fst g)) p))
+                   (snd (snd (snd (fst g))) p)
+                 >
+              f1 (fst (fst g) (fst (snd (fst g)) p))
+                < snd (snd g) (fst (snd (fst g)) p) ]-
+              (f0 (fst (snd (fst g)) p)) [QED]
+          )}
+      ; eqT = \ { f0 f1 f2 (hide g01) (hide g12) -> hide
+          (compIso (Vu Carrier) (Vu Carrier) (Vu Carrier) (fst g01) (fst g12)
+          , snd (snd closure) (fst g01) (fst g12) (fst (snd g01)) (fst (snd g12))
+          , \ p -> let open EQPRF (Vu X) in
+              f0 p
+                -[ snd (snd g01) p >
+              f1 (fst (fst g01) p)
+                -[ snd (snd g12) (fst (fst g01) p) >
+              f2 (fst (fst g12) (fst (fst g01) p)) [QED]) } }))
 
 Vu `Zero = `Zero
 Vu `One = `One
@@ -410,39 +452,71 @@ Vu (S `>< T) = Vu S `>< \ s -> Vu (T s)
 Vu (S `-> T) = Vu S `-> \ s -> Vu (T s)
 Vu (`Pr A) = `Pr A
 Vu (S `<=> T) = Vu S <=> Vu T
-Vu ([ Sh <! Po / Gr / gr ] X) =
-  Vu Sh `>< \ s -- choose a shape
-  ->
-  -- then get the lookup functions quotiented by the group
-  ((Vu (Po s) `> Vu X) `/ \ f0 f1
-    -> (Vu (Po s) <=> Vu (Po s)) `-> \ g
-    -> Gr s g `=> (Vu (Po s) `-> \ p -> Eq (Vu X) (Vu X) (f0 p) (f1 (fst g p))))
+Vu ([ Sh <! Po ] X) =
+  Vu Sh `>< \ s -> GrpQuo (Po s) X
 
-{- We didn't use gr because QC imposes equivalence closure. Perhaps we should
-demand an equivalence rather than extending to one. -}
+
+
+--------------------------------------------------------------
+-- these two are the interface to quotients we should export
+--------------------------------------------------------------
+
+Method : (T : U)(P : El T -> U) -> U
+Method `Zero P = `One
+Method `One P = P <>
+Method `Two P = P `0 `* P `1
+Method `Nat P = P ze `* (`Nat `-> \ n -> P n `> P (su n))
+Method (S `>< T) P = S `-> \ s -> T s `-> \ t -> P (s , t)
+Method (S `-> T) P = (S `-> T) `-> \ f -> P f
+Method (`Pr p) P = `Pr p `-> \ x -> P x
+Method (`Quotient T R Q) P = 
+  (T `-> \ t -> P `[ t ]) `>< \ p ->
+  `Pr (T `-> \ x -> T `-> \ y -> (R x y `=>
+        Eq (P `[ x ]) (P `[ y ]) (p x) (p y)))
+
+elElim : (T : U)(t : El T)(P : El T -> U)
+      -> El (Method T P)
+      -> El (P t)
+elElim `One <> P p = p
+elElim `Two `0 P (p0 , _) = p0
+elElim `Two `1 P (_ , p1) = p1
+elElim `Nat ze P (pz , _) = pz
+elElim `Nat (su n) P p@(_ , ps) = ps n (elElim `Nat n P p)
+elElim (S `>< T) (s , t) P p = p s t
+elElim (S `-> T) f P p = p f
+elElim (`Pr r) x P p = p x
+elElim (`Quotient T R Q) `[ x ] P (p , _) = p x
+
+[_] : forall {T : U}{R : El T -> El T -> P}{Q : Equiv (El T) (\ i j -> Pr (R i j))}
+      -> El T -> El (`Quotient T R Q)
+[ x ] = `[ x ]
+--------------------------------------------------------------
+
+
 
 Fin : Nat -> V
 Fin ze     = `Zero
 Fin (su n) = `Two `>< (`One <01> Fin n)
 
-
-Trivial : (X : U) -> Pr (Aut X \ f -> Eq (X <=> X) (X <=> X) f (idIso X))
--- ha ha
-Trivial X
-  = ( (\ _ _ q -> q)
-    , (\ _ _ q -> q)
-    , <>)
-  , (\ _ (fid , gid , <>) -> gid , fid , <> )
-  , \ (f , g , _) (h , k , _)
-      (fid , gid , <>) (hid , kid , <>)
-    -> (\ x y q -> hid (f x) y (fid x y q))
-     , (\ x y q -> gid (k x) y (kid x y q))
-     , <>
+module _ where
+  open Grp
+  
+  Trivial : V -> Grp
+  Carrier (Trivial X) = X
+  automok (Trivial X) = Eq (Vu X <=> Vu X) (Vu X <=> Vu X) (idIso (Vu X))
+  closure (Trivial X)
+    = refl (Vu X <=> Vu X) (idIso (Vu X))
+    , (\ g gq -> J (Vu X <=> Vu X) {idIso (Vu X)} {g} gq
+        (\ g _ -> `Pr (Eq (Vu X <=> Vu X) (Vu X <=> Vu X) (idIso (Vu X)) (invIso (Vu X) (Vu X) g)))
+        (refl (Vu X <=> Vu X) (idIso (Vu X))))
+    , \ g01 g12 q01 q12 ->  J (Vu X <=> Vu X) {idIso (Vu X)} {g01} q01
+        (\ g01 _ -> `Pr (Eq (Vu X <=> Vu X) (Vu X <=> Vu X)
+                    (idIso (Vu X)) (compIso (Vu X) (Vu X) (Vu X) g01 g12)))
+        q12
 
 List : V -> V
-List Y = [ `Nat <! Fin
-         / (\ n f -> let X = Vu (Fin n) in Eq (X <=> X) (X <=> X) f (idIso X))
-         / (\ n -> Trivial (Vu (Fin n))) ] Y
+List Y = [ `Nat <! Fin - Trivial ] Y
+
 
 nilL : forall Y -> Ev (List Y)
 nilL Y = 0 , `[ (\ ()) ]
@@ -450,47 +524,28 @@ nilL Y = 0 , `[ (\ ()) ]
 oneL : forall Y -> Ev Y -> Ev (List Y)
 oneL Y y = 1 , `[ (\ _ -> y) ]
 
-Vec : V -> Nat -> U
-Vec Y n
-  =  (Vu (Fin n) `> Vu Y)
-  `/ \ f0 f1 ->
-        (Vu (Fin n) <=> Vu (Fin n)) `-> \ g ->
-           Eq (Vu (Fin n) <=> Vu (Fin n)) (Vu (Fin n) <=> Vu (Fin n)) g
-           (idIso (Vu (Fin n)))
-           `=>
-           Vu (Fin n) `-> \ p -> Eq (Vu Y) (Vu Y) (f0 p) (f1 (fst g p))
+Vec : V -> Nat -> V
+Vec X n = [ `One <! (\ _ -> Trivial (Fin n)) ] X
 
-vecElim : (Y : V)(n : Nat)(ys : El (Vec Y n))
-  (P : El (Vec Y n) -> U)
-  (p : (f : El (Vu (Fin n) `> Vu Y)) -> El (P `[ f ]))
+vecElim : (Y : V)(n : Nat)(ys : Ev (Vec Y n))
+  (P : Ev (Vec Y n) -> U)
+  (p : (f : El (Vu (Fin n) `> Vu Y)) -> El (P (<> , `[ f ])))
   ->
   El (P ys)
-vecElim Y n ys P p = 
-  quotElim (Vu (Fin n) `> Vu Y)
-    (\ f0 f1 ->
-        (Vu (Fin n) <=> Vu (Fin n)) `-> \ g ->
-           Eq (Vu (Fin n) <=> Vu (Fin n)) (Vu (Fin n) <=> Vu (Fin n)) g
-           (idIso (Vu (Fin n)))
-           `=>
-           Vu (Fin n) `-> \ p -> Eq (Vu Y) (Vu Y) (f0 p) (f1 (fst g p)))
-    ys
-    P
-    p
-    \ f g q ->
-      fst (respQC _ _ (\ g -> Pr (Eq (P `[ f ]) (P `[ g ]) (p f) (p g)))
-        (\ { a b fun pa -> J (Vu (Fin n) `> Vu Y) {a}{b}
-            (\ i j ij -> J (Vu (Fin n)) {i}{j} ij (\ j _ -> `Pr (Eq (Vu Y) (Vu Y) (a i) (b j)))
-              (fun (idIso (Vu (Fin n))) (refl (Vu (Fin n) <=> Vu (Fin n)) (idIso (Vu (Fin n)))) i))
-            (\ b _ -> `Pr (Eq (P `[ f ]) (P `[ b ]) (p f) (p b))) pa })
-        (\ { a b fun -> J (Vu (Fin n) `> Vu Y) {a}{b}
-             (\ i j ij -> J (Vu (Fin n)) {i}{j} ij (\ j _ -> `Pr (Eq (Vu Y) (Vu Y) (a i) (b j)))
-              (fun (idIso (Vu (Fin n))) (refl (Vu (Fin n) <=> Vu (Fin n)) (idIso (Vu (Fin n)))) i))
-             (\ b _ -> `Pr (Eq (P `[ f ]) (P `[ b ]) (p f) (p b) `=>
-                            Eq (P `[ f ]) (P `[ a ]) (p f) (p a)))
-             id
-            })
-        f g q)
-      (refl (P `[ f ]) (p f))
+vecElim Y n (<> , ys) P p = elElim (GrpQuo (Trivial (Fin n)) Y) ys (\ ys -> (P (<> , ys)))
+  ( p
+  , \ f0 f1 -> InPr (GrpQuoRel (Trivial (Fin n)) (Vu Y) f0 f1)
+                     (Eq (P (<> , `[ f0 ])) (P (<> , `[ f1 ])) (p f0) (p f1))
+                     (/\ \ g -> /\ \ gq -> J (Vu (Fin n) <=> Vu (Fin n)) {idIso (Vu (Fin n))} {g} gq
+                       (\ g _ -> (Vu (Fin n) `->  \ s -> `Pr (Eq (Vu Y) (Vu Y) (f0 s) (f1 (fst g s))))
+                              `> `Pr (Eq (P (<> , `[ f0 ])) (P (<> , `[ f1 ])) (p f0) (p f1)))
+                       \ h -> refl ((Vu (Fin n) `> Vu Y) `-> \ f -> P (<> , `[ f ])) p f0 f1
+                          \ i j ij -> J (Vu (Fin n)) {i}{j} ij
+                             (\ j _ -> `Pr (Eq (Vu Y) (Vu Y) (f0 i) (f1 j)))
+                             (h i))
+  )
+
+
 
 catFinFun : {X : Set}(n0 n1 : Nat)(f : Ev (Fin n0) -> X)(g : Ev (Fin n1) -> X)
   -> Ev (Fin (n0 +N n1)) -> X
@@ -501,25 +556,25 @@ catFinFun (su n0) n1 f g (`1 , i) = catFinFun n0 n1 ((`1 ,_) - f) g i
 catL : forall Y -> Ev (List Y) -> Ev (List Y) -> Ev (List Y)
 catL Y (n0 , c0) (n1 , c1)
   = (n0 +N n1)
-  , `[( vecElim Y n0 c0 (\ _ -> Vu (Fin (n0 +N n1)) `> Vu Y) \ ys0 ->
-        vecElim Y n1 c1 (\ _ -> Vu (Fin (n0 +N n1)) `> Vu Y) \ ys1 ->
+  , `[( vecElim Y n0 (<> , c0) (\ _ -> Vu (Fin (n0 +N n1)) `> Vu Y) \ ys0 ->
+        vecElim Y n1 (<> , c1) (\ _ -> Vu (Fin (n0 +N n1)) `> Vu Y) \ ys1 ->
         catFinFun n0 n1 ys0 ys1 )]
 
-
--- Everything is related to everything else, trivially
-Liberal : (X : U) -> Pr (Aut X \ f -> `One)
-Liberal X = _
-
--- Symmetric group is exactly the full Automorphism group
-SymmetricGroup : (n : Nat) -> El (Vu (Fin n) <=> Vu (Fin n)) -> P
-SymmetricGroup n = \ _ -> `One
+module _ where
+  open Grp
+  
+  Symm : V -> Grp
+  Carrier (Symm X) = X
+  automok (Symm X) _ = `One
+  closure (Symm X) = _
 
 -- Bags are rather the simplest case in this setting!
 Bag : V -> V
-Bag X = [ `Nat <! Fin / (\ n f -> `One ) / _ ] X
+Bag X = [ `Nat <! Fin - Symm ] X
 
 nilB : forall Y -> Ev (Bag Y)
 nilB Y = 0 , `[ (\ ()) ]
 
 oneB : forall Y -> Ev Y -> Ev (Bag Y)
 oneB Y y = 1 , `[ (\ _ -> y) ]
+
