@@ -282,12 +282,23 @@ module EQPRF (X : U) where
 -- aka type isomorphism (strictly speaking, quasi-equivalence)
 _<=>_ : U -> U -> U
 S <=> T
-   = (S `-> \ _ -> T) `>< \ f
-  -> (T `-> \ _ -> S) `>< \ g
+   = (S `> T) `>< \ f
+  -> (T `> S) `>< \ g
   -> `Pr ( (S `-> \ s -> Eq S S s (g (f s)))
        `/\ (T `-> \ t -> Eq T T t (f (g t)))
          )
 
+-- convenient names for the pieces
+module _ {S T : U} (e : El (S <=> T)) where
+  fwd : El (S `> T)
+  fwd = fst e
+  bwd : El (T `> S)
+  bwd = fst (snd e)
+  fwd-bwd : Pr (S `-> \ s -> Eq S S s (bwd (fwd s)))
+  fwd-bwd = fst (snd (snd e))
+  bwd-fwd : Pr (T `-> \ t -> Eq T T t (fwd (bwd t)))
+  bwd-fwd = snd (snd (snd e))
+  
 -------------------------------------------------------------
 -- construct some explicit type isomorphisms
 
@@ -330,6 +341,7 @@ Aut X G =
    G f `=> G g `=> G (compIso X X X f g)
    )
 
+
 ------------------------------------------------------------
 -- Universe of description of containers
 -- V : Universe
@@ -363,13 +375,28 @@ record Grp where
     automok : El (Vu Carrier <=> Vu Carrier) -> P
     closure : Pr (Aut (Vu Carrier) automok)
 
+  private
+    X = Vu Carrier
+    G = X <=> X
+  -- since we refer the components above a lot, give them names
+  idAut : Pr (automok (idIso X))
+  idAut = fst closure
+  symAut : Pr (G `-> (\ f -> automok f `=> automok (invIso X X f)))
+  symAut = fst (snd closure)
+  compAut : Pr (G `-> \ f -> G `-> \ g ->
+                automok f `=> automok g `=> automok (compIso X X X f g))
+  compAut = snd (snd closure)
+
+  AutG : U
+  AutG = G
+  
 -- An automorphism group induces an equivalence relation
 -- (Statement of this as an obligation)
 module _ (G : Grp)(X : U) where
   open Grp G
 
   GrpQuoRel : (f0 f1 : El (Vu Carrier `> X)) -> U
-  GrpQuoRel f0 f1 = (Vu Carrier <=> Vu Carrier) `>< \ g ->
+  GrpQuoRel f0 f1 = AutG `>< \ g ->
                 `Pr (automok g `/\ ((Vu Carrier `-> \ p -> Eq X X (f0 p) (f1 (fst g p)))))
 
 -- A proof that a group (action) really does induce a quotient
@@ -379,10 +406,10 @@ GrpQuo G X = let open Grp G in
     (Vu Carrier `> Vu X)
     (\ f0 f1 -> `In (GrpQuoRel G (Vu X) f0 f1))
     ( (record
-      { eqR = \ f -> hide (idIso (Vu Carrier) , fst closure , \ p -> refl (Vu X) (f p))
+      { eqR = \ f -> hide (idIso (Vu Carrier) , idAut , \ p -> refl (Vu X) (f p))
       ; eqS = \ { f0 f1 (hide g) -> hide
           (invIso (Vu Carrier) (Vu Carrier) (fst g)
-          , fst (snd closure) (fst g) (fst (snd g)) 
+          , symAut (fst g) (fst (snd g)) 
           , \ p -> let open EQPRF (Vu X) in
               f1 p
                 -[ refl (Vu Carrier `> Vu X) f1 p (fst (fst g) (fst (snd (fst g)) p))
@@ -394,7 +421,7 @@ GrpQuo G X = let open Grp G in
           )}
       ; eqT = \ { f0 f1 f2 (hide g01) (hide g12) -> hide
           (compIso (Vu Carrier) (Vu Carrier) (Vu Carrier) (fst g01) (fst g12)
-          , snd (snd closure) (fst g01) (fst g12) (fst (snd g01)) (fst (snd g12))
+          , compAut (fst g01) (fst g12) (fst (snd g01)) (fst (snd g12))
           , \ p -> let open EQPRF (Vu X) in
               f0 p
                 -[ snd (snd g01) p >
