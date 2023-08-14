@@ -1,4 +1,3 @@
-{-# OPTIONS --irrelevant-projections #-}
 
 -- ``Symmetric Universes''
 -- wherein we describe universes where we can have containers whose
@@ -17,12 +16,6 @@ record Hide (X : Set) : Set where
   field
     .expose : X
 open Hide public
-
-{-
--- Agda's not happy when expose is used directly, but fine with:
-.join : {X : Set} -> Hide (Hide X) -> Hide X
-join h = expose h
--}
 
 --------------
 -- empty, singleton and (exactly) 2 point set along with eliminator
@@ -70,43 +63,6 @@ _-_ : forall {i j k}{A : Set i}{B : A -> Set j}{C : (a : A) -> B a -> Set k}
   -> C a (f a)
 (f - g) a = g (f a)
 
-{-
-module _  (X : Set)(R : X -> X -> Set) where
--- reflexive, symmetric, transitive closure of a binary relation
-  data QC (x : X) : X -> Set where
-    one : {y : X} -> R x y -> QC x y
-    rfl : QC x x
-    sym : {y : X} -> QC y x -> QC x y
-    xtv : {y z : X} -> QC x y -> QC y z -> QC x z
-
-  respQC : (P : X -> Set)
-        -> ((x y : X) -> R x y -> P x -> P y)
-        -> ((x y : X) -> R x y -> P y -> P x)
-        -> (x y : X) -> QC x y -> (P x -> P y) * (P y -> P x)
-  respQC P lr rl x y (one r) = lr x y r , rl x y r
-  respQC P lr rl x .x rfl = id , id
-  respQC P lr rl x y (sym q) = let f , g = respQC P lr rl y x q in g , f
-  respQC P lr rl x y (xtv q w) =
-    let f , g = respQC P lr rl x _ q in
-    let h , k = respQC P lr rl _ y w in
-    (f - h) , (k - g)
--}
-
-
-{-
-PathOverQC : {X : Set}{R : X -> X -> Set}
-  (P : X -> Set)(Q : (X >< P) -> (X >< P) -> Set)
-  -> {x0 x1 : X} -> QC X R x0 x1
-  -> P x0 -> P x1 -> Set
-PathOverQC P Q (one r01) p0 p1 = Q (_ , p0) (_ , p1)
-PathOverQC P Q {x0} rfl p0 p1 = QC (P x0) (\ _ _ -> Zero) p0 p1  -- BOO! HISS!
-PathOverQC P Q (sym x10) p0 p1 = PathOverQC P Q x10 p1 p0
-PathOverQC P Q (xtv x01 x12) p0 p2 =
-  _ >< \ p1 ->
-  PathOverQC P Q x01 p0 p1 >< \ _ ->
-  PathOverQC P Q x12 p1 p2
--}
-
 -- representation of quotienting by a relation
 --   should be in a separate file and only a certain
 --   interface exposed, so that no one can inspect the
@@ -123,8 +79,6 @@ record Quotient (X : Set)(R : X -> X -> Set)(Q : Equiv X R) : Set where
   constructor `[_]
   field
     rep : X
-
-
 
 -----------------------------------------------------------
 -- A first universe of descriptions and interpretations
@@ -237,7 +191,7 @@ postulate
 
 -- The other direction is easy to prove
 PrIn : (T : U)(A : P) -> Pr (`In T `=> A) -> El (T `-> \ _ -> `Pr A)
-PrIn T A f t = f (hide t) -- hide (f (hide (hide t)))
+PrIn T A f t = f (hide t)
 
 -- *structural* type equality
 -- i.e. this one is false off the diagonal
@@ -276,7 +230,6 @@ postulate
   refl : (X : U)(x : El X) -> Pr (Eq X X x x)
   coh : (X Y : U)(q : Pr (X <~> Y))(x : El X) -> Pr (Eq X Y x (coe X Y q x))
   Resp : {X : U}{x y : El X} -> Pr (Eq X X x y) -> (P : El X -> U) -> Pr (P x <~> P y)
-
 
 -- coercions involve a lot of shuffling data around
 coe `One `One q _ = _
@@ -324,7 +277,6 @@ module EQPRF (X : U) where
   infixr 3 _[QED]
   
 
-
 -- type equivalence via explicit morphisms
 -- and irrelevant proofs of left/right inverse
 -- aka type isomorphism (strictly speaking, quasi-equivalence)
@@ -335,7 +287,6 @@ S <=> T
   -> `Pr ( (S `-> \ s -> Eq S S s (g (f s)))
        `/\ (T `-> \ t -> Eq T T t (f (g t)))
          )
-
 
 -------------------------------------------------------------
 -- construct some explicit type isomorphisms
@@ -401,6 +352,10 @@ data V where
   _`<=>_ : (S T : V) -> V
   [_<!_] : (Sh : V)(Po : Ev Sh -> Grp)(X : V) -> V
 
+-- Group, seen as elements of automorphism group
+-- Note that groups, group actions and induced equivalence relation are all
+-- needed here because they are part of the definition of the interpretation
+-- of V (i.e. definition of Vu).
 record Grp where
   inductive
   field
@@ -408,6 +363,8 @@ record Grp where
     automok : El (Vu Carrier <=> Vu Carrier) -> P
     closure : Pr (Aut (Vu Carrier) automok)
 
+-- An automorphism group induces an equivalence relation
+-- (Statement of this as an obligation)
 module _ (G : Grp)(X : U) where
   open Grp G
 
@@ -415,6 +372,7 @@ module _ (G : Grp)(X : U) where
   GrpQuoRel f0 f1 = (Vu Carrier <=> Vu Carrier) `>< \ g ->
                 `Pr (automok g `/\ ((Vu Carrier `-> \ p -> Eq X X (f0 p) (f1 (fst g p)))))
 
+-- A proof that a group (action) really does induce a quotient
 GrpQuo : Grp -> V -> U
 GrpQuo G X = let open Grp G in
   `Quotient
@@ -452,10 +410,7 @@ Vu (S `>< T) = Vu S `>< \ s -> Vu (T s)
 Vu (S `-> T) = Vu S `-> \ s -> Vu (T s)
 Vu (`Pr A) = `Pr A
 Vu (S `<=> T) = Vu S <=> Vu T
-Vu ([ Sh <! Po ] X) =
-  Vu Sh `>< \ s -> GrpQuo (Po s) X
-
-
+Vu ([ Sh <! Po ] X) = Vu Sh `>< \ s -> GrpQuo (Po s) X
 
 --------------------------------------------------------------
 -- these two are the interface to quotients we should export
@@ -493,11 +448,11 @@ elElim (`Quotient T R Q) `[ x ] P (p , _) = p x
 --------------------------------------------------------------
 
 
-
 Fin : Nat -> V
 Fin ze     = `Zero
 Fin (su n) = `Two `>< (`One <01> Fin n)
 
+-- Trivial automorphism group over any V
 module _ where
   open Grp
   
@@ -514,9 +469,9 @@ module _ where
                     (idIso (Vu X)) (compIso (Vu X) (Vu X) (Vu X) g01 g12)))
         q12
 
+-- Lists have shapes indexed by natural numbers and Trivial automorphisms
 List : V -> V
 List Y = [ `Nat <! Fin - Trivial ] Y
-
 
 nilL : forall Y -> Ev (List Y)
 nilL Y = 0 , `[ (\ ()) ]
@@ -524,9 +479,18 @@ nilL Y = 0 , `[ (\ ()) ]
 oneL : forall Y -> Ev Y -> Ev (List Y)
 oneL Y y = 1 , `[ (\ _ -> y) ]
 
+-- Vectors, on the other have, have trivial shape (since we know their length)
+-- and still Trivial automorphisms
 Vec : V -> Nat -> V
 Vec X n = [ `One <! (\ _ -> Trivial (Fin n)) ] X
 
+nilV : forall Y -> Ev (Vec Y ze)
+nilV Y = <> , `[ (λ ()) ]
+
+oneV : forall Y -> Ev Y -> Ev (Vec Y (su ze))
+oneV Y y = <> , `[ (λ _ → y) ]
+
+-- General eliminator for vectors
 vecElim : (Y : V)(n : Nat)(ys : Ev (Vec Y n))
   (P : Ev (Vec Y n) -> U)
   (p : (f : El (Vu (Fin n) `> Vu Y)) -> El (P (<> , `[ f ])))
@@ -546,13 +510,14 @@ vecElim Y n (<> , ys) P p = elElim (GrpQuo (Trivial (Fin n)) Y) ys (\ ys -> (P (
   )
 
 
-
+-- concatenation of two functions over Fin
 catFinFun : {X : Set}(n0 n1 : Nat)(f : Ev (Fin n0) -> X)(g : Ev (Fin n1) -> X)
   -> Ev (Fin (n0 +N n1)) -> X
-catFinFun ze n1 f g i = g i
+catFinFun ze      n1 f g i        = g i
 catFinFun (su n0) n1 f g (`0 , i) = f (`0 , <>)
 catFinFun (su n0) n1 f g (`1 , i) = catFinFun n0 n1 ((`1 ,_) - f) g i
 
+-- concatenation of lists. Note how we go through vectors to get the job done
 catL : forall Y -> Ev (List Y) -> Ev (List Y) -> Ev (List Y)
 catL Y (n0 , c0) (n1 , c1)
   = (n0 +N n1)
@@ -560,6 +525,7 @@ catL Y (n0 , c0) (n1 , c1)
         vecElim Y n1 (<> , c1) (\ _ -> Vu (Fin (n0 +N n1)) `> Vu Y) \ ys1 ->
         catFinFun n0 n1 ys0 ys1 )]
 
+-- And now for Bags. They have the "full" Symm(etry) Group as Aut, so define that.
 module _ where
   open Grp
   
