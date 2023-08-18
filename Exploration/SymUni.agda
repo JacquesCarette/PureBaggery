@@ -139,9 +139,10 @@ El (`Quotient T R Q)  = Quotient (El T) (\ i j -> Pr (R i j)) Q
 
 
 -- nondependent abbreviations
-_`>_ _`*_ : U -> U -> U
+_`>_ _`*_ _`+_ : U -> U -> U
 S `> T = S `-> \ _ -> T
 S `* T = S `>< \ _ -> T
+S `+ T = `Two `>< (S <01> T)
 infixr 5 _`>_
 infixr 10 _`*_
 
@@ -231,7 +232,11 @@ postulate
   coh : (X Y : U)(q : Pr (X <~> Y))(x : El X) -> Pr (Eq X Y x (coe X Y q x))
   Resp : {X : U}{x y : El X} -> Pr (Eq X X x y) -> (P : El X -> U) -> Pr (P x <~> P y)
 
--- coercions involve a lot of shuffling data around
+-- Resp implies reflexivity for structural type equality
+Refl : (X : U) -> Pr (X <~> X)
+Refl X = Resp {`One} _ (\ _ -> X)
+
+-- coercions smell of subtyping
 coe `One `One q _ = _
 coe `Two `Two q b = b
 coe `Nat `Nat q n = n
@@ -298,7 +303,25 @@ module _ {S T : U} (e : El (S <=> T)) where
   fwd-bwd = fst (snd (snd e))
   bwd-fwd : Pr (T `-> \ t -> Eq T T t (fwd (bwd t)))
   bwd-fwd = snd (snd (snd e))
-  
+
+record _<==>_ (S T : U) : Set where
+  constructor iso
+  field
+    osi : El (S <=> T)
+open _<==>_ public
+
+module _ {S T : U} (e : S <==> T) where
+  fwd' : El (S `> T)
+  fwd' = fst (osi e)
+  bwd' : El (T `> S)
+  bwd' = fst (snd (osi e))
+  fwd-bwd' : Pr (S `-> \ s -> Eq S S s (bwd' (fwd' s)))
+  fwd-bwd' = fst (snd (snd (osi e)))
+  bwd-fwd' : Pr (T `-> \ t -> Eq T T t (fwd' (bwd' t)))
+  bwd-fwd' = snd (snd (snd (osi e)))
+
+
+
 -------------------------------------------------------------
 -- construct some explicit type isomorphisms
 
@@ -323,6 +346,45 @@ compIso R S T (f , g , gf , fg) (h , k , kh , hk)
        h (k t)         -[ refl (S `> T) h (k t) (f (g (k t))) (fg (k t)) >
        h (f (g (k t)))  [QED]
     )
+
+module _ (R : U) where
+
+  _=[_>_ : forall {S T} -> R <==> S -> S <==> T -> R <==> T
+  _=[_>_ {S}{T} (iso f) (iso g) = iso (compIso R S T f g)
+  
+  _<_]=_ : forall {S T} -> S <==> R -> S <==> T -> R <==> T
+  _<_]=_ {S}{T} (iso f) (iso g) = iso (compIso R S T (invIso S R f) g)
+  
+  _[ISO] : R <==> R
+  _[ISO] = iso (idIso R)
+
+  infixr 2 _=[_>_ _<_]=_
+  infixr 3 _[ISO]
+
+module _ (A : U)(S T : El A -> U)
+         (f : (a : El A) -> S a <==> T a)
+  where
+  
+  sgIso : (A `>< S) <==> (A `>< T)
+  fst (osi sgIso) (a , s) = a , fst (osi (f a)) s
+  fst (snd (osi sgIso)) (a , t) = a , fst (snd (osi (f a))) t
+  fst (snd (snd (osi sgIso))) (a , s)
+    = refl A a
+    , fst (snd (snd (osi (f a)))) s
+  snd (snd (snd (osi sgIso))) (a , t)
+    = refl A a
+    , snd (snd (snd (osi (f a)))) t
+
+module _ (A : U)(B : El A -> U)(C : (a : El A) -> El (B a) -> U)
+  where
+  
+  sgAsso : ((A `>< B) `>< (/\ C)) <==> (A `>< \ a -> B a `>< C a)
+  fst (osi sgAsso) ((a , b) , c) = a , b , c
+  fst (snd (osi sgAsso)) (a , b , c) = (a , b) , c
+  fst (snd (snd (osi sgAsso))) _
+    = refl ((A `>< B) `>< (/\ C)) _
+  snd (snd (snd (osi sgAsso))) _
+    = refl (A `>< \ a -> B a `>< C a) _
 
 
 ---------------------------------------------------------
@@ -479,6 +541,46 @@ Fin : Nat -> V
 Fin ze     = `Zero
 Fin (su n) = `Two `>< (`One <01> Fin n)
 
+module _ (X : U) where
+  zePlus : X <==> (`Zero `+ X)
+  fst (osi zePlus) x = `1 , x
+  fst (snd (osi zePlus)) (`1 , x) = x
+  fst (snd (snd (osi zePlus))) x = refl X x
+  snd (snd (snd (osi zePlus))) (`1 , x) = refl (`Zero `+ X) (`1 , x)
+
+module _ (R S T : U) where
+  plusAssoLR : El (((R `+ S) `+ T) `> (R `+ (S `+ T)))
+  plusAssoLR (`0 , `0 , r) = `0 , r     
+  plusAssoLR (`0 , `1 , s) = `1 , `0 , s
+  plusAssoLR (`1 , t)      = `1 , `1 , t
+  plusAssoRL : El ((R `+ (S `+ T)) `> ((R `+ S) `+ T))
+  plusAssoRL (`0 , r)      = `0 , `0 , r
+  plusAssoRL (`1 , `0 , s) = `0 , `1 , s
+  plusAssoRL (`1 , `1 , t) = `1 , t     
+  plusAsso : ((R `+ S) `+ T) <==> (R `+ (S `+ T))
+  fst (osi plusAsso) = plusAssoLR
+  fst (snd (osi plusAsso)) = plusAssoRL
+  fst (snd (snd (osi plusAsso))) (`0 , `0 , r) = <> , <> , refl R r
+  fst (snd (snd (osi plusAsso))) (`0 , `1 , s) = <> , <> , refl S s
+  fst (snd (snd (osi plusAsso))) (`1 , t)      = <> , refl T t
+  snd (snd (snd (osi plusAsso))) (`0 , r)      = <> , refl R r
+  snd (snd (snd (osi plusAsso))) (`1 , `0 , s) = <> , <> , refl S s
+  snd (snd (snd (osi plusAsso))) (`1 , `1 , t) = <> , <> , refl T t
+
+sumFinGood : (n m : Nat) ->
+  Vu (Fin (n +N m)) <==> (Vu (Fin n) `+ Vu (Fin m))
+sumFinGood ze m = zePlus (Vu (Fin m))
+sumFinGood (su n) m = 
+  (`Two `>< \ b -> Vu ((`One <01> Fin (n +N m)) b))
+     =[ sgIso `Two _ _ ((_ [ISO]) <01> sumFinGood n m) >
+  (`One `+ (Vu (Fin n) `+ Vu (Fin m)))
+     < plusAsso `One (Vu (Fin n)) (Vu (Fin m)) ]=
+  ((`One `+ Vu (Fin n)) `+ Vu (Fin m))
+     =[ sgIso `Two _ _
+     (sgIso `Two _ _ ((_ [ISO]) <01> (_ [ISO])) <01> (_ [ISO])) >
+  ((`Two `>< \ b -> Vu ((`One <01> Fin n) b)) `+ Vu (Fin m)) [ISO]
+
+
 -- Trivial automorphism group over any V
 module _ where
   open Grp
@@ -508,18 +610,18 @@ oneL Y y = 1 , `[ (\ _ -> y) ]
 
 -- Vectors, on the other have, have trivial shape (since we know their length)
 -- and still Trivial automorphisms
-Vec : V -> Nat -> V
-Vec X n = [ `One <! (\ _ -> Trivial (Fin n)) ] X
+Vec : Nat -> V -> V
+Vec n = [ `One <! (\ _ -> Trivial (Fin n)) ]
 
-nilV : forall Y -> Ev (Vec Y ze)
+nilV : forall Y -> Ev (Vec ze Y)
 nilV Y = <> , `[ (λ ()) ]
 
-oneV : forall Y -> Ev Y -> Ev (Vec Y (su ze))
+oneV : forall Y -> Ev Y -> Ev (Vec (su ze) Y)
 oneV Y y = <> , `[ (λ _ → y) ]
 
 -- General eliminator for vectors
-vecElim : (Y : V)(n : Nat)(ys : Ev (Vec Y n))
-  (P : Ev (Vec Y n) -> U)
+vecElim : (Y : V)(n : Nat)(ys : Ev (Vec n Y))
+  (P : Ev (Vec n Y) -> U)
   (p : (f : El (Vu (Fin n) `> Vu Y)) -> El (P (<> , `[ f ])))
   ->
   El (P ys)
@@ -552,6 +654,15 @@ catL Y (n0 , c0) (n1 , c1)
         vecElim Y n1 (<> , c1) (\ _ -> Vu (Fin (n0 +N n1)) `> Vu Y) \ ys1 ->
         catFinFun n0 n1 ys0 ys1 )]
 
+catL' : forall Y -> Ev (List Y) -> Ev (List Y) -> Ev (List Y)
+catL' Y (n0 , c0) (n1 , c1)
+  = (n0 +N n1)
+  , `[ catFinFun n0 n1
+       (\ i -> vecElim Y n0 (<> , c0) (\ _ -> Vu Y) \ f -> f i)
+       (\ i -> vecElim Y n1 (<> , c1) (\ _ -> Vu Y) \ f -> f i)
+     ]
+
+
 -- And now for Bags. They have the "full" Symm(etry) Group as Aut, so define that.
 module _ where
   open Grp
@@ -560,6 +671,21 @@ module _ where
   Carrier (Symm X) = X
   automok (Symm X) _ = `One
   closure (Symm X) = _
+
+-- Shuffles are Unordered tuples
+
+Shuffle : Nat -> V -> V
+Shuffle n =  [ `One <! (\ _ -> Symm (Fin n)) ]
+
+shuffleElim : (Y : V)(n : Nat)(ys : Ev (Shuffle n Y))
+  (P : Ev (Shuffle n Y) -> U)
+  (p : (f : El (Vu (Fin n) `> Vu Y)) -> El (P (<> , `[ f ])))
+  (q : (f : El (Vu (Fin n) `> Vu Y))(g : El (Vu (Fin n) <=> Vu (Fin n))) ->
+    Pr (Eq (P (<> , `[ f ])) (P (<> , `[ fst g - f ])) (p f) (p (fst g - f)))
+    )
+  ->
+  El (P ys)
+shuffleElim Y n ys P p q = {!!}
 
 -- Bags are rather the simplest case in this setting!
 Bag : V -> V
@@ -571,3 +697,43 @@ nilB Y = 0 , `[ (\ ()) ]
 oneB : forall Y -> Ev Y -> Ev (Bag Y)
 oneB Y y = 1 , `[ (\ _ -> y) ]
 
+
+finPlusCase : (n m : Nat)
+  (P : El (Vu (Fin (n +N m)))
+    -> El (Vu (Fin n) `+ Vu (Fin m))
+    -> Set)
+  -> ((x : El (Vu (Fin n))) ->
+       P (bwd' (sumFinGood n m) (`0 , x)) (`0 , x))
+  -> ((x : El (Vu (Fin m))) ->
+       P (bwd' (sumFinGood n m) (`1 , x)) (`1 , x))
+  -> (s : El (Vu (Fin (n +N m)))) ->
+     P s (fwd' (sumFinGood n m) s)
+finPlusCase ze m P l r s = r s
+finPlusCase (su n) m P l r (`0 , <>) = l (`0 , <>)
+finPlusCase (su n) m P l r (`1 , s)
+  with fwd' (sumFinGood n m) s
+     | fwd-bwd'  (sumFinGood n m) s
+... | `0 , z | q = {!q!} -- l (`1 , z)
+... | `1 , z | q = {!!}
+
+{-
+catB : forall Y -> Ev (Bag Y) -> Ev (Bag Y) -> Ev (Bag Y)
+catB Y (n0 , c0) (n1 , c1)
+  = (n0 +N n1)
+  , snd (shuffleElim Y n0 (<> , c0) (\ _ -> Vu (Shuffle (n0 +N n1) Y))
+      (\ ys0 -> shuffleElim Y n1 (<> , c1) (\ _ -> Vu (Shuffle (n0 +N n1) Y))
+        (\ ys1 -> <> , `[ catFinFun n0 n1 ys0 ys1 ])
+'        \ ys1 g -> <> , hide
+           ( catFinFun n0 n1 ys0 (fst g - ys1)
+           , catFinFun n0 n1 ys0 (fst g - ys1)
+           , (hide (osi (
+               Vu (Fin (n0 +N n1)) =[ sumFinGood n0 n1 >
+               (Vu (Fin n0) `+ Vu (Fin n1))
+                  < sgIso `Two _ _ ((_ [ISO]) <01> iso g) ]=
+               (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
+               Vu (Fin (n0 +N n1)) [ISO]
+               ) , <> , {!!}))
+           , {!!}))
+      {!!})
+
+-}
