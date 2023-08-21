@@ -39,6 +39,7 @@ _+_ _*_ : Set -> Set -> Set
 S + T = Two >< \ { `0 -> S ; `1 -> T }
 S * T = S >< \ _ -> T
 
+-- uncurry
 /\_ : {S : Set}{T : S -> Set}{P : S >< T -> Set}
    -> ((s : S)(t : T s) -> P (s , t))
    -> (st : S >< T) -> P st
@@ -138,7 +139,7 @@ El (`Pr A)   = Pr A -- Hide (Pr A)
 El (`Quotient T R Q)  = Quotient (El T) (\ i j -> Pr (R i j)) Q
 
 
--- nondependent abbreviations
+-- nondependent abbreviations for functions, product and coproduct (respectively)
 _`>_ _`*_ _`+_ : U -> U -> U
 S `> T = S `-> \ _ -> T
 S `* T = S `>< \ _ -> T
@@ -146,11 +147,12 @@ S `+ T = `Two `>< (S <01> T)
 infixr 5 _`>_
 infixr 10 _`*_
 
-
 -- "ordinary" implication, aka non-dependent
 _`=>_ : P -> P -> P
 A `=> B = `Pr A `-> \ _ -> B
 infixr 5 _`=>_
+
+--------------------------------------------------------------------------
 
 Eq : (S T : U) -> El S -> El T -> P
 -- We need to be able to talk about equality of
@@ -188,10 +190,10 @@ Eq _ _ _ _ = `One
 -- can get a proof that inhabitation (of that type) implies our
 -- witness that the type respected its predicate
 postulate
-  InPr : (T : U)(A : P) -> El (T `-> \ _ -> `Pr A) -> Pr (`In T `=> A)
+  InPr : (T : U)(A : P) -> El (T `> `Pr A) -> Pr (`In T `=> A)
 
 -- The other direction is easy to prove
-PrIn : (T : U)(A : P) -> Pr (`In T `=> A) -> El (T `-> \ _ -> `Pr A)
+PrIn : (T : U)(A : P) -> Pr (`In T `=> A) -> El (T `> `Pr A)
 PrIn T A f t = f (hide t)
 
 -- *structural* type equality
@@ -251,7 +253,7 @@ coe (S0 `-> T0) (S1 `-> T1) (qS , qT) f0 s1
 coe (`Pr P0) (`Pr P1) q p0 = fst q p0
 coe (`Quotient T0 R0 Q0) (`Quotient T1 R1 Q1) (qT , _) `[ t0 ] = `[ coe T0 T1 qT t0 ]
 
--- The J combinator in this setting. This is where Resp is needed
+-- The J combinator in this setting. This is one place where Resp is needed
 module _ (X : U){x y : El X}(q : Pr (Eq X X x y)) where
   J : (P : (y : El X) -> Pr (Eq X X x y) -> U)
    -> El (P x (refl X x))
@@ -293,34 +295,21 @@ S <=> T
        `/\ (T `-> \ t -> Eq T T t (f (g t)))
          )
 
--- convenient names for the pieces
-module _ {S T : U} (e : El (S <=> T)) where
-  fwd : El (S `> T)
-  fwd = fst e
-  bwd : El (T `> S)
-  bwd = fst (snd e)
-  fwd-bwd : Pr (S `-> \ s -> Eq S S s (bwd (fwd s)))
-  fwd-bwd = fst (snd (snd e))
-  bwd-fwd : Pr (T `-> \ t -> Eq T T t (fwd (bwd t)))
-  bwd-fwd = snd (snd (snd e))
-
+-- make it easier to work with equivalences
 record _<==>_ (S T : U) : Set where
   constructor iso
   field
-    osi : El (S <=> T)
+    fwd : El (S `> T)
+    bwd : El (T `> S)
+    fwd-bwd : Pr (S `-> \ s -> Eq S S s (bwd (fwd s)))
+    bwd-fwd : Pr (T `-> \ t -> Eq T T t (fwd (bwd t)))
+
+  osi : El (S <=> T)
+  osi = fwd , bwd , fwd-bwd , bwd-fwd
+
 open _<==>_ public
-
-module _ {S T : U} (e : S <==> T) where
-  fwd' : El (S `> T)
-  fwd' = fst (osi e)
-  bwd' : El (T `> S)
-  bwd' = fst (snd (osi e))
-  fwd-bwd' : Pr (S `-> \ s -> Eq S S s (bwd' (fwd' s)))
-  fwd-bwd' = fst (snd (snd (osi e)))
-  bwd-fwd' : Pr (T `-> \ t -> Eq T T t (fwd' (bwd' t)))
-  bwd-fwd' = snd (snd (snd (osi e)))
-
-
+iso' : {S T : U} -> El (S <=> T) -> S <==> T
+iso' (f , g , f-g , g-f) = iso f g f-g g-f
 
 -------------------------------------------------------------
 -- construct some explicit type isomorphisms
@@ -350,13 +339,13 @@ compIso R S T (f , g , gf , fg) (h , k , kh , hk)
 module _ (R : U) where
 
   _=[_>_ : forall {S T} -> R <==> S -> S <==> T -> R <==> T
-  _=[_>_ {S}{T} (iso f) (iso g) = iso (compIso R S T f g)
+  _=[_>_ {S}{T} f g = iso' (compIso R S T (osi f) (osi g))
   
   _<_]=_ : forall {S T} -> S <==> R -> S <==> T -> R <==> T
-  _<_]=_ {S}{T} (iso f) (iso g) = iso (compIso R S T (invIso S R f) g)
+  _<_]=_ {S}{T} f g = iso' (compIso R S T (invIso S R (osi f)) (osi g))
   
   _[ISO] : R <==> R
-  _[ISO] = iso (idIso R)
+  _[ISO] = iso' (idIso R)
 
   infixr 2 _=[_>_ _<_]=_
   infixr 3 _[ISO]
@@ -366,26 +355,19 @@ module _ (A : U)(S T : El A -> U)
   where
   
   sgIso : (A `>< S) <==> (A `>< T)
-  fst (osi sgIso) (a , s) = a , fst (osi (f a)) s
-  fst (snd (osi sgIso)) (a , t) = a , fst (snd (osi (f a))) t
-  fst (snd (snd (osi sgIso))) (a , s)
-    = refl A a
-    , fst (snd (snd (osi (f a)))) s
-  snd (snd (snd (osi sgIso))) (a , t)
-    = refl A a
-    , snd (snd (snd (osi (f a)))) t
+  fwd sgIso (a , s) = a , fwd (f a) s
+  bwd sgIso (a , t) = a , bwd (f a) t
+  fwd-bwd sgIso (a , s) = refl A a , fwd-bwd (f a) s
+  bwd-fwd sgIso (a , t) = refl A a , bwd-fwd (f a) t
 
 module _ (A : U)(B : El A -> U)(C : (a : El A) -> El (B a) -> U)
   where
   
   sgAsso : ((A `>< B) `>< (/\ C)) <==> (A `>< \ a -> B a `>< C a)
-  fst (osi sgAsso) ((a , b) , c) = a , b , c
-  fst (snd (osi sgAsso)) (a , b , c) = (a , b) , c
-  fst (snd (snd (osi sgAsso))) _
-    = refl ((A `>< B) `>< (/\ C)) _
-  snd (snd (snd (osi sgAsso))) _
-    = refl (A `>< \ a -> B a `>< C a) _
-
+  fwd sgAsso ((a , b) , c) = a , b , c
+  bwd sgAsso (a , b , c) = (a , b) , c
+  fwd-bwd sgAsso ((a , b) , c) = refl ((A `>< B) `>< (/\ C)) _
+  bwd-fwd sgAsso (a , b , c) = refl (A `>< \ a -> B a `>< C a) _
 
 ---------------------------------------------------------
 -- An Aut(omorphism) of a subGroup of the group of
@@ -403,6 +385,16 @@ Aut X G =
    G f `=> G g `=> G (compIso X X X f g)
    )
 
+-- and short-form accessors
+respId : {X : U} {G : El (X <=> X) -> P} -> Pr (Aut X G) -> Pr (G (idIso X))
+respId = fst
+respInv : {X : U} {G : El (X <=> X) -> P} -> Pr (Aut X G) -> Pr ((X <=> X) `-> \ f -> G f `=> G (invIso X X f))
+respInv = snd - fst
+respComp : {X : U} {G : El (X <=> X) -> P} -> Pr (Aut X G) ->
+  Pr ((X <=> X) `-> \ f -> (X <=> X) `-> \ g ->
+     G f `=> G g `=> G (compIso X X X f g)
+     )
+respComp = snd - snd
 
 ------------------------------------------------------------
 -- Universe of description of containers
@@ -442,40 +434,48 @@ record Grp where
     G = X <=> X
   -- since we refer the components above a lot, give them names
   idAut : Pr (automok (idIso X))
-  idAut = fst closure
+  idAut = respId closure
   symAut : Pr (G `-> (\ f -> automok f `=> automok (invIso X X f)))
-  symAut = fst (snd closure)
+  symAut = respInv closure
   compAut : Pr (G `-> \ f -> G `-> \ g ->
                 automok f `=> automok g `=> automok (compIso X X X f g))
-  compAut = snd (snd closure)
+  compAut = respComp closure
 
   AutG : U
   AutG = G
   
 -- An automorphism group induces an equivalence relation
 -- (Statement of this as an obligation)
-module _ (G : Grp)(X : U) where
+module GQR (G : Grp)(X : U)(f0 f1 : El (Vu (Grp.Carrier G) `> X)) where
   open Grp G
 
-  GrpQuoRel : (f0 f1 : El (Vu Carrier `> X)) -> U
-  GrpQuoRel f0 f1 = AutG `>< \ g ->
+  GrpQuoRel : U
+  GrpQuoRel = AutG `>< \ g ->
                 `Pr (automok g `/\ ((Vu Carrier `-> \ p -> Eq X X (f0 p) (f1 (fst g p)))))
 
+  -- and some short-forms for this too
+  isGroup : El GrpQuoRel -> El AutG
+  isGroup = fst
+  respAct : (g : El GrpQuoRel) -> Pr (automok (isGroup g))
+  respAct gqr = fst (snd gqr)
+  
 -- A proof that a group (action) really does induce a quotient
 GrpQuo : Grp -> V -> U
 GrpQuo G X = let open Grp G in
   `Quotient
     (Vu Carrier `> Vu X)
-    (\ f0 f1 -> `In (GrpQuoRel G (Vu X) f0 f1))
+    (\ f0 f1 -> `In (GQR.GrpQuoRel G (Vu X) f0 f1))
     ( (record
       { eqR = \ f -> hide (idIso (Vu Carrier) , idAut , \ p -> refl (Vu X) (f p))
-      ; eqS = \ { f0 f1 (hide g) -> hide
-          (invIso (Vu Carrier) (Vu Carrier) (fst g)
-          , symAut (fst g) (fst (snd g)) 
+      ; eqS = \ { f0 f1 (hide g) -> let open GQR G (Vu X) f0 f1 in
+          hide
+          (invIso (Vu Carrier) (Vu Carrier) (isGroup g)
+          , symAut (isGroup g) (respAct g)
           , \ p -> let open EQPRF (Vu X) in
+              let aut = isGroup g in
               f1 p
-                -[ refl (Vu Carrier `> Vu X) f1 p (fst (fst g) (fst (snd (fst g)) p))
-                   (snd (snd (snd (fst g))) p)
+                -[ refl (Vu Carrier `> Vu X) f1 p (fst aut (fst (snd aut) p))
+                   (snd (snd (snd aut)) p)
                  >
               f1 (fst (fst g) (fst (snd (fst g)) p))
                 < snd (snd g) (fst (snd (fst g)) p) ]-
@@ -543,11 +543,11 @@ Fin (su n) = `Two `>< (`One <01> Fin n)
 
 module _ (X : U) where
   zePlus : X <==> (`Zero `+ X)
-  fst (osi zePlus) x = `1 , x
-  fst (snd (osi zePlus)) (`1 , x) = x
-  fst (snd (snd (osi zePlus))) x = refl X x
-  snd (snd (snd (osi zePlus))) (`1 , x) = refl (`Zero `+ X) (`1 , x)
-
+  fwd zePlus x = `1 , x
+  bwd zePlus (`1 , x) = x
+  fwd-bwd zePlus x = refl X x
+  bwd-fwd zePlus (`1 , x) = refl (`Zero `+ X) (`1 , x)
+ 
 module _ (R S T : U) where
   plusAssoLR : El (((R `+ S) `+ T) `> (R `+ (S `+ T)))
   plusAssoLR (`0 , `0 , r) = `0 , r     
@@ -558,14 +558,15 @@ module _ (R S T : U) where
   plusAssoRL (`1 , `0 , s) = `0 , `1 , s
   plusAssoRL (`1 , `1 , t) = `1 , t     
   plusAsso : ((R `+ S) `+ T) <==> (R `+ (S `+ T))
-  fst (osi plusAsso) = plusAssoLR
-  fst (snd (osi plusAsso)) = plusAssoRL
-  fst (snd (snd (osi plusAsso))) (`0 , `0 , r) = <> , <> , refl R r
-  fst (snd (snd (osi plusAsso))) (`0 , `1 , s) = <> , <> , refl S s
-  fst (snd (snd (osi plusAsso))) (`1 , t)      = <> , refl T t
-  snd (snd (snd (osi plusAsso))) (`0 , r)      = <> , refl R r
-  snd (snd (snd (osi plusAsso))) (`1 , `0 , s) = <> , <> , refl S s
-  snd (snd (snd (osi plusAsso))) (`1 , `1 , t) = <> , <> , refl T t
+  
+  fwd plusAsso = plusAssoLR
+  bwd plusAsso = plusAssoRL
+  fwd-bwd plusAsso (`0 , `0 , r) = <> , <> , refl R r
+  fwd-bwd plusAsso (`0 , `1 , s) = <> , <> , refl S s
+  fwd-bwd plusAsso (`1 , t)      = <> , refl T t
+  bwd-fwd plusAsso (`0 , r)      = <> , refl R r
+  bwd-fwd plusAsso(`1 , `0 , s) = <> , <> , refl S s
+  bwd-fwd plusAsso (`1 , `1 , t) = <> , <> , refl T t
 
 sumFinGood : (n m : Nat) ->
   Vu (Fin (n +N m)) <==> (Vu (Fin n) `+ Vu (Fin m))
@@ -627,7 +628,7 @@ vecElim : (Y : V)(n : Nat)(ys : Ev (Vec n Y))
   El (P ys)
 vecElim Y n (<> , ys) P p = elElim (GrpQuo (Trivial (Fin n)) Y) ys (\ ys -> (P (<> , ys)))
   ( p
-  , \ f0 f1 -> InPr (GrpQuoRel (Trivial (Fin n)) (Vu Y) f0 f1)
+  , \ f0 f1 -> InPr (GQR.GrpQuoRel (Trivial (Fin n)) (Vu Y) f0 f1)
                      (Eq (P (<> , `[ f0 ])) (P (<> , `[ f1 ])) (p f0) (p f1))
                      (/\ \ g -> /\ \ gq -> J (Vu (Fin n) <=> Vu (Fin n)) {idIso (Vu (Fin n))} {g} gq
                        (\ g _ -> (Vu (Fin n) `->  \ s -> `Pr (Eq (Vu Y) (Vu Y) (f0 s) (f1 (fst g s))))
@@ -685,7 +686,7 @@ shuffleElim : (Y : V)(n : Nat)(ys : Ev (Shuffle n Y))
     )
   ->
   El (P ys)
-shuffleElim Y n ys P p q = {!!}
+shuffleElim Y n (<> , `[ f ]) P p q = p f
 
 -- Bags are rather the simplest case in this setting!
 Bag : V -> V
@@ -703,17 +704,17 @@ finPlusCase : (n m : Nat)
     -> El (Vu (Fin n) `+ Vu (Fin m))
     -> Set)
   -> ((x : El (Vu (Fin n))) ->
-       P (bwd' (sumFinGood n m) (`0 , x)) (`0 , x))
+       P (bwd (sumFinGood n m) (`0 , x)) (`0 , x))
   -> ((x : El (Vu (Fin m))) ->
-       P (bwd' (sumFinGood n m) (`1 , x)) (`1 , x))
+       P (bwd (sumFinGood n m) (`1 , x)) (`1 , x))
   -> (s : El (Vu (Fin (n +N m)))) ->
-     P s (fwd' (sumFinGood n m) s)
+     P s (fwd (sumFinGood n m) s)
 finPlusCase ze m P l r s = r s
 finPlusCase (su n) m P l r (`0 , <>) = l (`0 , <>)
 finPlusCase (su n) m P l r (`1 , s)
-  with fwd' (sumFinGood n m) s
-     | fwd-bwd'  (sumFinGood n m) s
-... | `0 , z | q = {!q!} -- l (`1 , z)
+  with fwd (sumFinGood n m) s
+     | fwd-bwd  (sumFinGood n m) s
+... | `0 , z | q = {!l ?!} -- l (`1 , z)
 ... | `1 , z | q = {!!}
 
 {-
