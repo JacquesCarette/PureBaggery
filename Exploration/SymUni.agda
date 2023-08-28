@@ -698,7 +698,13 @@ nilB Y = 0 , `[ (\ ()) ]
 oneB : forall Y -> Ev Y -> Ev (Bag Y)
 oneB Y y = 1 , `[ (\ _ -> y) ]
 
+finDec : (n : Nat) (P : El (Vu (Fin n)) -> Set)
+ (x y : El (Vu (Fin n)))
+ -> Pr (Eq (Vu (Fin n)) (Vu (Fin n)) x y) -> P x -> P y
+finDec (su n) P (`0 , <>) (`0 , <>) (<> , <>) p = p
+finDec (su n) P (`1 , x) (`1 , y) (<> , eq) p = finDec n (\ z -> P (`1 , z)) x y eq p 
 
+{-
 finPlusCase : (n m : Nat)
   (P : El (Vu (Fin (n +N m)))
     -> El (Vu (Fin n) `+ Vu (Fin m))
@@ -717,23 +723,23 @@ finPlusCase (su n) m P l r (`1 , s)
 ... | `0 , z | q = {!l ?!} -- l (`1 , z)
 ... | `1 , z | q = {!!}
 
-{-
+
 catB : forall Y -> Ev (Bag Y) -> Ev (Bag Y) -> Ev (Bag Y)
 catB Y (n0 , c0) (n1 , c1)
   = (n0 +N n1)
   , snd (shuffleElim Y n0 (<> , c0) (\ _ -> Vu (Shuffle (n0 +N n1) Y))
       (\ ys0 -> shuffleElim Y n1 (<> , c1) (\ _ -> Vu (Shuffle (n0 +N n1) Y))
         (\ ys1 -> <> , `[ catFinFun n0 n1 ys0 ys1 ])
-'        \ ys1 g -> <> , hide
+         \ ys1 g -> <> , hide
            ( catFinFun n0 n1 ys0 (fst g - ys1)
            , catFinFun n0 n1 ys0 (fst g - ys1)
            , (hide (osi (
                Vu (Fin (n0 +N n1)) =[ sumFinGood n0 n1 >
                (Vu (Fin n0) `+ Vu (Fin n1))
-                  < sgIso `Two _ _ ((_ [ISO]) <01> iso g) ]=
+                                            < sgIso `Two _ _ ((_ [ISO]) <01> iso' g) ]=
                (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
                Vu (Fin (n0 +N n1)) [ISO]
-               ) , <> , {!!}))
+               ) , <> , \ n2 -> {!!}))
            , {!!}))
       {!!})
 
