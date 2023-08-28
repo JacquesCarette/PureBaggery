@@ -1,4 +1,3 @@
-
 -- ``Symmetric Universes''
 -- wherein we describe universes where we can have containers whose
 -- position sets have symmetries and everyone who deals with such
@@ -127,6 +126,17 @@ data U where
   `Pr : P -> U
   `Quotient : (T : U)(R : El T -> El T -> P)
               (Q : Equiv (El T) (\ i j -> Pr (R i j))) -> U
+  -- it's tempting to add a (redundant) code for isomorphisms, so as
+  -- to make them a record with named fields, but the positivity checker
+  -- loses its nerve
+  -- _`<=>_ : U -> U -> U
+
+-- nondependent abbreviations for functions, product and coproduct (respectively)
+_`>_ _`*_ : U -> U -> U
+S `> T = S `-> \ _ -> T
+S `* T = S `>< \ _ -> T
+infixr 5 _`>_
+infixr 10 _`*_
 
 -- Straightforward rep. 
 El `Zero = Zero
@@ -139,13 +149,8 @@ El (`Pr A)   = Pr A -- Hide (Pr A)
 El (`Quotient T R Q)  = Quotient (El T) (\ i j -> Pr (R i j)) Q
 
 
--- nondependent abbreviations for functions, product and coproduct (respectively)
-_`>_ _`*_ _`+_ : U -> U -> U
-S `> T = S `-> \ _ -> T
-S `* T = S `>< \ _ -> T
+_`+_ : U -> U -> U
 S `+ T = `Two `>< (S <01> T)
-infixr 5 _`>_
-infixr 10 _`*_
 
 -- "ordinary" implication, aka non-dependent
 _`=>_ : P -> P -> P
@@ -253,6 +258,22 @@ coe (S0 `-> T0) (S1 `-> T1) (qS , qT) f0 s1
 coe (`Pr P0) (`Pr P1) q p0 = fst q p0
 coe (`Quotient T0 R0 Q0) (`Quotient T1 R1 Q1) (qT , _) `[ t0 ] = `[ coe T0 T1 qT t0 ]
 
+module _
+  (T : U)(R : El T -> El T -> P)
+  (Q : Equiv (El T) (\ i j -> Pr (R i j)))
+  where
+  homogQuot : (t0 t1 : El T) -> Pr (R t0 t1) ->
+    Pr (Eq (`Quotient T R Q) (`Quotient T R Q) `[ t0 ] `[ t1 ])
+  homogQuot t0 t1 r = hide (t1 , t1 , r , refl T t1 , Equiv.eqR Q t1)
+
+HomogTac : (T : U)(x y : El T) -> Set
+HomogTac (`Quotient T R Q) `[ x ] `[ y ] = Pr (R x y)
+HomogTac _ x y = Zero
+
+homogTac : (T : U)(x y : El T) -> HomogTac T x y -> Pr (Eq T T x y)
+homogTac (`Quotient T R Q) `[ x ] `[ y ] r = homogQuot T R Q x y r
+
+
 -- The J combinator in this setting. This is one place where Resp is needed
 module _ (X : U){x y : El X}(q : Pr (Eq X X x y)) where
   J : (P : (y : El X) -> Pr (Eq X X x y) -> U)
@@ -306,8 +327,36 @@ record _<==>_ (S T : U) : Set where
 
   osi : El (S <=> T)
   osi = fwd , bwd , fwd-bwd , bwd-fwd
+  isFwd : (t : El T)
+          (P : El T -> U)
+       -> ((s : El S) -> El (P (fwd s)))
+       -> El (P t)
+  isFwd t P p = let open EQPRF T in 
+    J T (_ < bwd-fwd t ]- _ [QED]) (\ t _ -> P t) (p (bwd t))
+
+  isBwd : (s : El S)
+          (P : El S -> U)
+       -> ((t : El T) -> El (P (bwd t)))
+       -> El (P s)
+  isBwd s P p = let open EQPRF S in 
+    J S (_ < fwd-bwd s ]- _ [QED]) (\ s _ -> P s) (p (fwd s))
+
+  flipFwd : (s : El S)
+    (P : El S -> El T -> U) ->
+    ((t : El T) -> El (P (bwd t) t)) ->
+    El (P s (fwd s))
+  flipFwd s P p = let open EQPRF S in
+    J S (_ < fwd-bwd s ]- _ [QED]) (\ x _ -> P x (fwd s)) (p (fwd s)) 
 
 open _<==>_ public
+
+module _ (S T : U){P : El (S <=> T) -> Set} where
+  blueIso : 
+    ((q : S <==> T) -> P (osi q))
+    -> (f : El (S <=> T)) -> P f
+  blueIso q f = q _
+
+
 iso' : {S T : U} -> El (S <=> T) -> S <==> T
 iso' (f , g , f-g , g-f) = iso f g f-g g-f
 
@@ -647,6 +696,20 @@ catFinFun ze      n1 f g i        = g i
 catFinFun (su n0) n1 f g (`0 , i) = f (`0 , <>)
 catFinFun (su n0) n1 f g (`1 , i) = catFinFun n0 n1 ((`1 ,_) - f) g i
 
+module _ {X : U} where
+  catLeft : (n0 n1 : Nat)(f : El (Vu (Fin n0) `> X))(g : El (Vu (Fin n1) `> X))
+    (x : Ev (Fin n0)) ->
+      Pr (Eq X X (catFinFun n0 n1 f g (bwd (sumFinGood n0 n1) (`0 , x))) (f x))
+  catLeft (su n0) n1 f g (`0 , x) = refl X _
+  catLeft (su n0) n1 f g (`1 , x) = catLeft n0 n1 ((`1 ,_) - f) g x
+
+  catRight : (n0 n1 : Nat)(f : El (Vu (Fin n0) `> X))(g : El (Vu (Fin n1) `> X))
+    (x : Ev (Fin n1)) ->
+      Pr (Eq X X (catFinFun n0 n1 f g (bwd (sumFinGood n0 n1) (`1 , x))) (g x))
+  catRight ze n1 f g x = refl X _
+  catRight (su n0) n1 f g x = catRight n0 n1 ((`1 ,_) - f) g x
+
+
 -- concatenation of lists. Note how we go through vectors to get the job done
 catL : forall Y -> Ev (List Y) -> Ev (List Y) -> Ev (List Y)
 catL Y (n0 , c0) (n1 , c1)
@@ -688,6 +751,29 @@ shuffleElim : (Y : V)(n : Nat)(ys : Ev (Shuffle n Y))
   El (P ys)
 shuffleElim Y n (<> , `[ f ]) P p q = p f
 
+module _
+  (Y : V)(n : Nat)
+  (P : Ev (Shuffle n Y) -> U)
+  (p0 : (f : El (Vu (Fin n) `> Vu Y)) -> El (P (<> , `[ f ])))
+  {q0 : (f : El (Vu (Fin n) `> Vu Y))(g : El (Vu (Fin n) <=> Vu (Fin n))) ->
+    Pr (Eq (P (<> , `[ f ])) (P (<> , `[ fst g - f ])) (p0 f) (p0 (fst g - f)))
+    }
+  (p1 : (f : El (Vu (Fin n) `> Vu Y)) -> El (P (<> , `[ f ])))
+  {q1 : (f : El (Vu (Fin n) `> Vu Y))(g : El (Vu (Fin n) <=> Vu (Fin n))) ->
+    Pr (Eq (P (<> , `[ f ])) (P (<> , `[ fst g - f ])) (p1 f) (p1 (fst g - f)))
+    }
+  (p01 :
+    Pr (Eq ((Vu (Fin n) `> Vu Y) `-> \ f -> P (<> , `[ f ]))
+           ((Vu (Fin n) `> Vu Y) `-> \ f -> P (<> , `[ f ]))
+       p0 p1))
+  where
+  shuffleElimEq : (ys : Ev (Shuffle n Y)) -> Pr (Eq (P ys) (P ys)
+    (shuffleElim Y n ys P p0 q0) (shuffleElim Y n ys P p1 q1))
+  shuffleElimEq (<> , `[ ys ]) = J ((Vu (Fin n) `> Vu Y) `-> \ f -> P (<> , `[ f ]))
+    p01 (\ p1 _ -> `Pr (Eq (P (<> , `[ ys ])) (P (<> , `[ ys ])) (p0 ys) (p1 ys)))
+    (refl (P (<> , `[ ys ])) _)
+  
+
 -- Bags are rather the simplest case in this setting!
 Bag : V -> V
 Bag X = [ `Nat <! Fin - Symm ] X
@@ -722,7 +808,7 @@ finPlusCase (su n) m P l r (`1 , s)
      | fwd-bwd  (sumFinGood n m) s
 ... | `0 , z | q = {!l ?!} -- l (`1 , z)
 ... | `1 , z | q = {!!}
-
+-}
 
 catB : forall Y -> Ev (Bag Y) -> Ev (Bag Y) -> Ev (Bag Y)
 catB Y (n0 , c0) (n1 , c1)
@@ -739,8 +825,84 @@ catB Y (n0 , c0) (n1 , c1)
                                             < sgIso `Two _ _ ((_ [ISO]) <01> iso' g) ]=
                (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
                Vu (Fin (n0 +N n1)) [ISO]
-               ) , <> , \ n2 -> {!!}))
-           , {!!}))
-      {!!})
+               ) , <> , \ n2 -> flipFwd (sumFinGood n0 n1) n2
+                  (\ n2 x -> `Pr
+      (Eq (Vu Y) (Vu Y) (catFinFun n0 n1 ys0 ys1 n2)
+       (catFinFun n0 n1 ys0 (fst g - ys1)
+        (fst
+         (osi
+          ((Vu (Fin n0) `+ Vu (Fin n1)) <
+           sgIso `Two (Vu (Fin n0) <01> Vu (Fin n1))
+           (Vu (Fin n0) <01> Vu (Fin n1)) ((Vu (Fin n0) [ISO]) <01> iso' g)
+           ]=
+           (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
+           Vu (Fin (n0 +N n1)) [ISO]))
+         x))))
+           (/\ ((\ i -> let open EQPRF (Vu Y) in
+               catFinFun n0 n1 ys0 ys1 (bwd (sumFinGood n0 n1) (`0 , i))
+                 -[ catLeft {Vu Y} n0 n1 ys0 _ i >
+               ys0 i
+                 < catLeft {Vu Y} n0 n1 ys0 _ i  ]-
+               catFinFun n0 n1 ys0 (fst g - ys1)
+                   (bwd (sumFinGood n0 n1) (`0 , i)) [QED])
+            <01> \ j -> let open EQPRF (Vu Y) in
+                catFinFun n0 n1 ys0 ys1 (bwd (sumFinGood n0 n1) (`1 , j))
+                  -[ catRight {Vu Y} n0 n1 ys0 ys1 j >
+                ys1 j
+                  -[ refl (Vu (Fin n1) `> Vu Y) ys1 j _ (snd (snd (snd g)) j) >
+                ys1 (fst g (fst (snd g) j))
+                  < catRight {Vu Y} n0 n1 ys0 (fst g - ys1) (fst (snd g) j) ]-
+                catFinFun n0 n1 ys0 (fst g - ys1)
+                  (bwd (sumFinGood n0 n1) (`1 , fst (snd g) j)) [QED]))
+                 ))
+           , refl (Vu (Fin (n0 +N n1)) `> Vu Y) _
+           , hide (idIso (Vu (Fin (n0 +N n1))) , <> , \ x -> refl (Vu Y) _)))
+      \ ys0 -> blueIso (Vu (Fin n0)) (Vu (Fin n0)) \ q ->
+        <> , homogTac (GrpQuo (Symm (Fin (n0 +N n1))) Y)
+                `[ catFinFun n0 n1 ys0 _ ]
+                `[ catFinFun n0 n1 (fwd q - ys0) _ ]
+                (hide (osi (
+               Vu (Fin (n0 +N n1)) =[ sumFinGood n0 n1 >
+               (Vu (Fin n0) `+ Vu (Fin n1))
+                   < sgIso `Two _ _ (q <01> (_ [ISO])) ]=
+               (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
+               Vu (Fin (n0 +N n1)) [ISO])
+                      , <>
+                      , \ n2 -> flipFwd (sumFinGood n0 n1) n2
+        (\ n2 x -> `Pr
+        (Eq (Vu Y) (Vu Y) (catFinFun n0 n1 ys0 (Quotient.rep c1) n2)
+       (catFinFun n0 n1 (fwd q - ys0) (Quotient.rep c1)
+        (fst
+         (osi
+          ((Vu (Fin n0) `+ Vu (Fin n1)) <
+           sgIso `Two (Vu (Fin n0) <01> Vu (Fin n1))
+           (Vu (Fin n0) <01> Vu (Fin n1)) (q <01> (Vu (Fin n1) [ISO]))
+           ]=
+           (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
+           Vu (Fin (n0 +N n1)) [ISO]))
+         x))))
+        (/\ ((\ i -> let open EQPRF (Vu Y) in
+           catFinFun n0 n1 ys0 (Quotient.rep c1)
+             (bwd (sumFinGood n0 n1) (`0 , i))
+             -[ catLeft {Vu Y} n0 n1 _ _ i >
+           ys0 i
+             -[ refl (Vu (Fin n0) `> Vu Y) ys0 _ _ (bwd-fwd q i) >
+           ys0 (fwd q (bwd q i))
+             < catLeft {Vu Y} n0 n1 _ _ (bwd q i) ]-
+           catFinFun n0 n1 (fwd q - ys0) (Quotient.rep c1)
+             (bwd (sumFinGood n0 n1) (`0 , bwd q i)) [QED])
+        <01>
+        \ j -> let open EQPRF (Vu Y) in
+          catFinFun n0 n1 ys0 (Quotient.rep c1)
+        (bwd (sumFinGood n0 n1) (`1 , j))
+           -[ catRight {Vu Y} n0 n1 _ _ j >
+          (Quotient.rep c1) j
+          < catRight {Vu Y} n0 n1 _ _ j ]-
+        catFinFun n0 n1 (λ a → ys0 (fwd q a)) (Quotient.rep c1)
+        (bwd (sumFinGood n0 n1) (`1 , j)) [QED]))))
+  )
 
--}
+-- the above is epic cheating, in that we see exposed representatives
+-- (Quotient.rep c1) where we ought to use shuffElim and then prove
+-- that what we're trying prove respects the quotient (which it does, but
+-- that's not a gimme)
