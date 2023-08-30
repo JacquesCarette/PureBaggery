@@ -148,7 +148,6 @@ El (S `-> T) = (s : El S) -> El (T s)
 El (`Pr A)   = Pr A -- Hide (Pr A)
 El (`Quotient T R Q)  = Quotient (El T) (\ i j -> Pr (R i j)) Q
 
-
 _`+_ : U -> U -> U
 S `+ T = `Two `>< (S <01> T)
 
@@ -288,7 +287,7 @@ module _ (X : U){x y : El X}(q : Pr (Eq X X x y)) where
         (\ (y , q) -> P y q))
       p
 
-
+-- combinators for equational reasoning
 module EQPRF (X : U) where
   module _ {y z : El X} where
     _-[_>_ : (x : El X) -> Pr (Eq X X x y) -> Pr (Eq X X y z) -> Pr (Eq X X x z)
@@ -303,6 +302,9 @@ module EQPRF (X : U) where
   _[QED] : (x : El X) -> Pr (Eq X X x x)
   _[QED] x = refl X x
   infixr 3 _[QED]
+  -- sometimes it's simpler to just flip a proof around
+  !_ : {x y : El X} -> Pr (Eq X X x y) -> Pr (Eq X X y x)
+  ! p = _ < p ]- _ [QED]
   
 
 -- type equivalence via explicit morphisms
@@ -325,6 +327,7 @@ record _<==>_ (S T : U) : Set where
     fwd-bwd : Pr (S `-> \ s -> Eq S S s (bwd (fwd s)))
     bwd-fwd : Pr (T `-> \ t -> Eq T T t (fwd (bwd t)))
 
+  -- deconstructor
   osi : El (S <=> T)
   osi = fwd , bwd , fwd-bwd , bwd-fwd
   isFwd : (t : El T)
@@ -332,31 +335,33 @@ record _<==>_ (S T : U) : Set where
        -> ((s : El S) -> El (P (fwd s)))
        -> El (P t)
   isFwd t P p = let open EQPRF T in 
-    J T (_ < bwd-fwd t ]- _ [QED]) (\ t _ -> P t) (p (bwd t))
+    J T (! bwd-fwd t ) (\ t _ -> P t) (p (bwd t))
 
   isBwd : (s : El S)
           (P : El S -> U)
        -> ((t : El T) -> El (P (bwd t)))
        -> El (P s)
   isBwd s P p = let open EQPRF S in 
-    J S (_ < fwd-bwd s ]- _ [QED]) (\ s _ -> P s) (p (fwd s))
+    J S (! fwd-bwd s) (\ s _ -> P s) (p (fwd s))
 
   flipFwd : (s : El S)
     (P : El S -> El T -> U) ->
     ((t : El T) -> El (P (bwd t) t)) ->
     El (P s (fwd s))
   flipFwd s P p = let open EQPRF S in
-    J S (_ < fwd-bwd s ]- _ [QED]) (\ x _ -> P x (fwd s)) (p (fwd s)) 
+    J S (! fwd-bwd s) (\ x _ -> P x (fwd s)) (p (fwd s)) 
 
 open _<==>_ public
 
 module _ (S T : U){P : El (S <=> T) -> Set} where
+  -- given a property of an iso, a way to prove it for a blue
+  -- version, transfer that proof to a given iso
   blueIso : 
     ((q : S <==> T) -> P (osi q))
     -> (f : El (S <=> T)) -> P f
   blueIso q f = q _
 
-
+-- repacking an iso
 iso' : {S T : U} -> El (S <=> T) -> S <==> T
 iso' (f , g , f-g , g-f) = iso f g f-g g-f
 
@@ -385,21 +390,37 @@ compIso R S T (f , g , gf , fg) (h , k , kh , hk)
        h (f (g (k t)))  [QED]
     )
 
+---------
+-- May as well build them for blue isos too
+-- do it directly, i.e. without going via <=>
+idIso' : {X : U} -> X <==> X
+idIso' {X} = iso' (idIso X)
+
+invIso' : {S T : U} -> S <==> T -> T <==> S
+fwd (invIso' i) = bwd i
+bwd (invIso' i) = fwd i
+fwd-bwd (invIso' i) = bwd-fwd i
+bwd-fwd (invIso' i) = fwd-bwd i
+
+-- except here, for now
+compIso' : {R S T : U} -> R <==> S -> S <==> T -> R <==> T
+compIso' {R} {S} {T} f g = iso' (compIso R S T (osi f) (osi g))
+
 module _ (R : U) where
 
   _=[_>_ : forall {S T} -> R <==> S -> S <==> T -> R <==> T
-  _=[_>_ {S}{T} f g = iso' (compIso R S T (osi f) (osi g))
+  _=[_>_ = compIso'
   
   _<_]=_ : forall {S T} -> S <==> R -> S <==> T -> R <==> T
-  _<_]=_ {S}{T} f g = iso' (compIso R S T (invIso S R (osi f)) (osi g))
+  _<_]=_ f g = compIso' (invIso' f) g
   
   _[ISO] : R <==> R
-  _[ISO] = iso' (idIso R)
+  _[ISO] = idIso'
 
   infixr 2 _=[_>_ _<_]=_
   infixr 3 _[ISO]
 
-module _ (A : U)(S T : El A -> U)
+module _ (A : U){S T : El A -> U}
          (f : (a : El A) -> S a <==> T a)
   where
   
@@ -521,14 +542,10 @@ GrpQuo G X = let open Grp G in
           (invIso (Vu Carrier) (Vu Carrier) (isGroup g)
           , symAut (isGroup g) (respAct g)
           , \ p -> let open EQPRF (Vu X) in
-              let aut = isGroup g in
-              f1 p
-                -[ refl (Vu Carrier `> Vu X) f1 p (fst aut (fst (snd aut) p))
-                   (snd (snd (snd aut)) p)
-                 >
-              f1 (fst (fst g) (fst (snd (fst g)) p))
-                < snd (snd g) (fst (snd (fst g)) p) ]-
-              (f0 (fst (snd (fst g)) p)) [QED]
+              let (fw , bw , fw-bw , bw-fw ) = isGroup g in
+              f1 p            -[ refl (Vu Carrier `> Vu X) f1 p (fw (bw p)) (bw-fw p) >
+              f1 (fw (bw p))  < snd (snd g) (bw p) ]-
+              f0 (bw p)       [QED]
           )}
       ; eqT = \ { f0 f1 f2 (hide g01) (hide g12) -> hide
           (compIso (Vu Carrier) (Vu Carrier) (Vu Carrier) (fst g01) (fst g12)
@@ -622,12 +639,12 @@ sumFinGood : (n m : Nat) ->
 sumFinGood ze m = zePlus (Vu (Fin m))
 sumFinGood (su n) m = 
   (`Two `>< \ b -> Vu ((`One <01> Fin (n +N m)) b))
-     =[ sgIso `Two _ _ ((_ [ISO]) <01> sumFinGood n m) >
+     =[ sgIso `Two ((_ [ISO]) <01> sumFinGood n m) >
   (`One `+ (Vu (Fin n) `+ Vu (Fin m)))
      < plusAsso `One (Vu (Fin n)) (Vu (Fin m)) ]=
   ((`One `+ Vu (Fin n)) `+ Vu (Fin m))
-     =[ sgIso `Two _ _
-     (sgIso `Two _ _ ((_ [ISO]) <01> (_ [ISO])) <01> (_ [ISO])) >
+     =[ sgIso `Two
+     (sgIso `Two ((_ [ISO]) <01> (_ [ISO])) <01> (_ [ISO])) >
   ((`Two `>< \ b -> Vu ((`One <01> Fin n) b)) `+ Vu (Fin m)) [ISO]
 
 
@@ -790,25 +807,6 @@ finDec : (n : Nat) (P : El (Vu (Fin n)) -> Set)
 finDec (su n) P (`0 , <>) (`0 , <>) (<> , <>) p = p
 finDec (su n) P (`1 , x) (`1 , y) (<> , eq) p = finDec n (\ z -> P (`1 , z)) x y eq p 
 
-{-
-finPlusCase : (n m : Nat)
-  (P : El (Vu (Fin (n +N m)))
-    -> El (Vu (Fin n) `+ Vu (Fin m))
-    -> Set)
-  -> ((x : El (Vu (Fin n))) ->
-       P (bwd (sumFinGood n m) (`0 , x)) (`0 , x))
-  -> ((x : El (Vu (Fin m))) ->
-       P (bwd (sumFinGood n m) (`1 , x)) (`1 , x))
-  -> (s : El (Vu (Fin (n +N m)))) ->
-     P s (fwd (sumFinGood n m) s)
-finPlusCase ze m P l r s = r s
-finPlusCase (su n) m P l r (`0 , <>) = l (`0 , <>)
-finPlusCase (su n) m P l r (`1 , s)
-  with fwd (sumFinGood n m) s
-     | fwd-bwd  (sumFinGood n m) s
-... | `0 , z | q = {!l ?!} -- l (`1 , z)
-... | `1 , z | q = {!!}
--}
 
 catB : forall Y -> Ev (Bag Y) -> Ev (Bag Y) -> Ev (Bag Y)
 catB Y (n0 , c0) (n1 , c1)
@@ -822,7 +820,7 @@ catB Y (n0 , c0) (n1 , c1)
            , (hide (osi (
                Vu (Fin (n0 +N n1)) =[ sumFinGood n0 n1 >
                (Vu (Fin n0) `+ Vu (Fin n1))
-                                            < sgIso `Two _ _ ((_ [ISO]) <01> iso' g) ]=
+                                            < sgIso `Two ((_ [ISO]) <01> iso' g) ]=
                (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
                Vu (Fin (n0 +N n1)) [ISO]
                ) , <> , \ n2 -> flipFwd (sumFinGood n0 n1) n2
@@ -832,8 +830,7 @@ catB Y (n0 , c0) (n1 , c1)
         (fst
          (osi
           ((Vu (Fin n0) `+ Vu (Fin n1)) <
-           sgIso `Two (Vu (Fin n0) <01> Vu (Fin n1))
-           (Vu (Fin n0) <01> Vu (Fin n1)) ((Vu (Fin n0) [ISO]) <01> iso' g)
+           sgIso `Two ((Vu (Fin n0) [ISO]) <01> iso' g)
            ]=
            (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
            Vu (Fin (n0 +N n1)) [ISO]))
@@ -864,7 +861,7 @@ catB Y (n0 , c0) (n1 , c1)
                 (hide (osi (
                Vu (Fin (n0 +N n1)) =[ sumFinGood n0 n1 >
                (Vu (Fin n0) `+ Vu (Fin n1))
-                   < sgIso `Two _ _ (q <01> (_ [ISO])) ]=
+                   < sgIso `Two (q <01> (_ [ISO])) ]=
                (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
                Vu (Fin (n0 +N n1)) [ISO])
                       , <>
@@ -875,8 +872,7 @@ catB Y (n0 , c0) (n1 , c1)
         (fst
          (osi
           ((Vu (Fin n0) `+ Vu (Fin n1)) <
-           sgIso `Two (Vu (Fin n0) <01> Vu (Fin n1))
-           (Vu (Fin n0) <01> Vu (Fin n1)) (q <01> (Vu (Fin n1) [ISO]))
+           sgIso `Two (q <01> (Vu (Fin n1) [ISO]))
            ]=
            (Vu (Fin n0) `+ Vu (Fin n1)) < sumFinGood n0 n1 ]=
            Vu (Fin (n0 +N n1)) [ISO]))
