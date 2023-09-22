@@ -58,3 +58,8 @@ _-_ : forall {i j k}{A : Set i}{B : A -> Set j}{C : (a : A) -> B a -> Set k}
   (a : A)
   -> C a (f a)
 (f - g) a = g (f a)
+
+flip : forall {i j k}{A : Set i}{B : Set j}{C : A -> B -> Set k}
+  (f : (a : A)(b : B) -> C a b)
+  (b : B)(a : A) -> C a b
+flip f b a = f a b
