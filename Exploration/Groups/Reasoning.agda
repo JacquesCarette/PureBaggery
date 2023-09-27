@@ -23,6 +23,9 @@ module EQPRF (X : U) where
   !_ : {x y : El X} -> Pr (Eq X X x y) -> Pr (Eq X X y x)
   ! p = _ < p ]- _ [QED]
 
+  -- frequent pattern
+  cong : {x y : El X} (f : El (X `> X)) -> Pr (Eq X X x y) -> Pr (Eq X X (f x) (f y))
+  cong {x} {y} f x~y = refl (X `> X) f x y x~y
 module _
   (T : U)(R : El T -> El T -> P)
   (Q : Equiv (El T) (\ i j -> Pr (R i j)))

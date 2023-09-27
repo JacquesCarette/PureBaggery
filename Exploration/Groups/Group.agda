@@ -20,18 +20,18 @@ record Group (G : U) : Set where
   
   mul-inv : Pr (G `-> \ x -> Eq G G (mul x (inv x)) neu)
   mul-inv x = 
-    mul x (inv x) < mulneu- _ ]-
+    mul x (inv x)
+      < mulneu- _ ]-
     mul neu (mul x (inv x))
-      < refl (G `> G) (flip mul _) _  _ (mulinv- _) ]-
+      < cong (flip mul _) (mulinv- _) ]-
     mul (mul (inv (inv x)) (inv x)) (mul x (inv x))
       -[ mulmul- _ _ _ >
     mul (inv (inv x)) (mul (inv x) (mul x (inv x)))
-      < refl (G `> G) (mul _) _ _ (mulmul- _ _ _) ]-
+      < cong (mul _) (mulmul- _ _ _) ]-
     mul (inv (inv x)) (mul (mul (inv x) x) (inv x))
-      -[ refl (G `> G) (mul _) _ _
-          (refl (G `> G) (flip mul _) _ _ (mulinv- _)) >
+      -[ cong (mul _) (cong (flip mul _) (mulinv- _)) >
     mul (inv (inv x)) (mul neu (inv x))
-      -[ refl (G `> G) (mul _) _ _ (mulneu- _) >
+      -[ cong (mul _) (mulneu- _) >
     mul (inv (inv x)) (inv x)
       -[ mulinv- _ >
     neu [QED]
@@ -39,25 +39,25 @@ record Group (G : U) : Set where
   mul-neu : Pr (G `-> \ x -> Eq G G (mul x neu) x)
   mul-neu x =
     mul x neu < refl (G `> G) (mul _) _ _ (mulinv- _) ]-
-    mul x (mul (inv x) x) < mulmul- _ _ _ ]-
-    mul (mul x (inv x)) x -[ refl (G `> G) (flip mul _) _ _ (mul-inv _) >
-    mul neu x -[ mulneu- _ >
-    x [QED]
+    mul x (mul (inv x) x)  < mulmul- _ _ _ ]-
+    mul (mul x (inv x)) x  -[ cong (flip mul _) (mul-inv _) >
+    mul neu x              -[ mulneu- _ >
+    x                      [QED]
 
   invinv : Pr (G `-> \ x -> Eq G G (inv (inv x)) x)
   invinv x =
-    inv (inv x) < mulneu- _ ]-
-    mul neu (inv (inv x)) < refl (G `> G) (flip mul _) _ _ (mul-inv _) ]-
-    mul (mul x (inv x)) (inv (inv x)) -[ mulmul- _ _ _ >
-    mul x (mul (inv x) (inv (inv x))) -[ refl (G `> G) (mul _) _ _ (mul-inv _) >
-    mul x neu -[ mul-neu _ >
-    x [QED]
+    inv (inv x)                         < mulneu- _ ]-
+    mul neu (inv (inv x))               < cong (flip mul _) (mul-inv _) ]-
+    mul (mul x (inv x)) (inv (inv x))  -[ mulmul- _ _ _ >
+    mul x (mul (inv x) (inv (inv x)))  -[ cong (mul _) (mul-inv _) >
+    mul x neu                          -[ mul-neu _ >
+    x                                  [QED]
 
   invneu : Pr (Eq G G (inv neu) neu)
   invneu =
-    inv neu < mulneu- _ ]-
-    mul neu (inv neu) -[ mul-inv _ >
-    neu [QED]
+    inv neu            < mulneu- _ ]-
+    mul neu (inv neu)  -[ mul-inv _ >
+    neu                [QED]
 
 GroUp : U -> U
 GroUp G = 
