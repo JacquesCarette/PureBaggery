@@ -11,8 +11,8 @@ _<=>_ : U -> U -> U
 S <=> T
    = (S `> T) `>< \ f
   -> (T `> S) `>< \ g
-  -> `Pr ( (S `-> \ s -> Eq S S s (g (f s)))
-       `/\ (T `-> \ t -> Eq T T t (f (g t)))
+  -> `Pr ( (S `-> \ s -> Eq S S (g (f s)) s)
+       `/\ (T `-> \ t -> Eq T T (f (g t)) t)
          )
 
 -- make it easier to work with equivalences
@@ -21,8 +21,8 @@ record _<==>_ (S T : U) : Set where
   field
     fwd : El (S `> T)
     bwd : El (T `> S)
-    fwd-bwd : Pr (S `-> \ s -> Eq S S s (bwd (fwd s)))
-    bwd-fwd : Pr (T `-> \ t -> Eq T T t (fwd (bwd t)))
+    fwd-bwd : Pr (S `-> \ s -> Eq S S (bwd (fwd s))  s)
+    bwd-fwd : Pr (T `-> \ t -> Eq T T (fwd (bwd t))  t)
 
   -- deconstructor
   osi : El (S <=> T)
@@ -32,21 +32,21 @@ record _<==>_ (S T : U) : Set where
        -> ((s : El S) -> El (P (fwd s)))
        -> El (P t)
   isFwd t P p = let open EQPRF T in 
-    J T (! bwd-fwd t ) (\ t _ -> P t) (p (bwd t))
+    J T (bwd-fwd t ) (\ t _ -> P t) (p (bwd t))
 
   isBwd : (s : El S)
           (P : El S -> U)
        -> ((t : El T) -> El (P (bwd t)))
        -> El (P s)
   isBwd s P p = let open EQPRF S in 
-    J S (! fwd-bwd s) (\ s _ -> P s) (p (fwd s))
+    J S (fwd-bwd s) (\ s _ -> P s) (p (fwd s))
 
   flipFwd : (s : El S)
     (P : El S -> El T -> U) ->
     ((t : El T) -> El (P (bwd t) t)) ->
     El (P s (fwd s))
   flipFwd s P p = let open EQPRF S in
-    J S (! fwd-bwd s) (\ x _ -> P x (fwd s)) (p (fwd s)) 
+    J S (fwd-bwd s) (\ x _ -> P x (fwd s)) (p (fwd s)) 
 
 open _<==>_ public
 
@@ -78,15 +78,14 @@ compIso R S T (f , g , gf , fg) (h , k , kh , hk)
   = (f - h)
   , (k - g)
   , (\ r -> let open EQPRF R in
-       r               -[ gf r >
-       g (f r)         -[ refl (S `> R) g (f r) (k (h (f r))) (kh (f r)) >
-       g (k (h (f r)))  [QED]
+       g (k (h (f r))) -[ refl (S `> R) g (k (h (f r))) (f r) (kh (f r)) >
+       g (f r)         -[ gf r >
+       r               [QED]
     )
   , (\ t -> let open EQPRF T in
-       t               -[ hk t >
-       h (k t)         -[ refl (S `> T) h (k t) (f (g (k t))) (fg (k t)) >
-       h (f (g (k t)))  [QED]
-    )
+       h (f (g (k t))) -[ refl (S `> T) h (f (g (k t))) (k t) (fg (k t)) >
+       h (k t)          -[ hk t >
+       t                [QED] )
 
 ---------
 -- May as well build them for blue isos too
@@ -136,3 +135,34 @@ module _ (A : U)(B : El A -> U)(C : (a : El A) -> El (B a) -> U)
   bwd sgAsso (a , b , c) = (a , b) , c
   fwd-bwd sgAsso ((a , b) , c) = refl ((A `>< B) `>< (/\ C)) _
   bwd-fwd sgAsso (a , b , c) = refl (A `>< \ a -> B a `>< C a) _
+
+-- Equality of isos
+module _ {R S : U} (f g : El (R <=> S)) where
+  private
+    f' g' : R <==> S
+    f' = iso' f
+    g' = iso' g
+    
+  module _
+    (fwd-eq : (r0 : El R) -> Pr (Eq S S (fwd f' r0) (fwd g' r0)))
+    (bwd-eq : (s0 : El S) -> Pr (Eq R R (bwd f' s0) (bwd g' s0))) where
+    eqIso : Pr (Eq (R <=> S) (R <=> S) f g)
+    fst eqIso       r0 r1 r01 = J R r01 (\ r1 _ -> `Pr (Eq S S (fwd f' r0) (fwd g' r1))) (fwd-eq r0)
+    fst (snd eqIso) s0 s1 s01 = J S s01 (\ s1 _ -> `Pr (Eq R R (bwd f' s0) (bwd g' s1))) (bwd-eq s0)
+    snd (snd eqIso) = _
+
+-- back-and-forth is id
+module _ {R S : U} (f : El (R <=> S)) where
+  private
+    f' : R <==> S
+    f' = iso' f
+    
+  inv-after : Pr (Eq (R <=> R) (R <=> R) (compIso R S R f (invIso R S f)) (idIso R))
+  inv-after = eqIso {R} {R} (compIso R S R f (invIso R S f)) (idIso R)
+    (fwd-bwd f')
+    (fwd-bwd f')
+
+  after-inv : Pr (Eq (S <=> S) (S <=> S) (compIso S R S (invIso R S f) f) (idIso S))
+  after-inv = eqIso {S} {S} (compIso S R S (invIso R S f) f) (idIso S)
+    (bwd-fwd f')
+    (bwd-fwd f')

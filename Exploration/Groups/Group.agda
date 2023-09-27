@@ -59,6 +59,10 @@ record Group (G : U) : Set where
     mul neu (inv neu)  -[ mul-inv _ >
     neu                [QED]
 
+  mul-mul : Pr (G `-> \ x -> G `-> \ y -> G `-> \ z ->
+                 Eq G G (mul x (mul y z)) (mul (mul x y) z))
+  mul-mul x y z = ! mulmul- x y z
+  
 GroUp : U -> U
 GroUp G = 
   G `>< \ neu ->
@@ -69,10 +73,11 @@ GroUp G =
                  Eq G G (mul (mul x y) z) (mul x (mul y z)))
    `/\ (G `-> \ x -> Eq G G (mul (inv x) x) neu))
 
-module _ (G : U) where
+module _ {G : U} where
 
-  blueGroup : El (GroUp G) -> Group G
-  blueGroup (neu , inv , mul , mulneu- , mulmul- , mulinv-) = record
+  -- rigid in the sense of unification
+  rigidGroup : El (GroUp G) -> Group G
+  rigidGroup (neu , inv , mul , mulneu- , mulmul- , mulinv-) = record
     { neu = neu
     ; inv = inv
     ; mul = mul
@@ -81,8 +86,9 @@ module _ (G : U) where
     ; mulinv- = mulinv-
     }
 
-  greenGroup : Group G -> El (GroUp G)
-  greenGroup g = neu , inv , mul , mulneu- , mulmul- , mulinv-
+  -- 6 isn't Scott's 23, but it is still the same disease
+  tupleGroup : Group G -> El (GroUp G)
+  tupleGroup g = neu , inv , mul , mulneu- , mulmul- , mulinv-
     where open Group g
 
   record Action (g : Group G)(X : U) : Set where
@@ -97,4 +103,7 @@ module _ (G : U) where
                     
     open EQPRF X
 
-    
+{-
+    actinv : Pr (X `-> \ x -> G `-> \ g -> Eq X X (act x (mul g (inv g))) x)
+    actinv x g = {!!}
+-}
