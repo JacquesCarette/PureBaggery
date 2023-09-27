@@ -43,10 +43,11 @@ S * T = S >< \ _ -> T
 -- Nat is useful for non-trivial examples
 data Nat : Set where ze : Nat ; su : Nat -> Nat
 {-# BUILTIN NATURAL Nat #-}
+{-
 _+N_ : Nat -> Nat -> Nat
 ze +N m = m
 su n +N m = su (n +N m)
-
+-}
 
 id : forall {k}{X : Set k} -> X -> X
 id x = x
