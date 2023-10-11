@@ -4,6 +4,7 @@ open import ExtUni
 open import Group
 open import Iso
 open import Basics
+open import Numbers
 
 module _ where
   Trivial : Group `One
@@ -40,3 +41,13 @@ module _ where
     ; act-neu = mul-neu
     ; act-mul = mul-mul
     } where open Group.Group G -- later rename the file
+
+Cyclic : (n : Nat) -> Group (Fin (su n))
+Cyclic n = record
+  { neu = 0 , _
+  ; inv = plusInverse n
+  ; mul = finPlus n
+  ; mulneu- = plusAbsorbZero n
+  ; mulmul- = {!!}
+  ; mulinv- = {!!}
+  }
