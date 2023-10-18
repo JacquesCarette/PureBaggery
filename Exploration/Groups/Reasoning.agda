@@ -4,6 +4,17 @@ open import Basics
 open import Quotient
 open import ExtUni
 
+module _ (X : U) where
+
+  record HomEq (x y : El X) : Set where
+    constructor hoq
+    field
+      homEq : Pr (Eq X X x y)
+  open HomEq public      
+
+  HOMEQ : (x y : El X) -> HomEq x y -> Pr (Eq X X x y)
+  HOMEQ _ _ = homEq
+
 -- combinators for equational reasoning
 module EQPRF (X : U) where
   module _ {y z : El X} where
@@ -26,7 +37,25 @@ module EQPRF (X : U) where
   -- frequent pattern
   cong : {x y : El X} (f : El (X `> X)) -> Pr (Eq X X x y) -> Pr (Eq X X (f x) (f y))
   cong {x} {y} f x~y = refl (X `> X) f x y x~y
-  
+
+module _ {X : U} where
+
+  open EQPRF X
+
+  _~[_>_ : forall x {y z}
+    -> Pr (Eq X X x y)
+    -> HomEq X y z
+    -> HomEq X x z
+  x ~[ p > hoq q = hoq (x -[ p > q)
+  _<_]~_ : forall x {y z}
+    -> Pr (Eq X X y x)
+    -> HomEq X y z
+    -> HomEq X x z
+  x < p ]~ hoq q = hoq (x < p ]- q)
+  infixr 2 _~[_>_ _<_]~_
+  _[qed] : forall z -> HomEq X z z
+  z [qed] = hoq (z [QED])
+
 module _
   (T : U)(R : El T -> El T -> P)
   (Q : Equiv (El T) (\ i j -> Pr (R i j)))

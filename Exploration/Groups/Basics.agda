@@ -34,20 +34,21 @@ _+_ _*_ : Set -> Set -> Set
 S + T = Two >< \ { `0 -> S ; `1 -> T }
 S * T = S >< \ _ -> T
 
+{- -- if only this worked for U and P as nicely as it does for Set
+module _ {I : Set} where
+  _*:_ _-:>_ : (I -> Set) -> (I -> Set) -> (I -> Set)
+  (P *: Q) i = P i * Q i
+  (P -:> Q) i = P i -> Q i
+  [_] <_> : (I -> Set) -> Set
+  [ P ] = forall {i} -> P i
+  < P > = _ >< P
+-}
+
 -- uncurry
 /\_ : {S : Set}{T : S -> Set}{P : S >< T -> Set}
    -> ((s : S)(t : T s) -> P (s , t))
    -> (st : S >< T) -> P st
 (/\ k) (s , t) = k s t
-
--- Nat is useful for non-trivial examples
-data Nat : Set where ze : Nat ; su : Nat -> Nat
-{-# BUILTIN NATURAL Nat #-}
-{-
-_+N_ : Nat -> Nat -> Nat
-ze +N m = m
-su n +N m = su (n +N m)
--}
 
 id : forall {k}{X : Set k} -> X -> X
 id x = x
@@ -64,3 +65,12 @@ flip : forall {i j k}{A : Set i}{B : Set j}{C : A -> B -> Set k}
   (f : (a : A)(b : B) -> C a b)
   (b : B)(a : A) -> C a b
 flip f b a = f a b
+
+_>><<_ : forall {S S' : Set}{T : S -> Set}{T' : S' -> Set}
+  (f : S -> S')(g : {s : S} -> T s -> T' (f s))
+  -> (S >< T) -> (S' >< T')
+(f >><< g) (s , t) = f s , g t
+
+-- Nat is useful for non-trivial examples
+data Nat : Set where ze : Nat ; su : Nat -> Nat
+{-# BUILTIN NATURAL Nat #-}

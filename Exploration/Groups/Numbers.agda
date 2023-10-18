@@ -6,37 +6,107 @@ open import Basics
 open import ExtUni
 open import Reasoning
 
-_<_ : Nat -> Nat -> P
-x < ze = `Zero
-ze < su y = `One
-su x < su y = x < y
+{- -- in Basics.agda
+-- Nat is useful for non-trivial examples
+data Nat : Set where ze : Nat ; su : Nat -> Nat
+{-# BUILTIN NATURAL Nat #-}
+-}
 
-n<sun : (n : Nat) -> Pr (n < su n)
-n<sun ze = _
-n<sun (su n) = n<sun n
+{- -- sadly, we must make do with the P version of this thing
+data [_+N_]~_ : Nat -> Nat -> Nat -> Set where
+  ze : forall {y} ->                      [ ze   +N y ]~ y
+  su : forall {x y z} -> [ x +N y ]~ z -> [ su x +N y ]~ su z
+-}
 
-trans< : (i j k : Nat) -> Pr (i < j) -> Pr (j < k) -> Pr (i < k)
-trans< ze (su j) (su k) p q = _
-trans< (su i) (su j) (su k) p q = trans< i j k p q
+-- if we don't get nice inversion via pattern matching, is it worth it?
+[_+N_]~_ : Nat -> Nat -> Nat -> P
+[ ze   +N y ]~ z    = Eq `Nat `Nat y z
+[ su x +N y ]~ ze   = `Zero
+[ su x +N y ]~ su z = [ x +N y ]~ z
 
-Fin : Nat -> U
-Fin n = `Nat `>< \ k -> `Pr (k < n)
+-- but functional induction is worth it, one way or another
+ind+N : (x y z : Nat)(p : Pr ([ x +N y ]~ z))
+     -> (M : Nat -> Nat -> Nat -> U)
+     -> (mze : {y : Nat} -> El (M ze y y))
+     -> (msu : {x y z : Nat} -> El (M x y z) -> El (M (su x) y (su z)))
+     -> El (M x y z)
+ind+N ze y z p M mze _ = J `Nat {y}{z} p (\ z _ -> M ze y z) mze
+ind+N (su x) y (su z) p M mze msu = msu (ind+N x y z p M mze msu)
 
-_+N_ : Nat -> Nat -> Nat
-ze   +N m = m
-su n +N m = su (n +N m)
 
-_+Nze : (n : Nat) -> Pr (Eq `Nat `Nat (n +N ze) n)
+-- derive "relation induction", i.e., the eliminator for the above inductive presentation?
+
+-- the following gadgetry is more or less what's needed to generate a
+-- small category internal to U, with a composition relation in P
+
+module _ where
+
+  private
+    T : Nat -> Nat -> U
+    T x y = `Nat `>< \ z -> `Pr ([ x +N y ]~ z)
+  
+  add : forall x y -> El (T x y)
+  add  ze    y = y , refl `Nat y
+  add (su x) y = (su >><< id) (add x y)
+
+  addUniq : (x y : Nat)(a b : El (T x y)) -> Pr (Eq (T x y) (T x y) a b)
+  addUniq x y (a , p) = ind+N x y a p
+    (\ x y z -> T x y `-> \ (b , _) -> `Pr (Eq `Nat `Nat z b `/\ `One))
+    (\ (z , q) -> q , <>)
+    (\ { h (su w , q) -> h (w , q) })
+
+_+N_ : El (`Nat `> `Nat `> `Nat)
+x +N y = fst (add x y)
+
+-- is this all we need?
+ind+N' : (x y : Nat)
+     -> (M : Nat -> Nat -> Nat -> U)
+     -> (mze : {y : Nat} -> El (M ze y y))
+     -> (msu : {x y z : Nat} -> El (M x y z) -> El (M (su x) y (su z)))
+     -> El (M x y (x +N y))
+ind+N' ze y M mze _ = mze --  J `Nat {y}{z} p (\ z _ -> M ze y z) mze
+ind+N' (su x) y M mze msu = msu (ind+N' x y M mze msu)
+
+
+ze+N_ : (n : Nat) -> Pr ([ ze +N n ]~ n)
+ze+N n = refl `Nat n
+
+_+Nze : (n : Nat) -> Pr ([ n +N ze ]~ n)
 ze +Nze = _
 su n +Nze = n +Nze
 
-assoc+N : (i j k : Nat) -> Pr (Eq `Nat `Nat ((i +N j) +N k) (i +N (j +N k)))
-assoc+N ze j k = refl `Nat (j +N k)
-assoc+N (su i) j k = assoc+N i j k
+module _ where
+  private
+    M : Nat -> Nat -> Nat -> U
+    M n01 n12 n02 =
+     `Nat `-> \ n13 -> `Nat `-> \ n23 -> `Pr ([ n12 +N n23 ]~ n13) `>
+     (`Nat `>< \ n03 -> `Pr ([ n01 +N n13 ]~ n03 `/\ [ n02 +N n23 ]~ n03))
+  assoc+N03 : (n01 n12 n02 : Nat) -> Pr ([ n01 +N n12 ]~ n02) -> El (M n01 n12 n02)
+  assoc+N03 n01 n12 n02 v = ind+N n01 n12 n02 v M
+    (\ n13 n23 w -> n13 , refl `Nat n13 , w)
+    (\ h n13 n23 w -> (su >><< id) (h n13 n23 w))
 
-tooBig< : (n e : Nat) -> Pr ((n +N e) < n) -> Zero
-tooBig< (su n) e l = tooBig< n e l
 
+_<N_ : Nat -> Nat -> P
+x    <N ze = `Zero
+ze   <N su z = `One
+su x <N su z = x <N z
+
+n<Nsun : (n : Nat) -> Pr (n <N su n)
+n<Nsun ze = _
+n<Nsun (su n) = n<Nsun n
+
+trans<N : (i j k : Nat) -> Pr (i <N j) -> Pr (j <N k) -> Pr (i <N k)
+trans<N ze (su j) (su k) p q = _
+trans<N (su i) (su j) (su k) p q = trans<N i j k p q
+
+Fin : Nat -> U
+Fin n = `Nat `>< \ k -> `Pr (k <N n)
+
+tooBig<N : (n e : Nat) -> Pr ((n +N e) <N n) -> Zero
+tooBig<N (su n) e l = tooBig<N n e l
+
+{-
 -- a little extra never hurt anybody
 -- mulAdd n x s = n * x + s
 mulAdd : Nat -> Nat -> Nat -> Nat
@@ -143,4 +213,5 @@ reduceLemma : (n : Nat)(i j : Nat) ->
       (reduce n (i +N j)))
 reduceLemma n i j with divMod i (su n) | divMod j (su n)
 reduceLemma n .(mulAdd qi (su n) ri) .(mulAdd qj (su n) rj) | quotRem qi (ri , ip) | quotRem qj (rj , jp) = {!!}
+-}
 -}
