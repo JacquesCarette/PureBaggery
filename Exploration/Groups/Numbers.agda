@@ -106,7 +106,44 @@ Fin n = `Nat `>< \ k -> `Pr (k <N n)
 tooBig<N : (n e : Nat) -> Pr ((n +N e) <N n) -> Zero
 tooBig<N (su n) e l = tooBig<N n e l
 
-{-
+[_*N_]~_ : Nat -> Nat -> Nat -> P
+[ ze   *N y ]~ ze   = `One
+[ ze   *N y ]~ su _ = `Zero
+[ su x *N y ]~ z    = `In (`Nat `>< \ xy -> `Pr (([ x *N y ]~ xy) `/\ ([ y +N xy ]~ z)))
+
+module _ where
+
+  private
+    T : Nat -> Nat -> U
+    T x y = `Nat `>< \ z -> `Pr ([ x *N y ]~ z)
+  
+  mul : forall x y -> El (T x y)
+  mul ze y = ze , _
+  mul (su x) y
+    with xy , h <- mul x y
+    with z , p <- add y xy
+       = z , hide (xy , h , p)
+
+  mulUniq : (x y : Nat)(a b : El (T x y)) -> Pr (Eq (T x y) (T x y) a b)
+  mulUniq ze y (ze , p) (ze , q) = _
+  mulUniq (su x) y (a , hide p) (b , hide q)
+    with xy , h <- mul x y
+       = {!!}
+
+-- but functional induction is worth it, one way or another
+ind*N : (x y z : Nat)(p : Pr ([ x *N y ]~ z))
+     -> (M : Nat -> Nat -> Nat -> U)
+     -> (mze : {y : Nat} -> El (M ze y ze))
+     -> (msu : {x y xy z : Nat} -> El (M x y xy) -> Pr ([ y +N xy ]~ z) -> El (M (su x) y z))
+     -> El (M x y z)
+ind*N ze y ze p M mze msu = mze
+ind*N (su x) y z (hide p) M mze msu
+  with xy , h <- mul x y
+  with z' , q <- add y xy
+     = msu (ind*N x y xy h M mze msu) {!!}
+
+
+
 -- a little extra never hurt anybody
 -- mulAdd n x s = n * x + s
 mulAdd : Nat -> Nat -> Nat -> Nat
@@ -116,6 +153,7 @@ mulAdd (su n) x s = x +N mulAdd n x s
 _*N_ : Nat -> Nat -> Nat
 x *N y = mulAdd x y ze
 
+{-
 -- subtraction as a view
 data InFin? (n : Nat) : Nat -> Set where
   inFin : (k : El (Fin n)) -> InFin? n (fst k)

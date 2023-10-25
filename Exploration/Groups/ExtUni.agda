@@ -15,8 +15,7 @@ data U : Set
 El : U -> Set
 
 
--- false, true, and, implication, inhabitation and
---  equivalence under the (closure of) a relation
+-- false, true, and, implication, inhabitation
 data P where
   `Zero `One : P
   _`/\_ : (S : P)(T : P) -> P
@@ -78,6 +77,15 @@ S `+ T = `Two `>< (S <01> T)
 _`=>_ : P -> P -> P
 A `=> B = `Pr A `-> \ _ -> B
 infixr 5 _`=>_
+
+--------------------------------------------------------------------------
+postulate irr : (A : P) -> Hide (Pr A) -> Pr A
+{-
+irr `One (hide p) = _
+irr (A `/\ B) (hide p) = irr A (hide (fst p)) , irr B (hide (snd p))
+irr (S `-> T) (hide p) s = irr (T s) (hide (p s))
+irr (`In T) (hide p) = hide {!expose p!}
+-}
 
 --------------------------------------------------------------------------
 
