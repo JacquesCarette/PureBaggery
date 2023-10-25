@@ -152,4 +152,4 @@ mod-su-stop n k (su d) (su m) (s , r~ , r~) = mod-su-stop n k d m
 
 mod-su-good : (n m r : Nat) ->  r ~ mod-su n m ->
      Nat >< \ q -> (((q *N su n) +N r) ~ m) * (r <N su n)
-mod-su-good n m _ r~ = mod-su-stop n m n m {!mod-su-start n m!}
+mod-su-good n m _ r~ = mod-su-stop n m n m (mod-su-start n m)
