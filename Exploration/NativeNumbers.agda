@@ -98,6 +98,9 @@ x <N ze = Zero
 ze <N su y = One
 su x <N su y = x <N y
 
+rw<N : (a b c d : Nat) -> a ~ b -> c ~ d -> a <N c -> b <N d
+rw<N a b c d r~ r~ p = p
+
 Fin : Nat -> Set
 Fin n = < _<N n >
 
@@ -137,7 +140,24 @@ mod-su-stop : (n k d m : Nat)
   -> Mod-Su-Worker-Invariant n k d m
   -> let r = mod-su-worker n k d m in
      Nat >< \ q -> (((q *N su n) +N r) ~ k) * (r <N su n)
-mod-su-stop n k d ze (s , r~ , r~) rewrite s +N0 = ze , r~ , slacken s d
+mod-su-stop n k d ze (s , p , q) = ze , r~ ,
+  rw<N s k (su (s +N d)) (su n)
+    (s < s +N0 ]~ s +N ze ~[ q > k [QED])
+    (su $~ p)
+    (slacken s d)
+ -- rewrite s +N0 = ze , r~ , slacken s d
+mod-su-stop n k ze (su m) (s , pp , qq) =
+  let (q , p , l) = mod-su-stop n m n m (ze , r~ , r~) in
+   su q ,
+   (((su n +N (q *N su n)) +N mod-su-worker n m n m) ~[ assoc+N (su n) _ _ >
+   (su n +N ((q *N su n) +N mod-su-worker n m n m))  ~[ (su n +N_) $~ p >
+   su (n +N m)                                       < n +Nsu m ]~
+   n +N su m                                         < _+N su m $~ pp ]~
+   (s +N ze) +N su m                                 ~[ _+N su m $~ (s +N0) >
+   s +N su m                                         ~[ qq >
+   k [QED]) ,
+   l
+{-
 mod-su-stop n k ze (su m) (s , r~ , r~)
   with (q , p , l) <- mod-su-stop n m n m (ze , r~ , r~)
   rewrite s +N0
@@ -147,9 +167,24 @@ mod-su-stop n k ze (su m) (s , r~ , r~)
         (su s +N m) < s +Nsu m ]~
         (s +N su m) [QED])
      , l
-mod-su-stop n k (su d) (su m) (s , r~ , r~) = mod-su-stop n k d m
-  (su s , sym (s +Nsu d) , sym (s +Nsu m))
+-}
+mod-su-stop n k (su d) (su m) (s , p , q) = mod-su-stop n k d m
+  (su s ,
+   (su (s +N d)  < s +Nsu d ]~
+   s +N su d     ~[ p >
+   n             [QED]) ,
+   (su s +N m    < s +Nsu m ]~
+   s +N su m     ~[ q >
+   k             [QED])
+   )
 
 mod-su-good : (n m r : Nat) ->  r ~ mod-su n m ->
      Nat >< \ q -> (((q *N su n) +N r) ~ m) * (r <N su n)
-mod-su-good n m _ r~ = mod-su-stop n m n m (mod-su-start n m)
+mod-su-good n m r p = 
+  let (k , q , s ) = mod-su-stop n m n m (mod-su-start n m) in
+  k ,
+  ((( k *N su n) +N r)          ~[ (k *N su n) +N_ $~ p >
+   (( k *N su n) +N mod-su n m) ~[ q >
+   m                            [QED]) ,
+  rw<N (mod-su n m) r _ (su n) (sym p) r~ s
+  -- mod-su-stop n m n m (mod-su-start n m)
