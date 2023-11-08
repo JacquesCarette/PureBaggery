@@ -42,6 +42,8 @@ open Hide public
 -- empty, singleton and (exactly) 2 point set along with eliminator
 data Zero' : Set where
 Zero = Hide Zero'
+naughtE : forall {l}{X : Set l} -> Zero -> X
+naughtE (hide ())
 record One : Set where constructor <>
 data Two : Set where `0 `1 : Two
 _<01>_ : forall {k}{P : Two -> Set k} -> P `0 -> P `1 -> (b : Two) -> P b
@@ -108,6 +110,14 @@ slacken : (s d : Nat) -> s <N (su s +N d)
 slacken ze d = _
 slacken (su s) d = slacken s d
 
+tooBig : (n m : Nat) -> (n +N m) <N n -> Zero
+tooBig (su n) m l = tooBig n m l
+
+finEqNum : (n : Nat)(x y : Fin n) -> fst x ~ fst y -> x ~ y
+finEqNum (su n) (ze , <>) (.ze , <>) r~ = r~
+finEqNum (su n) (su x , lx) (.(su x) , ly) r~
+  = (\ (x , p) -> (su x , p)) $~ finEqNum n (x , lx) (x , ly) r~
+
 ---------------------------------------------------------------
 
 mod-su
@@ -123,7 +133,7 @@ mod-su-worker
   -> Nat
 mod-su-worker n k     d   ze    = k -- can't subtract? candidate's good!
 mod-su-worker n k  ze    (su m) =   -- subtracted n already?
-  mod-su-worker n m n m             -- knock off 1 more and reset
+  mod-su n m                        -- knock off 1 more and reset
 mod-su-worker n k (su d) (su m) =   -- potato potato
   mod-su-worker n k d m
 
@@ -188,3 +198,66 @@ mod-su-good n m r p =
    m                            [QED]) ,
   rw<N (mod-su n m) r _ (su n) (sym p) r~ s
   -- mod-su-stop n m n m (mod-su-start n m)
+
+div-mod-su-good : (n m : Nat) ->
+  Nat >< \ q -> Nat >< \ r ->
+  (((q *N su n) +N r) ~ m) * (r <N su n)
+div-mod-su-good n m
+  with r <- mod-su n m
+     | q , g <- mod-su-good n m _ r~
+     = q , r , g
+
+mod-su-already : (n : Nat)(y : Fin (su n))(q : Nat)(r : Nat) ->
+  (((q *N su n) +N r) ~ fst y) -> (r <N su n) -> (q ~ ze) * (r ~ fst y)
+mod-su-already n y ze r e rl = r~ , e
+mod-su-already n (m , ml) (su q) r e rl =
+  naughtE (tooBig (su n) ((q *N su n) +N r)
+    (rw<N m (su n +N ((q *N su n) +N r)) (su n) _
+      (m < e ]~
+       ((su n +N (q *N su n)) +N r) ~[ assoc+N (su n) _ _ >
+       (su n +N ((q *N su n) +N r)) [QED])
+     r~ ml))
+
+-----------------------------------------------------------------------
+
+module _ {n : Nat} where
+
+  private M = Fin (su n)
+
+  reduce : Nat -> M
+  reduce x
+    with _ , r , _ , l <- div-mod-su-good n x
+       = r , l
+
+  zeF : M
+  zeF = reduce 0
+
+  _+F_ : M -> M -> M
+  (x , _) +F (y , _) = reduce (x +N y)
+
+  wannaHom : (x y : Nat) -> fst (reduce x +F reduce y) ~ fst (reduce (x +N y))
+  wannaHom x y
+    with rx <- mod-su n x | qx , ex , lx <- mod-su-good n x _ r~
+    with ry <- mod-su n y | qy , ey , ly <- mod-su-good n y _ r~
+           = {!!}
+
+{-
+  define <F as <N on fst
+  suppose x : Nat and y : Fin (su n)
+
+  x <N fst y
+   <=>
+  reduce x <F y
+-}
+
+
+  zeF+F : (y : M) -> (zeF +F y) ~ y
+  zeF+F (y , l) = {!wannaHom ze y!}
+  {-
+  zeF+F (y , l)
+    -- grr with div-mod-su-good doesn't get abstracted
+    with mod-su-worker n y n y
+       | mod-su-stop n y n y (0 , r~ , r~)
+  ... | r | q , e , l' 
+       = finEqNum (su n) (r , l') (y , l) (snd (mod-su-already n (y , l) q r e l'))
+  -}
