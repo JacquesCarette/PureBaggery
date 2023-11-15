@@ -22,7 +22,7 @@ module _ {X : Set}{x y : X}(q : x ~ y) where
 
 _$~_ : forall {S T}(f : S -> T){x y : S} -> x ~ y -> f x ~ f y
 f $~ r~ = r~
-_~$~_ : forall {S T}{f g : S -> T} -> f ~ g -> {x y : S} -> x ~ y -> f x ~ f y
+_~$~_ : forall {S T}{f g : S -> T} -> f ~ g -> {x y : S} -> x ~ y -> f x ~ g y
 r~ ~$~ r~ = r~
 infixl 4 _$~_ _~$~_
 
@@ -79,6 +79,21 @@ _+N_ : Nat -> Nat -> Nat
 ze +N y = y
 su x +N y = su (x +N y)
 
+record MonoidOn (X : Set) : Set where
+  field
+    neut : X
+    comb : X -> X -> X
+    neutcomb : (x : X) -> comb neut x ~ x
+    combneut : (x : X) -> comb x neut ~ x
+    combcomb : (x y z : X) -> comb (comb x y) z ~ comb x (comb y z)
+
+  monMiddle : (w x y z : X) ->
+    comb (comb w x) (comb y z) ~ comb w (comb (comb x y) z)
+  monMiddle w x y z =
+    comb (comb w x) (comb y z) ~[ combcomb _ _ _ >
+    comb w (comb x (comb y z)) < comb _ $~ combcomb _ _ _ ]~
+    comb w (comb (comb x y) z) [QED]
+
 _+N0 : (n : Nat) -> (n +N 0) ~ n
 ze +N0 = r~
 su n +N0 = su $~ (n +N0)
@@ -91,9 +106,59 @@ assoc+N : (x y z : Nat) -> ((x +N y) +N z) ~ (x +N (y +N z))
 assoc+N ze y z = r~
 assoc+N (su x) y z = su $~ assoc+N x y z
 
-_*N_ : Nat -> Nat -> Nat
-ze *N y = ze
-su x *N y = y +N (x *N y)
+AddNat : MonoidOn Nat
+AddNat = record { neut = 0; comb = _+N_;
+  neutcomb = \ _ -> r~; combneut = _+N0; combcomb = assoc+N }
+
+comm+N : (x y : Nat) -> (x +N y) ~ (y +N x)
+comm+N x ze = x +N0
+comm+N x (su y) = 
+  (x +N su y) ~[ x +Nsu y >
+  su (x +N y) ~[ su $~ comm+N x y >
+  su (y +N x) [QED]
+
+module _ where
+  open MonoidOn AddNat
+  
+  mid4+N : (w x y z : Nat) -> ((w +N x) +N (y +N z)) ~ ((w +N y) +N (x +N z))
+  mid4+N w x y z =
+    ((w +N x) +N (y +N z)) ~[ monMiddle w x y z >
+    ((w +N ((x +N y) +N z))) ~[ w +N_ $~ (_+N z $~ comm+N x y) >
+    ((w +N ((y +N x) +N z))) < monMiddle w y x z ]~
+    ((w +N y) +N (x +N z)) [QED]
+
+module _ {X Y : Set}(MX : MonoidOn X)(MY : MonoidOn Y) where
+  open MonoidOn
+
+  record _-Monoid>_ : Set where
+    field
+      monHom : X -> Y
+      monHomNeut : monHom (neut MX) ~ neut MY
+      monHomComb : (a b : X) -> monHom (comb MX a b) ~ comb MY (monHom a) (monHom b)
+
+module _ {X : Set}(MX : MonoidOn X) where
+  open MonoidOn MX
+  open _-Monoid>_
+  
+  times : X -> AddNat -Monoid> MX
+  monHom (times x) ze = neut
+  monHom (times x) (su n) = comb x (monHom (times x) n)
+  monHomNeut (times x) = r~
+  monHomComb (times x) ze b = sym (neutcomb _)
+  monHomComb (times x) (su a) b = 
+    comb x (monHom (times x) (a +N b)) ~[ comb x $~ monHomComb (times x) a b >
+    comb x (comb (monHom (times x) a) (monHom (times x) b)) < combcomb _ _ _ ]~
+    comb (comb x (monHom (times x) a)) (monHom (times x) b) [QED]
+
+module _ where
+  open _-Monoid>_
+  
+  _*N_ : Nat -> Nat -> Nat
+  x *N y = monHom (times AddNat y) x
+  {-
+  ze *N y = ze
+  su x *N y = y +N (x *N y)
+  -}
 
 _<N_ : Nat -> Nat -> Set
 x <N ze = Zero
@@ -106,17 +171,21 @@ rw<N a b c d r~ r~ p = p
 Fin : Nat -> Set
 Fin n = < _<N n >
 
-slacken : (s d : Nat) -> s <N (su s +N d)
-slacken ze d = _
-slacken (su s) d = slacken s d
+slackenL : (s d : Nat) -> d <N (su s +N d)
+slackenL s ze = <>
+slackenL s (su d) = rw<N d d (su s +N d) (s +N su d) r~ (sym (s +Nsu d)) (slackenL s d)
+
+slackenR : (s d : Nat) -> s <N (su s +N d)
+slackenR ze d = _
+slackenR (su s) d = slackenR s d
 
 tooBig : (n m : Nat) -> (n +N m) <N n -> Zero
 tooBig (su n) m l = tooBig n m l
 
-finEqNum : (n : Nat)(x y : Fin n) -> fst x ~ fst y -> x ~ y
-finEqNum (su n) (ze , <>) (.ze , <>) r~ = r~
-finEqNum (su n) (su x , lx) (.(su x) , ly) r~
-  = (\ (x , p) -> (su x , p)) $~ finEqNum n (x , lx) (x , ly) r~
+finEqNum : (n : Nat){x y : Fin n} -> fst x ~ fst y -> x ~ y
+finEqNum (su n) {ze , <>} {.ze , <>} r~ = r~
+finEqNum (su n) {su x , lx} {.(su x) , ly} r~
+  = (\ (x , p) -> (su x , p)) $~ finEqNum n {x , lx} {x , ly} r~
 
 ---------------------------------------------------------------
 
@@ -154,8 +223,8 @@ mod-su-stop n k d ze (s , p , q) = ze , r~ ,
   rw<N s k (su (s +N d)) (su n)
     (s < s +N0 ]~ s +N ze ~[ q > k [QED])
     (su $~ p)
-    (slacken s d)
- -- rewrite s +N0 = ze , r~ , slacken s d
+    (slackenR s d)
+ -- rewrite s +N0 = ze , r~ , slackenR s d
 mod-su-stop n k ze (su m) (s , pp , qq) =
   let (q , p , l) = mod-su-stop n m n m (ze , r~ , r~) in
    su q ,
@@ -207,6 +276,23 @@ div-mod-su-good n m
      | q , g <- mod-su-good n m _ r~
      = q , r , g
 
+mod-su-worker-down : (n k d  : Nat) ->
+  mod-su-worker n (su n +N k) d (su d +N k) ~ mod-su-worker n k n k
+mod-su-worker-down n k ze = r~
+mod-su-worker-down n k (su d) = mod-su-worker-down n k d
+
+mod-su-step : (n r : Nat) -> mod-su n (su n +N r) ~ mod-su n r
+mod-su-step n r = mod-su-worker-down n r n
+
+mod-su-sod-q : (n q r : Nat) ->
+  mod-su n ((q *N su n) +N r) ~ mod-su n r
+mod-su-sod-q n ze r = r~
+mod-su-sod-q n (su q) r = 
+  mod-su n ((su n +N (q *N su n)) +N r) ~[ mod-su n $~ assoc+N (su n) _ _ >
+  mod-su n (su n +N ((q *N su n) +N r)) ~[ mod-su-step n ((q *N su n) +N r) >
+  mod-su n ((q *N su n) +N r) ~[ mod-su-sod-q n q r >
+  mod-su n r [QED]
+
 mod-su-already : (n : Nat)(y : Fin (su n))(q : Nat)(r : Nat) ->
   (((q *N su n) +N r) ~ fst y) -> (r <N su n) -> (q ~ ze) * (r ~ fst y)
 mod-su-already n y ze r e rl = r~ , e
@@ -218,9 +304,16 @@ mod-su-already n (m , ml) (su q) r e rl =
        (su n +N ((q *N su n) +N r)) [QED])
      r~ ml))
 
+mod-su-idem : (n r : Nat) -> r <N su n -> mod-su n r ~ r
+mod-su-idem n r l
+  with q , e , l' <- mod-su-good n r (mod-su n r) r~
+  = snd (mod-su-already n (r , l) q (mod-su n r) e l')
+
 -----------------------------------------------------------------------
 
 module _ {n : Nat} where
+
+  open _-Monoid>_
 
   private M = Fin (su n)
 
@@ -235,13 +328,60 @@ module _ {n : Nat} where
   _+F_ : M -> M -> M
   (x , _) +F (y , _) = reduce (x +N y)
 
-  wannaHom : (x y : Nat) -> fst (reduce x +F reduce y) ~ fst (reduce (x +N y))
+  wannaHom : (x y : Nat) -> mod-su n (mod-su n x +N mod-su n y) ~ mod-su n (x +N y)
   wannaHom x y
     with rx <- mod-su n x | qx , ex , lx <- mod-su-good n x _ r~
     with ry <- mod-su n y | qy , ey , ly <- mod-su-good n y _ r~
-           = {!!}
+       = mod-su n (rx +N ry)
+           < mod-su-sod-q n (qx +N qy) (rx +N ry) ]~
+         mod-su n (((qx +N qy) *N su n) +N (rx +N ry))
+           ~[ mod-su n $~ (_+N (rx +N ry) $~ monHomComb (times AddNat (su n)) qx qy) >
+         mod-su n (((qx *N su n) +N (qy *N su n)) +N (rx +N ry))
+           ~[ mod-su n $~ mid4+N (qx *N su n) (qy *N su n) rx ry >
+         mod-su n (((qx *N su n) +N rx) +N ((qy *N su n) +N ry))
+           ~[ mod-su n $~ (_+N_ $~ ex ~$~ ey) >
+        mod-su n (x +N y) [QED]
+  open MonoidOn
 
-{-
+  AddModSu : MonoidOn M
+  neut AddModSu = zeF
+  comb AddModSu = _+F_
+  neutcomb AddModSu (y , l) = finEqNum (su n) (mod-su-idem n y l)
+  combneut AddModSu (x , l) = finEqNum (su n) (
+    mod-su n (x +N 0) ~[ mod-su n $~ (x +N0) >
+    mod-su n x ~[ mod-su-idem n x l >
+    x [QED])
+  combcomb AddModSu (x , lx) (y , ly) (z , lz) = finEqNum (su n) (
+    mod-su n (mod-su n (x +N y) +N z)
+      < mod-su n $~ (mod-su n (x +N y) +N_ $~ mod-su-idem n z lz) ]~
+    mod-su n (mod-su n (x +N y) +N mod-su n z)
+      ~[ wannaHom (x +N y) z >
+    mod-su n ((x +N y) +N z)
+      ~[ mod-su n $~ assoc+N x y z >
+    mod-su n (x +N (y +N z))
+      < wannaHom x (y +N z) ]~
+    mod-su n (mod-su n x +N mod-su n (y +N z))
+      ~[ mod-su n $~ ((_+N mod-su n (y +N z)) $~ mod-su-idem n x lx) >
+    mod-su n (x +N mod-su n (y +N z)) [QED])
+
+monus : Nat -> Nat -> Nat
+monus m ze = m
+monus ze (su n) = ze
+monus (su m) (su n) = monus m n
+
+monusLemma : (m n : Nat) -> n <N su m -> (n +N monus m n) ~ m
+monusLemma m ze l = r~
+monusLemma (su m) (su n) l = su $~ monusLemma m n l
+
+inv : {m : Nat} -> Fin m -> Fin m
+inv {su m} (n , l) = monus m n ,
+  rw<N (monus m n) (monus m n) (su n +N monus m n) (su m)
+    r~
+    (su $~ monusLemma m n l)
+    {!slackenL n (monus m n)!}
+
+{- perhaps...
+
   define <F as <N on fst
   suppose x : Nat and y : Fin (su n)
 
@@ -250,14 +390,3 @@ module _ {n : Nat} where
   reduce x <F y
 -}
 
-
-  zeF+F : (y : M) -> (zeF +F y) ~ y
-  zeF+F (y , l) = {!wannaHom ze y!}
-  {-
-  zeF+F (y , l)
-    -- grr with div-mod-su-good doesn't get abstracted
-    with mod-su-worker n y n y
-       | mod-su-stop n y n y (0 , r~ , r~)
-  ... | r | q , e , l' 
-       = finEqNum (su n) (r , l') (y , l) (snd (mod-su-already n (y , l) q r e l'))
-  -}
