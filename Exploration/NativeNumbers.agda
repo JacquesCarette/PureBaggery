@@ -378,7 +378,7 @@ inv {su m} (n , l) = monus m n ,
   rw<N (monus m n) (monus m n) (su n +N monus m n) (su m)
     r~
     (su $~ monusLemma m n l)
-    {!slackenL n (monus m n)!}
+    (slackenL n (monus m n))
 
 {- perhaps...
 
