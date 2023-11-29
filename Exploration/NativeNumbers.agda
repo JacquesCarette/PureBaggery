@@ -117,6 +117,43 @@ comm+N x (su y) =
   su (x +N y) ~[ su $~ comm+N x y >
   su (y +N x) [QED]
 
+module _ {X : Set}(MX : MonoidOn X) where
+
+  open MonoidOn MX
+
+  record GroupFromMonoid : Set where
+    field
+      nvrt : X -> X
+      nvrtcomb : (x : X) -> comb (nvrt x) x ~ neut
+    combnvrt : (x : X) -> comb x (nvrt x) ~ neut
+    combnvrt x = 
+      comb x (nvrt x) < neutcomb _ ]~
+      comb neut (comb x (nvrt x)) < comb $~ nvrtcomb _ ~$~ r~ ]~
+      comb (comb (nvrt (nvrt x)) (nvrt x)) (comb x (nvrt x))
+        ~[ monMiddle _ _ _ _ >
+      comb (nvrt (nvrt x)) (comb (comb (nvrt x) x) (nvrt x))
+        ~[ comb _ $~ (comb $~ nvrtcomb x ~$~ r~) >
+      comb (nvrt (nvrt x)) (comb neut (nvrt x))
+        ~[ comb _ $~ neutcomb _ >
+      comb (nvrt (nvrt x)) (nvrt x)
+        ~[ nvrtcomb _ >
+      neut [QED]
+    nvrtnvrt : (x : X) -> nvrt (nvrt x) ~ x
+    nvrtnvrt x =
+      nvrt (nvrt x) < neutcomb _ ]~
+      comb neut (nvrt (nvrt x)) < comb $~ combnvrt x ~$~ r~ ]~
+      comb (comb x (nvrt x)) (nvrt (nvrt x)) ~[ combcomb _ _ _ >
+      comb x (comb (nvrt x) (nvrt (nvrt x)))
+        ~[ comb x $~ combnvrt _ >
+      comb x neut ~[ combneut _ >
+      x [QED]
+    nvrtneut : nvrt neut ~ neut
+    nvrtneut =
+      nvrt neut  < combneut _ ]~
+      comb (nvrt neut) neut ~[ nvrtcomb _ >
+      neut [QED]
+      
+
 module _ where
   open MonoidOn AddNat
   
@@ -160,10 +197,21 @@ module _ where
   su x *N y = y +N (x *N y)
   -}
 
+_<N=_ : Nat -> Nat -> Set
+ze <N= _ = One
+su n <N= ze = Zero
+su n <N= su m = n <N= m
+
 _<N_ : Nat -> Nat -> Set
-x <N ze = Zero
-ze <N su y = One
-su x <N su y = x <N y
+x <N y = su x <N= y
+
+refl<N= : (n : Nat) -> n <N= n
+refl<N= ze = <>
+refl<N= (su n) = refl<N= n
+
+trans<N= : (l n m : Nat) -> l <N= n -> n <N= m -> l <N= m
+trans<N= ze n m ln nm = <>
+trans<N= (su l) (su n) (su m) ln nm = trans<N= l n m ln nm
 
 rw<N : (a b c d : Nat) -> a ~ b -> c ~ d -> a <N c -> b <N d
 rw<N a b c d r~ r~ p = p
@@ -364,21 +412,54 @@ module _ {n : Nat} where
       ~[ mod-su n $~ ((_+N mod-su n (y +N z)) $~ mod-su-idem n x lx) >
     mod-su n (x +N mod-su n (y +N z)) [QED])
 
+  modHom : AddNat -Monoid> AddModSu
+  monHom modHom = reduce
+  monHomNeut modHom = r~
+  monHomComb modHom a b = finEqNum (su n) (sym (wannaHom a b))
+
 monus : Nat -> Nat -> Nat
 monus m ze = m
 monus ze (su n) = ze
 monus (su m) (su n) = monus m n
 
+monusSlack : (m n : Nat) -> monus m n <N su m
+monusSlack m ze = slackenL ze m
+monusSlack ze (su n) = <>
+monusSlack (su m) (su n) =
+  trans<N= (su (monus m n)) (su m) (su (su m))
+    (monusSlack m n) (slackenL (su ze) (su m))
+
 monusLemma : (m n : Nat) -> n <N su m -> (n +N monus m n) ~ m
 monusLemma m ze l = r~
 monusLemma (su m) (su n) l = su $~ monusLemma m n l
 
-inv : {m : Nat} -> Fin m -> Fin m
-inv {su m} (n , l) = monus m n ,
-  rw<N (monus m n) (monus m n) (su n +N monus m n) (su m)
-    r~
-    (su $~ monusLemma m n l)
-    (slackenL n (monus m n))
+module _ {n : Nat} where
+
+  open GroupFromMonoid
+  
+  ModSu : GroupFromMonoid (AddModSu {n})
+  nvrt ModSu (ze , l) = ze , _
+  nvrt ModSu (su x , l) = monus n x , monusSlack n x 
+  nvrtcomb ModSu (ze , l) = r~
+  nvrtcomb ModSu (su x , l) = finEqNum (su n) (
+    mod-su n (monus n x +N su x) ~[ mod-su n $~ comm+N _ (su x) >
+    mod-su n (su (x +N monus n x))
+      ~[ mod-su n $~ (su $~ monusLemma n x (
+           trans<N= x (su x) n (slackenL 1 x) l)) >
+    mod-su n (su n) < mod-su n $~ (su n +N0) ]~
+    mod-su n (su n +N 0)
+      ~[ mod-su-step n 0 >
+    0 [QED])
+
+{-
+  ModSu : GroupFromMonoid (AddModSu {n})
+  nvrt ModSu x = inv {su n} x
+  nvrtcomb ModSu (x , l) = finEqNum (su n) (
+    mod-su n (monus n x +N x) ~[ {!!} >
+    mod-su n (x +N monus n x) ~[ mod-su n $~ monusLemma n x l >
+    mod-su n n ~[ {!!} >  --
+    ze [QED])
+-}
 
 {- perhaps...
 
