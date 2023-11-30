@@ -117,6 +117,21 @@ comm+N x (su y) =
   su (x +N y) ~[ su $~ comm+N x y >
   su (y +N x) [QED]
 
+NatNoConf : Nat -> Nat -> Set
+NatNoConf ze ze = One
+NatNoConf ze (su y) = Zero
+NatNoConf (su x) ze = Zero
+NatNoConf (su x) (su y) = x ~ y
+
+natNoConf : (x y : Nat) -> x ~ y -> NatNoConf x y
+natNoConf ze .ze r~ = <>
+natNoConf (su x) .(su x) r~ = r~
+
+
+un+N : (x y z : Nat) -> (x +N y) ~ (x +N z) -> y ~ z
+un+N ze y z q = q
+un+N (su x) y z q = un+N x y z (natNoConf _ _ q)
+
 module _ {X : Set}(MX : MonoidOn X) where
 
   open MonoidOn MX
@@ -236,6 +251,49 @@ finEqNum (su n) {su x , lx} {.(su x) , ly} r~
   = (\ (x , p) -> (su x , p)) $~ finEqNum n {x , lx} {x , ly} r~
 
 ---------------------------------------------------------------
+
+MOD-SU : (n m q r : Nat) -> Set
+MOD-SU n m q r = (((q *N su n) +N r) ~ m) * (r <N su n)
+
+mod-su-bad-lem : (n m r0 q1 r1 : Nat) ->
+  r0 ~ m ->
+  ((su q1 *N su n) +N r1) ~ m ->
+  r0 <N su n ->
+  Zero
+mod-su-bad-lem n m r0 q1 r1 a0 a1 l0
+  with () <- tooBig (su n) ((q1 *N su n) +N r1)
+    (rw<N r0 (su (n +N ((q1 *N su n) +N r1))) (su n) (su n)
+      (r0 ~[ a0 > m
+         < a1 ]~
+       ((su n +N (q1 *N su n)) +N r1)
+         ~[ assoc+N (su n) (q1 *N su n) r1 >
+       (su (n +N ((q1 *N su n) +N r1)))
+         [QED]) r~ l0)
+
+mod-su-only : (n m q0 r0 q1 r1 : Nat)
+  -> MOD-SU n m q0 r0
+  -> MOD-SU n m q1 r1
+  -> (q0 ~ q1) * (r0 ~ r1)
+mod-su-only n m ze r0 ze r1 (a0 , l0) (a1 , l1) = 
+  r~ , (r0 ~[ a0 > m < a1 ]~ r1 [QED])
+mod-su-only n m ze r0 (su q1) r1 (a0 , l0) (a1 , l1)
+  with () <- mod-su-bad-lem n m r0 q1 r1 a0 a1 l0
+mod-su-only n m (su q0) r0 ze r1 (a0 , l0) (a1 , l1)
+  with () <- mod-su-bad-lem n m r1 q0 r0 a1 a0 l1
+mod-su-only n m (su q0) r0 (su q1) r1 (a0 , l0) (a1 , l1)
+  = let z = su (n +N ((q0 *N su n) +N r0))
+              < assoc+N (su n) (q0 *N su n) r0 ]~
+            ((su n +N (q0 *N su n)) +N r0)
+              ~[ a0 >
+            m
+              < a1 ]~
+            ((su n +N (q1 *N su n)) +N r1)
+              ~[ assoc+N (su n) (q1 *N su n) r1 >
+            su (n +N ((q1 *N su n) +N r1)) [QED]
+        x , y = mod-su-only n ((q1 *N su n) +N r1) q0 r0 q1 r1
+         (un+N (su n) _ _ z , l0)
+         (r~ , l1)
+    in (su $~ x) , y
 
 mod-su
    : Nat  -- n, for reduction modulo (su n)
