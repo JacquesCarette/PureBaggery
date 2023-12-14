@@ -202,3 +202,37 @@ module _ (X : U){x y : El X}(q : Pr (Eq X X x y)) where
         (\ (y , q) -> P y q))
       p
 
+--------------------------------------------------------------
+-- these two are the interface to quotients we should export
+--------------------------------------------------------------
+
+Method : (T : U)(P : El T -> U) -> U
+Method `Zero P = `One
+Method `One P = P <>
+Method `Two P = P `0 `* P `1
+Method `Nat P = P ze `* (`Nat `-> \ n -> P n `> P (su n))
+Method (S `>< T) P = S `-> \ s -> T s `-> \ t -> P (s , t)
+Method (S `-> T) P = (S `-> T) `-> \ f -> P f
+Method (`Pr p) P = `Pr p `-> \ x -> P x
+Method (`Quotient T R Q) P = 
+  (T `-> \ t -> P `[ t ]) `>< \ p ->
+  `Pr (T `-> \ x -> T `-> \ y -> (R x y `=>
+        Eq (P `[ x ]) (P `[ y ]) (p x) (p y)))
+
+elElim : (T : U)(t : El T)(P : El T -> U)
+      -> El (Method T P)
+      -> El (P t)
+elElim `One <> P p = p
+elElim `Two `0 P (p0 , _) = p0
+elElim `Two `1 P (_ , p1) = p1
+elElim `Nat ze P (pz , _) = pz
+elElim `Nat (su n) P p@(_ , ps) = ps n (elElim `Nat n P p)
+elElim (S `>< T) (s , t) P p = p s t
+elElim (S `-> T) f P p = p f
+elElim (`Pr r) x P p = p x
+elElim (`Quotient T R Q) `[ x ] P (p , _) = p x
+
+[_] : forall {T : U}{R : El T -> El T -> P}{Q : Equiv (El T) (\ i j -> Pr (R i j))}
+      -> El T -> El (`Quotient T R Q)
+[ x ] = `[ x ]
+--------------------------------------------------------------

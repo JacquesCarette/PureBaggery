@@ -21,6 +21,8 @@ data Two : Set where `0 `1 : Two
 _<01>_ : forall {k}{P : Two -> Set k} -> P `0 -> P `1 -> (b : Two) -> P b
 (p0 <01> p1) `0 = p0
 (p0 <01> p1) `1 = p1
+not : Two -> Two
+not = `1 <01> `0
 
 -- dependent sum, disjoint union (coproduct) and product
 record _><_ (S : Set)(T : S -> Set) : Set where
