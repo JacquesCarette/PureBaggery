@@ -19,6 +19,8 @@ postulate
     Pr (Eq (List T) (List T) (list S T f (nil S)) (nil T))
   listcat : {S T : U}{f : El (S `> T)}{xs ys : El (List S)} ->
     Pr (Eq (List T) (List T) (list S T f (cat S xs ys)) (cat T (list S T f xs) (list S T f ys)))
+  listthe : {S T : U}{f : El (S `> T)}{s : El S} ->
+    Pr (Eq (List T) (List T) (list S T f (the S s)) (the T (f s)))
   listElim : (T : U)(ts : El (List T))(P : El (List T) -> U)
           -> El (P (nil T))
           -> ((s : El T)(ss : El (List T)) -> El (P ss `> P (cat T (the T s) ss)))

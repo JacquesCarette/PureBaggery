@@ -114,15 +114,17 @@ module _ (X : U) where
             cat _ (list _ _ (not >><< id) (rev _ (cat _ (the _ s) ss))) (cat _ (the _ s) ss)
               ~[ eqQ-FGQ (
                    cat _ (list _ _ (not >><< id) (rev _ (cat _ (the _ s) ss))) (cat _ (the _ s) ss)
-                     -[ {!!} >
+                     -[ cong (\ xs -> cat _ (list _ _ _ xs) (cat _ (the _ s) ss)) (revcat _ _ _) >
                    cat _ (list _ _ (not >><< id) (cat _ (rev _ ss) (rev _ (the _ s)))) (cat _ (the _ s) ss)
                      -[ cong (\ xs -> cat _ xs (cat _ (the _ s) ss)) listcat >
                    cat _ (cat _ (list _ _ (not >><< id) (rev _ ss)) (list _ _ (not >><< id) (rev _ (the _ s)))) (cat _ (the _ s) ss)
-                     -[ {!!} >
+                     -[ cong (\ xs -> cat _ (cat _ _ (list _ _ _ xs)) (cat _ (the _ s) ss)) (revthe _ s) >
                    cat _ (cat _ (list _ _ (not >><< id) (rev _ ss)) (list _ _ (not >><< id) (the _ s))) (cat _ (the _ s) ss)
-                     -[ {!!} >
+                     -[ cong (\xs -> cat _ (cat _ _ xs) (cat _ (the _ s) ss)) listthe >
                    cat _ (cat _ (list _ _ (not >><< id) (rev _ ss)) (the _ ((not >><< id) s))) (cat _ (the _ s) ss)
-                     -[ {!!} >  -- need List to be a monoid to get middle four
+                     -[ catcat _ _ _ _ >
+                   cat _ (list _ _ (not >><< id) (rev _ ss)) (cat _ (the _ ((not >><< id) s)) (cat _ (the _ s) ss))
+                     < cong (cat _ _) (catcat _ _ _ _) ]-
                    cat _ (list _ _ (not >><< id) (rev _ ss))
                      (cat _ (cat _ (the _ ((not >><< id) s)) (the _ s))
                         ss)
