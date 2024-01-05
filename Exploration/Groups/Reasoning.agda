@@ -6,6 +6,7 @@ open import ExtUni
 
 module _ (X : U) where
 
+{-
   record HomEq (x y : El X) : Set where
     constructor hoq
     field
@@ -14,6 +15,7 @@ module _ (X : U) where
 
   HOMEQ : (x y : El X) -> HomEq x y -> Pr (Eq X X x y)
   HOMEQ _ _ = homEq
+-}
 
 -- combinators for equational reasoning
 module EQPRF (X : U) where
@@ -38,6 +40,7 @@ module EQPRF (X : U) where
   cong : {x y : El X} (f : El (X `> X)) -> Pr (Eq X X x y) -> Pr (Eq X X (f x) (f y))
   cong {x} {y} f x~y = refl (X `> X) f x y x~y
 
+{-
 module _ {X : U} where
 
   open EQPRF X
@@ -55,14 +58,36 @@ module _ {X : U} where
   infixr 2 _~[_>_ _<_]~_
   _[qed] : forall z -> HomEq X z z
   z [qed] = hoq (z [QED])
+-}
 
 module _
   (T : U)(R : El T -> El T -> P)
   (Q : Equiv (El T) (\ i j -> Pr (R i j)))
   where
+  open Equiv Q
+
   homogQuot : (t0 t1 : El T) -> Pr (R t0 t1) ->
     Pr (Eq (`Quotient T R Q) (`Quotient T R Q) `[ t0 ] `[ t1 ])
-  homogQuot t0 t1 r = hide (t1 , t1 , r , refl T t1 , Equiv.eqR Q t1)
+  homogQuot t0 t1 r = hide (t1 , t1 , r , refl T t1 , eqR t1)
+
+  eqQ : (x y : El T) -> Pr (Eq T T x y) -> Pr (R x y)
+  eqQ x y q = J T q (\ y _ -> `Pr (R x y)) (eqR x)
+
+  module EQUIVPRF where
+
+    _~[_>_ : forall x {y z}
+      -> Pr (R x y)
+      -> Pr (R y z)
+      -> Pr (R x z)
+    x ~[ p > q = eqT _ _ _ p q
+    _<_]~_ : forall x {y z}
+      -> Pr (R y x)
+      -> Pr (R y z)
+      -> Pr (R x z)
+    x < p ]~ q = eqT _ _ _ (eqS _ _ p) q
+    infixr 2 _~[_>_ _<_]~_
+    _[qed] : forall z -> Pr (R z z)
+    z [qed] = eqR _
 
 HomogTac : (T : U)(x y : El T) -> Set
 HomogTac (`Quotient T R Q) `[ x ] `[ y ] = Pr (R x y)
