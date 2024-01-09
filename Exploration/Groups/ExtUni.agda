@@ -40,6 +40,13 @@ Pr (`In T) = Hide (El T)
 infixr 10 _`/\_
 infixr 5  _`->_
 
+ALLCOD : Nat -> U -> Set
+ALLCOD ze S = P
+ALLCOD (su n) S = El S -> ALLCOD n S
+ALL : (n : Nat)(S : U) -> ALLCOD n S -> P
+ALL ze S P = P
+ALL (su n) S P = S `-> \ s -> ALL n S (P s)
+
 -- empty, singleton, 2, naturals,
 -- sigma, pi, proofs and quotients
 data U where
@@ -119,6 +126,10 @@ Eq (`Quotient T0 R0 Q0) (`Quotient T1 R1 Q1) `[ t0 ] `[ t1 ] = `In
 -- off the type diagonal, Pious equality holds vacuously
 Eq _ _ _ _ = `One
 
+-- 'omogeneous 'quality
+Oq : (T : U) -> El T -> El T -> P
+Oq T = Eq T T
+
 
 -- If we have an element of a (quotient) type with non-dependent
 -- witness, then we
@@ -165,9 +176,9 @@ coe : (X Y : U)(q : Pr (X <~> Y)) -> El X -> El Y
 -- y:Y gotten from coe of x)
 -- and predicates (provably) respect Eq
 postulate
-  refl : (X : U)(x : El X) -> Pr (Eq X X x x)
+  refl : (X : U)(x : El X) -> Pr (Oq X x x)
   coh : (X Y : U)(q : Pr (X <~> Y))(x : El X) -> Pr (Eq X Y x (coe X Y q x))
-  Resp : {X : U}{x y : El X} -> Pr (Eq X X x y) -> (P : El X -> U) -> Pr (P x <~> P y)
+  Resp : {X : U}{x y : El X} -> Pr (Oq X x y) -> (P : El X -> U) -> Pr (P x <~> P y)
 
 -- Resp implies reflexivity for structural type equality
 Refl : (X : U) -> Pr (X <~> X)
@@ -189,13 +200,13 @@ coe (`Pr P0) (`Pr P1) q p0 = fst q p0
 coe (`Quotient T0 R0 Q0) (`Quotient T1 R1 Q1) (qT , _) `[ t0 ] = `[ coe T0 T1 qT t0 ]
 
 -- The J combinator in this setting. This is one place where Resp is needed
-module _ (X : U){x y : El X}(q : Pr (Eq X X x y)) where
-  J : (P : (y : El X) -> Pr (Eq X X x y) -> U)
+module _ (X : U){x y : El X}(q : Pr (Oq X x y)) where
+  J : (P : (y : El X) -> Pr (Oq X x y) -> U)
    -> El (P x (refl X x))
    -> El (P y q)
   J P p =
     coe (P x (refl X x)) (P y q)
-      (Resp {X `>< \ y -> `Pr (Eq X X x y)}
+      (Resp {X `>< \ y -> `Pr (Oq X x y)}
         {x , refl X x}
         {y , q}
         (q , _)
