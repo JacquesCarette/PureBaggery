@@ -5,6 +5,8 @@ module Numbers where
 open import Basics
 open import ExtUni
 open import Reasoning
+open import Group
+open import Hom
 
 {- -- in Basics.agda
 -- Nat is useful for non-trivial examples
@@ -12,12 +14,171 @@ data Nat : Set where ze : Nat ; su : Nat -> Nat
 {-# BUILTIN NATURAL Nat #-}
 -}
 
+-- SYmmetric Difference
+syd : Nat -> Nat -> Nat
+syd ze      y     = y
+syd (su x)  ze    = su x
+syd (su x) (su y) = syd x y
+
+syd-sym : (x y : Nat) -> Pr (Oq `Nat (syd x y) (syd y x))
+syd-sym ze ze = _
+syd-sym ze (su y) = refl `Nat (su y)
+syd-sym (su x) ze = refl `Nat (su x)
+syd-sym (su x) (su y) = syd-sym x y
+
+syd-ze : (x : Nat) -> Pr (Oq `Nat (syd x x) ze)
+syd-ze ze     = <> 
+syd-ze (su x) = syd-ze x
+
+_+N_ : Nat -> Nat -> Nat
+ze +N y = y
+su x +N y = su (x +N y)
+
+syd+N : (x y z : Nat) -> Pr (Oq `Nat z (x +N y) `=> Oq `Nat (syd x z) y)
+syd+N ze y z p = p
+syd+N (su x) y (su z) p = syd+N x y z p
+
+module _ where
+  open Monoid
+  
+  Monoid+N : Monoid `Nat
+  neu Monoid+N = ze
+  mul Monoid+N = _+N_
+  mulneu- Monoid+N x = refl `Nat x
+  mul-neu Monoid+N ze = <>
+  mul-neu Monoid+N (su x) = mul-neu Monoid+N x
+  mulmul- Monoid+N ze y z = refl `Nat (y +N z)
+  mulmul- Monoid+N (su x) y z = mulmul- Monoid+N x y z
+
+  module _ {X : U}(MX : Monoid X) where
+    private
+      module MA = Monoid Monoid+N
+      module MX = Monoid MX
+    open EQPRF X
+
+    _-times_ :  El (`Nat `> X `> X)
+    ze -times x = MX.neu
+    su n -times x = MX.mul x (n -times x)
+
+    open HomMonoid
+    homFromMonoid+N : El X -> HomMonoid Monoid+N MX
+    hom (homFromMonoid+N x) n = n -times x
+    homneu (homFromMonoid+N x) = refl X MX.neu
+    hommul (homFromMonoid+N x) ze b = 
+      (b -times x) < MX.mulneu- (b -times x) ]-
+      MX.mul MX.neu (b -times x) [QED]
+    hommul (homFromMonoid+N x) (su a) b = 
+      MX.mul x ((a +N b) -times x) -[ cong (MX.mul x) (hommul (homFromMonoid+N x) a b) >
+      MX.mul x (MX.mul (a -times x) (b -times x)) < MX.mulmul- x (a -times x) (b -times x) ]-
+      MX.mul (MX.mul x (a -times x)) (b -times x) [QED]
+
+    onlyHomFromMonoid+N : (h : HomMonoid Monoid+N MX)
+      -> Pr (Oq (`Nat `> X) (hom h) (_-times (hom h 1)))
+    onlyHomFromMonoid+N h = homogTac (`Nat `> X) (hom h) (_-times (hom h 1)) help where
+      help : (n : Nat) -> Pr (Oq X (hom h n) (n -times hom h 1))
+      help ze = homneu h
+      help (su n) = 
+        hom h (su n) -[ hommul h 1 n >
+        MX.mul (hom h 1) (hom h n) -[ cong (MX.mul (hom h 1)) (help n) >
+        MX.mul (hom h 1) (n -times hom h 1) [QED]
+
+mulHom : Nat -> HomMonoid Monoid+N Monoid+N
+mulHom x = homFromMonoid+N Monoid+N x
+
+_*N_ : Nat -> Nat -> Nat
+n *N x = HomMonoid.hom (mulHom x) n
+
+_-dividesU_ : Nat -> Nat -> U
+n -dividesU m = `Nat `>< \ q -> `Pr (Oq `Nat m (q *N n))
+_-divides_ : Nat -> Nat -> P
+n -divides m = `In (n -dividesU m)
+
+trichotomy : (x y : Nat)(M : Nat -> Nat -> Nat -> U)
+  -> ((a d : Nat) -> El (M a (a +N su d) (su d)))
+  -> ((n : Nat) -> El (M n n ze))
+  -> ((a d : Nat) -> El (M (a +N su d) a (su d)))
+  -> El (M x y (syd x y))
+trichotomy ze ze M l e g = e ze
+trichotomy ze (su y) M l e g = l ze y
+trichotomy (su x) ze M l e g = g ze x
+trichotomy (su x) (su y) M l e g = trichotomy x y (\ x y z -> M (su x) (su y) z)
+  (su - l)
+  (su - e)
+  (su - g)
+
+module _ where
+
+  open EQPRF `Nat
+  open Monoid Monoid+N
+
+  syd-chop : (a b c d : Nat) -> Pr (Oq `Nat (a +N b) (c +N d) `=> Oq `Nat (syd a c) (syd b d))
+  syd-chop ze b ze d q = trans ze (syd b b) (syd b d) (!_{syd b b}{ze} (syd-ze b)) (cong (syd b) q)
+  syd-chop ze b (su c) d q = trans (su c) (syd (su c +N d) d) (syd b d)
+    {!syd+N d (su c) (su c +N d)!}
+    (cong {su c +N d}{b} (\ x -> syd x d) (!_{b}{su c +N d} q))
+  syd-chop (su a) b ze d q = {!!}
+  syd-chop (su a) b (su c) d q = syd-chop a b c d q
+
+  syd-mid : (x y z : Nat)(M : Nat -> U) -> El (
+    M (syd x y +N syd y z)
+    `> M (syd (syd x y) (syd y z))
+    `> M (syd x z))
+  syd-mid x y z M = trichotomy x y (\ x y xy -> M (xy +N syd y z) `>  M (syd xy (syd y z)) `> M (syd x z))
+    (\ x xy -> trichotomy (x +N su xy) z
+    -- up then
+      (\ a z d -> `Pr (Oq `Nat a (x +N su xy)) `> M (su (xy +N d)) `> M (syd (su xy) d) `> M (syd x z))
+      -- up more
+      (\ n d q m _ -> subst `Nat (!_{syd x (n +N su d)}{su (xy +N su d)}
+        (syd+N x (su xy +N su d) (n +N su d)
+          (trans (n +N su d) ((x +N su xy) +N su d) (x +N su (xy +N su d))
+            (cong{n}{x +N su xy} (_+N su d) q)
+            (mulmul- x (su xy) (su d))))
+        ) M m)
+      -- along
+      (\ n q a b -> subst `Nat (!_ {syd x n}{su xy} (syd+N x (su xy) n q)) M b)
+      -- down
+      (\ n d q _ m -> {!!})
+
+      (refl `Nat (x +N su xy)))
+    -- along
+    (\ _ _ m -> m)
+    {!!}
+
+module _ (n : Nat) where
+
+  open EQPRF `Nat
+  open Monoid Monoid+N
+  open HomMonoid (mulHom n)
+
+  private
+    addLem : (a b : Nat) -> El
+      (n -dividesU a `> n -dividesU b `> n -dividesU (a +N b))
+    addLem a b (qa , pa) (qb , pb) = qa +N qb , (
+      (a +N b) -[ refl (`Nat `> `Nat `> `Nat) _+N_ a (qa *N n) pa b (qb *N n) pb >
+      _<_]-_ {(qa +N qb) *N n} ((qa *N n) +N (qb *N n)) (hommul qa qb)
+      (refl `Nat ((qa +N qb) *N n)))
+
+  `Mod : U
+  `Mod = `Quotient `Nat (\ x y -> n -divides (syd x y))
+    (record
+      { eqR = \ x -> hide (ze , syd-ze x)
+      ; eqS = \ x y (hide h) -> hide (fst h , (
+         syd y x -[ syd-sym y x >
+         syd x y -[ snd h >
+         (fst h *N n) [QED]))
+      ; eqT = \ x y z (hide xy) (hide yz) ->
+          syd-mid x y z (\ w -> `Pr (`In (`Nat `>< (\ s -> `Pr (Oq `Nat w (s *N n))))))
+            (hide (addLem (syd x y) (syd y z) xy yz))
+            {!!}
+      })
+
 {- -- sadly, we must make do with the P version of this thing
 data [_+N_]~_ : Nat -> Nat -> Nat -> Set where
   ze : forall {y} ->                      [ ze   +N y ]~ y
   su : forall {x y z} -> [ x +N y ]~ z -> [ su x +N y ]~ su z
 -}
 
+{-
 -- if we don't get nice inversion via pattern matching, is it worth it?
 [_+N_]~_ : Nat -> Nat -> Nat -> P
 [ ze   +N y ]~ z    = Eq `Nat `Nat y z
@@ -32,13 +193,14 @@ ind+N : (x y z : Nat)(p : Pr ([ x +N y ]~ z))
      -> El (M x y z)
 ind+N ze y z p M mze _ = J `Nat {y}{z} p (\ z _ -> M ze y z) mze
 ind+N (su x) y (su z) p M mze msu = msu (ind+N x y z p M mze msu)
-
+-}
 
 -- derive "relation induction", i.e., the eliminator for the above inductive presentation?
 
 -- the following gadgetry is more or less what's needed to generate a
 -- small category internal to U, with a composition relation in P
 
+{-
 module _ where
 
   private
@@ -152,7 +314,7 @@ mulAdd (su n) x s = x +N mulAdd n x s
 
 _*N_ : Nat -> Nat -> Nat
 x *N y = mulAdd x y ze
-
+-}
 {-
 -- subtraction as a view
 data InFin? (n : Nat) : Nat -> Set where

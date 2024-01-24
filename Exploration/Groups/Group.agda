@@ -6,7 +6,7 @@ open import Reasoning
 
 module _ (G : U) where
 
-  _~_ = Oq G
+  private _~_ = Oq G
 
   open EQPRF G
 

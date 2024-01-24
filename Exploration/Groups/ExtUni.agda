@@ -213,6 +213,9 @@ module _ (X : U){x y : El X}(q : Pr (Oq X x y)) where
         (\ (y , q) -> P y q))
       p
 
+  subst : (P : El X -> U) -> El (P x `> P y)
+  subst P = J (\ y _ -> P y)
+
 --------------------------------------------------------------
 -- these two are the interface to quotients we should export
 --------------------------------------------------------------

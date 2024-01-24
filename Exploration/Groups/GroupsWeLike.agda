@@ -1,6 +1,7 @@
 module GroupsWeLike where
 
 open import ExtUni
+open import Reasoning
 open import Group
 open import Iso
 open import Basics
@@ -39,8 +40,10 @@ module _ where
   SelfAct {X} G = record
     { act     = mul
     ; act-neu = mul-neu
-    ; act-mul = mul-mul
-    } where open Group.Group G -- later rename the file
+    ; act-mul = \ a b c -> ! mulmul- a b c
+    } where
+    open Group.Group G -- later rename the file
+    open EQPRF X
 
 {-
 Cyclic : (n : Nat) -> Group (Fin (su n))

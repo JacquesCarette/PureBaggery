@@ -40,6 +40,10 @@ module EQPRF (X : U) where
   cong : {x y : El X} (f : El (X `> X)) -> Pr (Oq X x y) -> Pr (Oq X (f x) (f y))
   cong {x} {y} f x~y = refl (X `> X) f x y x~y
 
+  trans : (x y z : El X) ->
+    Pr (Oq X x y) -> Pr (Oq X y z) -> Pr (Oq X x z)
+  trans x y z xy yz = x -[ xy > y -[ yz > z [QED]  
+
 {-
 module _ {X : U} where
 
