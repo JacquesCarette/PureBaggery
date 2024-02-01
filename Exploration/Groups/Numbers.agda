@@ -14,29 +14,42 @@ data Nat : Set where ze : Nat ; su : Nat -> Nat
 {-# BUILTIN NATURAL Nat #-}
 -}
 
--- SYmmetric Difference
-syd : Nat -> Nat -> Nat
-syd ze      y     = y
-syd (su x)  ze    = su x
-syd (su x) (su y) = syd x y
+record _=N=_ (x y : Nat) : Set where
+  constructor paq
+  field
+    naq : Pr (Oq `Nat x y)
+open _=N=_
 
-syd-sym : (x y : Nat) -> Pr (Oq `Nat (syd x y) (syd y x))
-syd-sym ze ze = _
-syd-sym ze (su y) = refl `Nat (su y)
-syd-sym (su x) ze = refl `Nat (su x)
-syd-sym (su x) (su y) = syd-sym x y
+rn : {n : Nat} -> n =N= n
+rn {n} = paq (refl `Nat n)
 
-syd-ze : (x : Nat) -> Pr (Oq `Nat (syd x x) ze)
-syd-ze ze     = <> 
-syd-ze (su x) = syd-ze x
+module _ (x : Nat){y z : Nat} where
+  open EQPRF `Nat
+  _-N_>_ : x =N= y -> y =N= z -> x =N= z
+  _-N_>_ (paq p) (paq q) = paq (trans x y z p q)
+  _<_N-_ : y =N= x -> y =N= z -> x =N= z
+  _<_N-_ (paq p) (paq q) = paq (trans x y z (!_ {y}{x} p) q)
+
+  infixr 2 _-N_>_ _<_N-_
+  
+_[N] : (n : Nat) -> n =N= n
+n [N] = rn
+infixr 3 _[N]
+
+coNg : (f : Nat -> Nat){x y : Nat} -> x =N= y -> f x =N= f y
+coNg f {x}{y} (paq q) = paq (refl (`Nat `> `Nat) f x y q)
+
+-- su injective
+sui : {x y : Nat} -> su x =N= su y -> x =N= y
+sui (paq q) = paq q
 
 _+N_ : Nat -> Nat -> Nat
 ze +N y = y
 su x +N y = su (x +N y)
 
-syd+N : (x y z : Nat) -> Pr (Oq `Nat z (x +N y) `=> Oq `Nat (syd x z) y)
-syd+N ze y z p = p
-syd+N (su x) y (su z) p = syd+N x y z p
+_+Ninj : (n x y : Nat) -> (n +N x) =N= (n +N y) -> x =N= y
+(ze +Ninj) x y q = q
+(su n +Ninj) x y q = (n +Ninj) x y (sui q)
 
 module _ where
   open Monoid
@@ -50,37 +63,35 @@ module _ where
   mulmul- Monoid+N ze y z = refl `Nat (y +N z)
   mulmul- Monoid+N (su x) y z = mulmul- Monoid+N x y z
 
-  module _ {X : U}(MX : Monoid X) where
-    private
-      module MA = Monoid Monoid+N
-      module MX = Monoid MX
-    open EQPRF X
+module _ {X : U}(MX : Monoid X) where
+  open Monoid MX
+  open EQPRF X
 
-    _-times_ :  El (`Nat `> X `> X)
-    ze -times x = MX.neu
-    su n -times x = MX.mul x (n -times x)
+  _-times_ :  El (`Nat `> X `> X)
+  ze   -times x = neu
+  su n -times x = mul x (n -times x)
 
-    open HomMonoid
-    homFromMonoid+N : El X -> HomMonoid Monoid+N MX
-    hom (homFromMonoid+N x) n = n -times x
-    homneu (homFromMonoid+N x) = refl X MX.neu
-    hommul (homFromMonoid+N x) ze b = 
-      (b -times x) < MX.mulneu- (b -times x) ]-
-      MX.mul MX.neu (b -times x) [QED]
-    hommul (homFromMonoid+N x) (su a) b = 
-      MX.mul x ((a +N b) -times x) -[ cong (MX.mul x) (hommul (homFromMonoid+N x) a b) >
-      MX.mul x (MX.mul (a -times x) (b -times x)) < MX.mulmul- x (a -times x) (b -times x) ]-
-      MX.mul (MX.mul x (a -times x)) (b -times x) [QED]
+  open HomMonoid
+  homFromMonoid+N : El X -> HomMonoid Monoid+N MX
+  hom (homFromMonoid+N x) n = n -times x
+  homneu (homFromMonoid+N x) = refl X neu
+  hommul (homFromMonoid+N x) ze b = 
+    (b -times x) < mulneu- (b -times x) ]-
+    mul neu (b -times x) [QED]
+  hommul (homFromMonoid+N x) (su a) b = 
+    mul x ((a +N b) -times x) -[ cong (mul x) (hommul (homFromMonoid+N x) a b) >
+    mul x (mul (a -times x) (b -times x)) < mulmul- x (a -times x) (b -times x) ]-
+    mul (mul x (a -times x)) (b -times x) [QED]
 
-    onlyHomFromMonoid+N : (h : HomMonoid Monoid+N MX)
-      -> Pr (Oq (`Nat `> X) (hom h) (_-times (hom h 1)))
-    onlyHomFromMonoid+N h = homogTac (`Nat `> X) (hom h) (_-times (hom h 1)) help where
-      help : (n : Nat) -> Pr (Oq X (hom h n) (n -times hom h 1))
-      help ze = homneu h
-      help (su n) = 
-        hom h (su n) -[ hommul h 1 n >
-        MX.mul (hom h 1) (hom h n) -[ cong (MX.mul (hom h 1)) (help n) >
-        MX.mul (hom h 1) (n -times hom h 1) [QED]
+  onlyHomFromMonoid+N : (h : HomMonoid Monoid+N MX)
+    -> Pr (Oq (`Nat `> X) (hom h) (_-times (hom h 1)))
+  onlyHomFromMonoid+N h = homogTac (`Nat `> X) (hom h) (_-times (hom h 1)) help where
+    help : (n : Nat) -> Pr (Oq X (hom h n) (n -times hom h 1))
+    help ze = homneu h
+    help (su n) = 
+      hom h (su n) -[ hommul h 1 n >
+      mul (hom h 1) (hom h n) -[ cong (mul (hom h 1)) (help n) >
+      mul (hom h 1) (n -times hom h 1) [QED]
 
 mulHom : Nat -> HomMonoid Monoid+N Monoid+N
 mulHom x = homFromMonoid+N Monoid+N x
@@ -93,11 +104,17 @@ n -dividesU m = `Nat `>< \ q -> `Pr (Oq `Nat m (q *N n))
 _-divides_ : Nat -> Nat -> P
 n -divides m = `In (n -dividesU m)
 
+-- % is symmetric difference
+_%_ : Nat -> Nat -> Nat
+ze   %    y = y
+su x % ze   = su x
+su x % su y = x % y
+
 trichotomy : (x y : Nat)(M : Nat -> Nat -> Nat -> U)
   -> ((a d : Nat) -> El (M a (a +N su d) (su d)))
   -> ((n : Nat) -> El (M n n ze))
   -> ((a d : Nat) -> El (M (a +N su d) a (su d)))
-  -> El (M x y (syd x y))
+  -> El (M x y (x % y))
 trichotomy ze ze M l e g = e ze
 trichotomy ze (su y) M l e g = l ze y
 trichotomy (su x) ze M l e g = g ze x
@@ -106,44 +123,119 @@ trichotomy (su x) (su y) M l e g = trichotomy x y (\ x y z -> M (su x) (su y) z)
   (su - e)
   (su - g)
 
+syd-sym : (x y : Nat) -> (x % y) =N= (y % x)
+syd-sym  ze     ze    = rn
+syd-sym  ze    (su y) = rn
+syd-sym (su x)  ze    = rn
+syd-sym (su x) (su y) = syd-sym x y
+
+syd-ze : (x y : Nat) -> x =N= y -> (x % y) =N= ze
+syd-ze ze     ze     q = rn 
+syd-ze (su x) (su y) q = syd-ze x y (sui q)
+
+syd+N : (x y z : Nat) -> z =N= (x +N y) -> (x % z) =N= y
+syd+N ze     y     z  p = p
+syd+N (su x) y (su z) p = syd+N x y z (sui p)
+
+syd-can : (x y z : Nat) -> ((x +N y) % (x +N z)) =N= (y % z)
+syd-can ze y z = rn
+syd-can (su x) y z = syd-can x y z
+
 module _ where
 
-  open EQPRF `Nat
   open Monoid Monoid+N
 
-  syd-chop : (a b c d : Nat) -> Pr (Oq `Nat (a +N b) (c +N d) `=> Oq `Nat (syd a c) (syd b d))
-  syd-chop ze b ze d q = trans ze (syd b b) (syd b d) (!_{syd b b}{ze} (syd-ze b)) (cong (syd b) q)
-  syd-chop ze b (su c) d q = trans (su c) (syd (su c +N d) d) (syd b d)
-    {!syd+N d (su c) (su c +N d)!}
-    (cong {su c +N d}{b} (\ x -> syd x d) (!_{b}{su c +N d} q))
-  syd-chop (su a) b ze d q = {!!}
-  syd-chop (su a) b (su c) d q = syd-chop a b c d q
+  _+Nsu_ : (x y : Nat) -> (x +N su y) =N= (su (x +N y))
+  ze   +Nsu y = rn
+  su x +Nsu y = coNg su (x +Nsu y)
+
+  _+Ncomm_ : (x y : Nat) -> (x +N y) =N= (y +N x)
+  x +Ncomm ze = paq (mul-neu x)
+  x +Ncomm su y =
+    (x +N su y) -N x +Nsu y >
+    (su x +N y) -N coNg su (x +Ncomm y) >
+    (su y +N x) [N] -- trans (x +N su y) (su (x +N y)) (su (y +N x)) (x +Nsu y) (x +Ncomm y)
+    
+module _ where
+
+  open Monoid Monoid+N
+
+  syd-chop : (a b c d : Nat) -> Pr (Oq `Nat (a +N b) (c +N d) `=> Oq `Nat (a % c) (b % d))
+  syd-chop a b c d = trichotomy a c (\ a c z -> `Pr (Oq `Nat (a +N b) (c +N d) `=> Oq `Nat z (b % d)))
+    (\ x y q -> naq (
+      su y                < syd+N d (su y) (su y +N d) (su y +Ncomm d) N-
+      (d % (su y +N d))   -N syd-sym d (su y +N d) >
+      ((su y +N d) % d)   < coNg (_% d) ((x +Ninj) b (su y +N d) (
+        (x +N b)             -N paq q >
+        ((x +N su y) +N d)   -N paq (mulmul- x (su y) d) >
+        (x +N su (y +N d))   [N])) N-
+      (b % d)             [N]))
+    (\ n q -> naq (
+      ze       < syd-ze b d ((n +Ninj) b d (paq q)) N-
+      (b % d)  [N]))
+    \ x y q -> naq (
+      (su y)               < syd+N b (su y) (su y +N b) (su y +Ncomm b) N-
+      (b % (su y +N b))    -N coNg (b %_) ((x +Ninj) (su y +N b) d (
+        (x +N su (y +N b))   -N paq (mul-mul x (su y) b) >
+        ((x +N su y) +N b)   -N paq q >
+        (x +N d)             [N])) >
+      (b % d)              [N])
 
   syd-mid : (x y z : Nat)(M : Nat -> U) -> El (
-    M (syd x y +N syd y z)
-    `> M (syd (syd x y) (syd y z))
-    `> M (syd x z))
-  syd-mid x y z M = trichotomy x y (\ x y xy -> M (xy +N syd y z) `>  M (syd xy (syd y z)) `> M (syd x z))
-    (\ x xy -> trichotomy (x +N su xy) z
-    -- up then
-      (\ a z d -> `Pr (Oq `Nat a (x +N su xy)) `> M (su (xy +N d)) `> M (syd (su xy) d) `> M (syd x z))
+       M ((x % y) +N (y % z))
+    `> M ((x % y) % (y % z))
+    `> M (x % z))
+  syd-mid x y z M = trichotomy x y (\ x y xy -> M (xy +N (y % z)) `>  M (xy % (y % z)) `> M (x % z))
+    -- up, then what?
+    (\ x xy -> trichotomy (x +N su xy) z (\ a z d -> `Pr (Oq `Nat a (x +N su xy)) `> M (su (xy +N d)) `> M (su xy % d) `> M (x % z))
       -- up more
-      (\ n d q m _ -> subst `Nat (!_{syd x (n +N su d)}{su (xy +N su d)}
-        (syd+N x (su xy +N su d) (n +N su d)
-          (trans (n +N su d) ((x +N su xy) +N su d) (x +N su (xy +N su d))
-            (cong{n}{x +N su xy} (_+N su d) q)
-            (mulmul- x (su xy) (su d))))
-        ) M m)
+      (\ w d q m _ -> subst `Nat (naq (
+        (su xy +N su d)               < syd+N x (su xy +N su d) _ (paq (mulmul- x (su xy) (su d))) N-
+        (x % ((x +N su xy) +N su d))  < coNg ((_+N su d) - (x %_)) (paq q) N-
+        (x % (w +N su d))             [N]))
+        M m)
       -- along
-      (\ n q a b -> subst `Nat (!_ {syd x n}{su xy} (syd+N x (su xy) n q)) M b)
-      -- down
-      (\ n d q _ m -> {!!})
-
-      (refl `Nat (x +N su xy)))
+      (\ w q _ -> subst `Nat (naq (
+        su xy    < syd+N x (su xy) w (paq q) N-
+        (x % w)  [N]))
+        M)
+      -- back down
+      (\ w d q _ -> subst `Nat (naq (
+        (xy % d)  < paq (syd-chop x xy w d (naq (
+          (su x +N xy)  < x +Nsu xy N-
+          (x +N su xy)  < paq q N-
+          (w +N su d)   -N w +Nsu d >
+          (su w +N d)   [N]))) N-
+        (x % w)   [N]))
+        M)
+      (naq ((x +N su xy) [N])))
     -- along
     (\ _ _ m -> m)
-    {!!}
-
+    -- down, then what?
+    \ y yx -> trichotomy y z (\ y z d -> M (su (yx +N d)) `> M (su yx % d) `> M ((y +N su yx) % z))
+      -- back up
+      (\ w d _ -> subst `Nat (naq (
+        (yx % d)                      < syd-can w (su yx) (su d) N-
+        ((w +N su yx) % (w +N su d))  [N]))
+        M)
+      -- along
+      (\ w _ -> subst `Nat (naq (
+        su yx < syd+N w (su yx) (w +N su yx) rn N-
+        (w % (w +N su yx)) -N syd-sym w (w +N su yx) >
+        ((w +N su yx) % w) [N]))
+        M)
+      -- down more
+      \ w d m _ -> subst `Nat (naq (
+        (su yx +N su d) < syd+N w (su yx +N su d) ((w +N su d) +N su yx) ((
+           ((w +N su d) +N su yx) -N paq (mulmul- w (su d) (su yx)) >
+           (w +N (su d +N su yx)) -N coNg (w +N_) (su d +Ncomm su yx) >
+           (w +N su (yx +N su d)) [N])
+        ) N-
+        (w % ((w +N su d) +N su yx)) -N syd-sym w _ >
+        (((w +N su d) +N su yx) % w) [N]))
+        M m
+      
+{-
 module _ (n : Nat) where
 
   open EQPRF `Nat
@@ -413,5 +505,6 @@ reduceLemma : (n : Nat)(i j : Nat) ->
       (reduce n (i +N j)))
 reduceLemma n i j with divMod i (su n) | divMod j (su n)
 reduceLemma n .(mulAdd qi (su n) ri) .(mulAdd qj (su n) rj) | quotRem qi (ri , ip) | quotRem qj (rj , jp) = {!!}
+-}
 -}
 -}

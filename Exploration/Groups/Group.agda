@@ -35,6 +35,10 @@ module _ (G : U) where
       mul-neu : Pr (ALL 1 G \ x -> mul x neu ~ x)
       mulmul- : Pr (ALL 3 G \ x y z ->
                    mul (mul x y) z ~ mul x (mul y z))
+    mul-mul : Pr (ALL 3 G \ x y z ->
+                 mul x (mul y z) ~ mul (mul x y) z)
+    mul-mul x y z = ! mulmul- x y z
+                  
 
     semiGroup : SemiGroup
     semiGroup = record { mul = mul ; mulmul- = mulmul- }
