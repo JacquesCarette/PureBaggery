@@ -7,12 +7,7 @@ open import ExtUni
 open import Reasoning
 open import Group
 open import Hom
-
-{- -- in Basics.agda
--- Nat is useful for non-trivial examples
-data Nat : Set where ze : Nat ; su : Nat -> Nat
-{-# BUILTIN NATURAL Nat #-}
--}
+open import Quotient
 
 record _=N=_ (x y : Nat) : Set where
   constructor paq
@@ -141,6 +136,11 @@ syd-can : (x y z : Nat) -> ((x +N y) % (x +N z)) =N= (y % z)
 syd-can ze y z = rn
 syd-can (su x) y z = syd-can x y z
 
+-- this is not free as _%_ analyzes its lhs first
+syd-zer : (x : Nat) -> (x % ze) =N= x
+syd-zer ze = rn
+syd-zer (su x) = rn
+
 module _ where
 
   open Monoid Monoid+N
@@ -234,8 +234,19 @@ module _ where
         (w % ((w +N su d) +N su yx)) -N syd-sym w _ >
         (((w +N su d) +N su yx) % w) [N]))
         M m
-      
-{-
+
+-- HERE
+
+  syd-mul : (a b n : Nat) -> ((a *N n) % (b *N n)) =N= ((a % b) *N n)
+  syd-mul ze b n = rn
+  syd-mul (su a) ze n = syd-zer (su a *N n)
+  syd-mul (su a) (su b) n = 
+    (n +N (a *N n)) % (n +N (b *N n)) -N syd-can n _ _ >
+    (a *N n) % (b *N n)               -N syd-mul a b n >
+    ((a % b) *N n)                    [N]
+  
+--------------------------------
+
 module _ (n : Nat) where
 
   open EQPRF `Nat
@@ -245,24 +256,72 @@ module _ (n : Nat) where
   private
     addLem : (a b : Nat) -> El
       (n -dividesU a `> n -dividesU b `> n -dividesU (a +N b))
-    addLem a b (qa , pa) (qb , pb) = qa +N qb , (
-      (a +N b) -[ refl (`Nat `> `Nat `> `Nat) _+N_ a (qa *N n) pa b (qb *N n) pb >
-      _<_]-_ {(qa +N qb) *N n} ((qa *N n) +N (qb *N n)) (hommul qa qb)
-      (refl `Nat ((qa +N qb) *N n)))
+    addLem a b (qa , pa) (qb , pb) = qa +N qb ,
+      naq (
+        a +N b                 -N coNg (_+N b) (paq pa) >
+        (qa *N n) +N b         -N coNg ((qa *N n) +N_) (paq pb) >
+        (qa *N n) +N (qb *N n) < paq (hommul qa qb) N-
+        (qa +N qb) *N n        [N])
 
-  `Mod : U
-  `Mod = `Quotient `Nat (\ x y -> n -divides (syd x y))
+    %Lem : (a b : Nat) -> El
+      (n -dividesU a `> n -dividesU b `> n -dividesU (a % b))
+    %Lem a b (qa , pa) (qb , pb) = qa % qb , naq (
+      a % b                 -N coNg (a %_) (paq pb) >
+      a % (qb *N n)         -N coNg (_% (qb *N n)) {a} (paq pa) >
+      (qa *N n) % (qb *N n) -N syd-mul qa qb n >
+      (qa % qb) *N n        [N])
+
+  modEq : Nat -> Nat -> P
+  modEq x y = n -divides (x % y)
+  
+  `Mod-resp : Equiv Nat (\ i j -> Pr (modEq i j))
+  `Mod-resp =
     (record
-      { eqR = \ x -> hide (ze , syd-ze x)
+      { eqR = \ x -> hide (ze , naq (syd-ze x x rn))
       ; eqS = \ x y (hide h) -> hide (fst h , (
-         syd y x -[ syd-sym y x >
-         syd x y -[ snd h >
+         y % x -[ naq (syd-sym y x) >
+         x % y -[ snd h >
          (fst h *N n) [QED]))
       ; eqT = \ x y z (hide xy) (hide yz) ->
           syd-mid x y z (\ w -> `Pr (`In (`Nat `>< (\ s -> `Pr (Oq `Nat w (s *N n))))))
-            (hide (addLem (syd x y) (syd y z) xy yz))
-            {!!}
+            (hide (addLem (x % y) (y % z) xy yz))
+            (hide (%Lem (x % y) (y % z) xy yz))
       })
+  
+  `Mod : U
+  `Mod = `Quotient `Nat modEq `Mod-resp
+
+Fin : Nat -> U
+Fin = su - `Mod
+
+-- Build up the pieces that make `Fin` into a group
+module BuildFin (n : Nat) where
+  private
+    G : Set
+    G = El (Fin n)
+
+  _=F=_ : G -> G -> P
+  `[ a ] =F= `[ b ] = modEq (su n) a b
+  
+  zeF : G
+  zeF = `[ 0 ]
+
+  _+F_ : G -> G -> G
+  `[ a ] +F `[ b ] = `[ a +N b ]
+
+  ze+ : (x : G) -> Pr (Oq (Fin n) (zeF +F x) x)
+  ze+ `[ x ] = hide (x , x ,
+    hide (ze , naq (syd-ze x x rn)) ,
+    refl `Nat x ,
+    hide (ze , naq (syd-ze x x rn)))
+
+  assocF : (x y z : G) -> Pr (Oq (Fin n) ((x +F y) +F z) (x +F (y +F z)))
+  assocF `[ x ] `[ y ] `[ z ] = hide (
+    ((x +N y) +N z) ,
+    (x +N (y +N z)) ,
+    hide (ze , naq (syd-ze ((x +N y) +N z) _ rn)) ,
+    Monoid.mulmul- Monoid+N x y z  ,
+    hide (ze , naq (syd-ze (x +N (y +N z)) _ rn)))
 
 {- -- sadly, we must make do with the P version of this thing
 data [_+N_]~_ : Nat -> Nat -> Nat -> Set where
@@ -507,4 +566,4 @@ reduceLemma n i j with divMod i (su n) | divMod j (su n)
 reduceLemma n .(mulAdd qi (su n) ri) .(mulAdd qj (su n) rj) | quotRem qi (ri , ip) | quotRem qj (rj , jp) = {!!}
 -}
 -}
--}
+

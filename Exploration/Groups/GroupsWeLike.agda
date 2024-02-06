@@ -5,7 +5,7 @@ open import Reasoning
 open import Group
 open import Iso
 open import Basics
--- open import Numbers
+open import Numbers
 
 module _ where
   Trivial : Group `One
@@ -46,13 +46,15 @@ module _ where
     open EQPRF X
 
 {-
-Cyclic : (n : Nat) -> Group (Fin (su n))
+Cyclic : (n : Nat) -> Group (Fin n)
 Cyclic n = record
-  { neu = 0 , _
-  ; inv = plusInverse n
-  ; mul = finPlus n
-  ; mulneu- = plusAbsorbZero n
-  ; mulmul- = {!!}
+  { neu = G.zeF
+  ; inv = {!!}
+  ; mul = G._+F_
+  ; mulneu- = G.ze+
+  ; mulmul- = G.assocF
   ; mulinv- = {!!}
   }
+  where
+    module G = BuildFin n
 -}
