@@ -280,3 +280,6 @@ TSWLatexianTemp*
 
 # Editor stuff
 *.agda~
+
+# Mac droppings
+.DS_Store
