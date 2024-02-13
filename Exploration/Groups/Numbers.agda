@@ -155,7 +155,11 @@ module _ where
     (x +N su y) -N x +Nsu y >
     (su x +N y) -N coNg su (x +Ncomm y) >
     (su y +N x) [N] -- trans (x +N su y) (su (x +N y)) (su (y +N x)) (x +Nsu y) (x +Ncomm y)
-    
+
+  _*Nze : (x : Nat) -> (x *N ze) =N= ze
+  ze *Nze = rn
+  su x *Nze = x *Nze
+ 
 module _ where
 
   open Monoid Monoid+N
@@ -244,7 +248,35 @@ module _ where
     (n +N (a *N n)) % (n +N (b *N n)) -N syd-can n _ _ >
     (a *N n) % (b *N n)               -N syd-mul a b n >
     ((a % b) *N n)                    [N]
+
+  private
+    -- compute-shifted-scale
+    -- will only be called from this file
+    compute-shifted-scale : (a n x cnt : Nat) -> Nat
+    -- x and n reach 0 at the same time
+    compute-shifted-scale a n ze ze = a
+    -- x has reached 0 in this interval
+    compute-shifted-scale a n ze (su cnt) = a
+    -- x still has to go, but we've exhausted our n supply, next round
+    compute-shifted-scale a n (su x) ze = su (compute-shifted-scale a n x n)
+    -- keep going
+    compute-shifted-scale a n (su x) (su cnt) = compute-shifted-scale a n x cnt
   
+  -- in strides of n, where is x ?
+  -- i.e. q such that q*n <= x < (q+1)*n
+  scale : (n x : Nat) -> Nat
+  scale n x = compute-shifted-scale 0 n x n
+
+  -- a few tests, to make sure we get the right answer
+  private
+    s13 : scale 10 13 =N= 1
+    s13 = rn
+    s13g : let q = 10 *N scale 10 13 in (q +N (13 % q)) =N= 13
+    s13g = rn
+
+  invN : Nat -> Nat -> Nat
+  invN n x = let q = (su n) *N scale (su n) x in x % q
+
 --------------------------------
 
 module _ (n : Nat) where
@@ -323,6 +355,38 @@ module BuildFin (n : Nat) where
     Monoid.mulmul- Monoid+N x y z  ,
     hide (ze , naq (syd-ze (x +N (y +N z)) _ rn)))
 
+  inv : G -> G
+  inv `[ x ] = `[ invN n x ]
+
+  -- more this proof up when it's done
+  inv-add : (n x : Nat) ->
+    let q = scale (su n) x in (invN n x +N x) =N= (q *N su n)
+  inv-add n ze = 
+    (n *N 0) +N 0 -N paq (Monoid.mul-neu Monoid+N (n *N 0)) >
+    n *N 0        -N n *Nze >
+    0             [N]
+  inv-add n (su x) = 
+    (invN n (su x) +N su x)            -N rn >
+    ((su x % (su n *N q)) +N su x)     -N {!inv-add n x!} >
+    q *N su n                [N] 
+    where
+      q = scale (su n) (su x)
+      q' = scale (su n) x
+      -- inv-add n x == invN n x +N x = q' *N su n
+      -- (x % (su n *N q')) +N x == q' *N su n
+      
+  inv+ : (x : G) -> Pr (Oq (Fin n) (inv x +F x) zeF)
+  inv+ `[ x ] = hide (
+    invN n x +N x ,
+    (q *N su n) ,
+    hide (ze , naq (syd-ze (invN n x +N x) _ rn)) ,
+    naq (inv-add n x) ,
+    hide (q ,
+      naq (syd-zer (q *N su n))))
+    where
+      q : Nat
+      q = scale (su n) x
+      
 {- -- sadly, we must make do with the P version of this thing
 data [_+N_]~_ : Nat -> Nat -> Nat -> Set where
   ze : forall {y} ->                      [ ze   +N y ]~ y
