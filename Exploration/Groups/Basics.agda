@@ -12,6 +12,10 @@ record Hide (X : Set) : Set where
     .expose : X
 open Hide public
 
+mapHide : forall {S T} -> (S -> T) -> Hide S -> Hide T
+mapHide f (hide s) = hide (f s)
+
+
 --------------
 -- empty, singleton and (exactly) 2 point set along with eliminator
 data Zero' : Set where

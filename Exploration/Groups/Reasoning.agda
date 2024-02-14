@@ -64,6 +64,10 @@ module _ {X : U} where
   z [qed] = hoq (z [QED])
 -}
 
+N-ary : Nat -> U -> U
+N-ary ze T = T
+N-ary (su n) T = T `> N-ary n T
+
 module _
   (T : U)(R : El T -> El T -> P)
   (Q : Equiv (El T) (\ i j -> Pr (R i j)))
@@ -71,11 +75,51 @@ module _
   open Equiv Q
 
   homogQuot : (t0 t1 : El T) -> Pr (R t0 t1) ->
-    Pr (Eq (`Quotient T R Q) (`Quotient T R Q) `[ t0 ] `[ t1 ])
+    Pr (Oq (`Quotient T R Q) `[ t0 ] `[ t1 ])
   homogQuot t0 t1 r = hide (t1 , t1 , r , refl T t1 , eqR t1)
 
-  eqQ : (x y : El T) -> Pr (Eq T T x y) -> Pr (R x y)
+  eqQ : (x y : El T) -> Pr (Oq T x y) -> Pr (R x y)
   eqQ x y q = J T q (\ y _ -> `Pr (R x y)) (eqR x)
+
+  unHomogQuot : (t0 t1 : El T)
+    -> Pr (Oq (`Quotient T R Q) `[ t0 ] `[ t1 ])
+    -> Pr (R t0 t1)
+  unHomogQuot t0 t1 q = irr (R t0 t1) (mapHide (help t0 t1) q) where
+    help : (t0 t1 : El T)
+       -> El (T `>< \ m0 -> T `>< \ m1 -> `Pr (R t0 m0 `/\ Eq T T m0 m1 `/\ R m1 t1))
+       -> Pr (R t0 t1)
+    help t0 t1 (m0 , m1 , r0 , mq , r1) = J T mq (\ m1 _ -> `Pr (R m1 t1 `=> R t0 t1))
+      (\ r1 -> eqT t0 m0 t1 r0 r1)
+      r1
+
+  FunRelated : (n : Nat)(f g : El (N-ary n T)) -> P
+  FunRelated ze f g = R f g
+  FunRelated (su n) f g = T `-> \ t -> FunRelated n (f t) (g t)
+
+  LiftingOK : (n : Nat)(f : El (N-ary n T)) -> P
+  LiftingOK ze     f = `One
+  LiftingOK (su n) f
+    =   (T `-> \ t0 -> T `-> \ t1 -> R t0 t1 `=> FunRelated n (f t0) (f t1))
+    `/\ (T `-> \ t -> LiftingOK n (f t))
+
+  lifting : (n : Nat)(f : El (N-ary n T))(OK : Pr (LiftingOK n f))
+         -> El (N-ary n (`Quotient T R Q))
+  liftLater : (n : Nat)(f g : El (N-ary n T))(fOK : Pr (LiftingOK n f))(gOK : Pr (LiftingOK n g))
+    -> Pr (FunRelated n f g)
+    -> Pr (Oq (N-ary n (`Quotient T R Q))
+         (lifting n f fOK) (lifting n g gOK))
+  lifting ze f OK = `[ f ]
+  lifting (su n) f (OKnow , OKlater) x = elElim (`Quotient T R Q) x (\ _ -> N-ary n (`Quotient T R Q))
+    ( (\ t -> lifting n (f t) (OKlater t))
+    , \ t0 t1 tr -> liftLater n (f t0) (f t1) (OKlater t0) (OKlater t1) (OKnow t0 t1 tr)
+    )
+  liftLater ze f g fOK gOK fg = homogQuot f g fg
+  liftLater (su n) f g fOK gOK fg t0 t1 tq = J (`Quotient T R Q) tq
+    (\ t1 _ -> `Pr (Oq (N-ary n (`Quotient T R Q)) (lifting (su n) f fOK t0) (lifting (su n) g gOK t1)))
+    (elElim (`Quotient T R Q) t0
+      (\ t0 ->  `Pr (Oq (N-ary n (`Quotient T R Q)) (lifting (su n) f fOK t0) (lifting (su n) g gOK t0)))
+      ( (\ t -> liftLater n (f t) (g t) (snd fOK t) (snd gOK t) (fg t))
+      , _))
 
   module EQUIVPRF where
 
@@ -94,11 +138,14 @@ module _
     z [qed] = eqR _
 
 HomogTac : (T : U)(x y : El T) -> P
+  -- this is a bit wicked, unpacking representatives; should elim properly
 HomogTac (`Quotient T R Q) `[ x ] `[ y ] = R x y
 HomogTac (S `-> T) f g = S `-> \ s -> Oq (T s) (f s) (g s)
 HomogTac _ x y = `Zero
 
 homogTac : (T : U)(x y : El T) -> Pr (HomogTac T x y) -> Pr (Oq T x y)
+  -- this is a bit wicked, unpacking representatives; should elim properly
 homogTac (`Quotient T R Q) `[ x ] `[ y ] r = homogQuot T R Q x y r
 homogTac (S `-> T) f g r x y q =
   J S q (\ y _ -> `Pr (Eq (T x) (T y) (f x) (g y))) (r x)
+

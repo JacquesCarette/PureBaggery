@@ -323,30 +323,41 @@ module _ (n : Nat) where
   `Mod : U
   `Mod = `Quotient `Nat modEq `Mod-resp
 
-Fin : Nat -> U
-Fin = su - `Mod
+FinSu : Nat -> U
+FinSu = su - `Mod
 
 -- Build up the pieces that make `Fin` into a group
 module BuildFin (n : Nat) where
   private
     G : Set
-    G = El (Fin n)
+    G = El (FinSu n)
 
-  _=F=_ : G -> G -> P
-  `[ a ] =F= `[ b ] = modEq (su n) a b
-  
   zeF : G
   zeF = `[ 0 ]
 
   _+F_ : G -> G -> G
-  `[ a ] +F `[ b ] = `[ a +N b ]
+  _+F_ = lifting `Nat (modEq (su n)) (`Mod-resp (su n)) 2 _+N_
+      ( (\ a0 a1 ar b -> mapHide (id >><< \ {s} q -> naq (
+                ((a0 +N b) % (a1 +N b)) -N coNg (_% (a1 +N b)) (a0 +Ncomm b) >
+                ((b +N a0) % (a1 +N b)) -N coNg ((b +N a0) %_) (a1 +Ncomm b) >
+                ((b +N a0) % (b +N a1)) -N syd-can b a0 a1 >
+                (a0 % a1) -N paq q >
+                (s *N su n) [N]))
+           ar)
+      , \ a -> (\ b0 b1 -> mapHide (id >><< (\ {s} q -> naq (
+                  ((a +N b0) % (a +N b1)) -N syd-can a b0 b1 >
+                  (b0 % b1) -N paq q >
+                  (s *N su n) [N]))))
+            , _)
 
-  ze+ : (x : G) -> Pr (Oq (Fin n) (zeF +F x) x)
+
+  ze+ : (x : G) -> Pr (Oq (FinSu n) (zeF +F x) x)
   ze+ `[ x ] = hide (x , x ,
     hide (ze , naq (syd-ze x x rn)) ,
     refl `Nat x ,
     hide (ze , naq (syd-ze x x rn)))
 
+{-
   assocF : (x y z : G) -> Pr (Oq (Fin n) ((x +F y) +F z) (x +F (y +F z)))
   assocF `[ x ] `[ y ] `[ z ] = hide (
     ((x +N y) +N z) ,
@@ -631,3 +642,4 @@ reduceLemma n .(mulAdd qi (su n) ri) .(mulAdd qj (su n) rj) | quotRem qi (ri , i
 -}
 -}
 
+-}
