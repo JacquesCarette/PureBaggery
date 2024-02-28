@@ -254,7 +254,7 @@ module _ where
     -- will only be called from this file
     compute-shifted-scale : (a n x cnt : Nat) -> Nat
     -- x and n reach 0 at the same time
-    compute-shifted-scale a n ze ze = a
+    compute-shifted-scale a n ze ze = ze
     -- x has reached 0 in this interval
     compute-shifted-scale a n ze (su cnt) = a
     -- x still has to go, but we've exhausted our n supply, next round
@@ -274,9 +274,27 @@ module _ where
     s13g : let q = 10 *N scale 10 13 in (q +N (13 % q)) =N= 13
     s13g = rn
 
+  can : Nat -> Nat -> Nat
+  can n x = let q = n *N scale (su n) x in x % q
+  
   invN : Nat -> Nat -> Nat
-  invN n x = let q = (su n) *N scale (su n) x in x % q
+  invN n x = let q = (su n) *N (su (scale (su n) x)) in x % q
 
+  -- testing: oops!
+  {-
+  private
+    inv4-7 : invN 4 7 =N= 3
+    inv4-7 = rn
+    inv4-12 : invN 4 12 =N= 3
+    inv4-12 = rn
+    inv4-5 : invN 4 5 =N= 0
+    inv4-5 = rn
+    inv4-0 : invN 4 0 =N= 0
+    inv4-0 = {!!}
+    
+  invN-correct : (n x : Nat) -> Pr (Oq `Nat (invN n x +N x) (su n *N scale (su n) x))
+  invN-correct n x = {!!}
+  -}
 --------------------------------
 
 module _ (n : Nat) where
@@ -332,11 +350,13 @@ module BuildFin (n : Nat) where
     G : Set
     G = El (FinSu n)
 
+  open Quot `Nat (modEq (su n)) (`Mod-resp (su n))
+  
   zeF : G
   zeF = `[ 0 ]
 
   _+F_ : G -> G -> G
-  _+F_ = lifting `Nat (modEq (su n)) (`Mod-resp (su n)) 2 _+N_
+  _+F_ = lifting 2 _+N_
       ( (\ a0 a1 ar b -> mapHide (id >><< \ {s} q -> naq (
                 ((a0 +N b) % (a1 +N b)) -N coNg (_% (a1 +N b)) (a0 +Ncomm b) >
                 ((b +N a0) % (a1 +N b)) -N coNg ((b +N a0) %_) (a1 +Ncomm b) >
@@ -350,21 +370,38 @@ module BuildFin (n : Nat) where
                   (s *N su n) [N]))))
             , _)
 
+  -- move this up when done, but it's not quite right
+  {-
+  syd-invN : (a0 a1 s : Nat) -> Pr (Oq `Nat (a0 % a1) (s *N su n)) ->
+    invN n a0 =N= invN n a1
+  syd-invN a0 a1 s q = {!!}
+  -}
+  private
+    lift-=N : (x y : Nat) -> x =N= y -> Pr (Oq (FinSu n) `[ x ] `[ y ])
+    lift-=N x y p = homogQuot x y (hide (ze , naq (syd-ze x y p)))
+    
+    ze+-rep : (x : Nat) -> Pr (Oq (FinSu n) (zeF +F `[ x ]) `[ x ])
+    ze+-rep x = lift-=N (ze +N x) x rn
+
+    assoc-rep : (x y z : Nat) -> Pr (Oq (FinSu n) ((`[ x ] +F `[ y ]) +F `[ z ])
+                                             (`[ x ] +F (`[ y ] +F `[ z ])))
+    assoc-rep x y z = lift-=N ((x +N y) +N z) (x +N (y +N z))
+      (paq (Monoid.mulmul- Monoid+N x y z))
+
+  {- this now depends on something that's not quite true
+  negF : G -> G
+  negF = lifting 1 (invN n)
+    ((\ a0 a1 -> mapHide \ (s , qs) -> ze ,
+      naq (syd-ze (invN n a0) (invN n a1) (syd-invN a0 a1 s qs)) ) , _)
+  -}
 
   ze+ : (x : G) -> Pr (Oq (FinSu n) (zeF +F x) x)
-  ze+ `[ x ] = hide (x , x ,
-    hide (ze , naq (syd-ze x x rn)) ,
-    refl `Nat x ,
-    hide (ze , naq (syd-ze x x rn)))
+  ze+ = quotElimPN 1 (\ x -> Oq (FinSu n) (zeF +F x) x) ze+-rep
 
+  assocF : (x y z : G) -> Pr (Oq (FinSu n) ((x +F y) +F z) (x +F (y +F z)))
+  assocF = quotElimPN 3 (\ x y z -> Oq (FinSu n) ((x +F y) +F z) (x +F (y +F z)))
+    assoc-rep
 {-
-  assocF : (x y z : G) -> Pr (Oq (Fin n) ((x +F y) +F z) (x +F (y +F z)))
-  assocF `[ x ] `[ y ] `[ z ] = hide (
-    ((x +N y) +N z) ,
-    (x +N (y +N z)) ,
-    hide (ze , naq (syd-ze ((x +N y) +N z) _ rn)) ,
-    Monoid.mulmul- Monoid+N x y z  ,
-    hide (ze , naq (syd-ze (x +N (y +N z)) _ rn)))
 
   inv : G -> G
   inv `[ x ] = `[ invN n x ]

@@ -68,21 +68,42 @@ N-ary : Nat -> U -> U
 N-ary ze T = T
 N-ary (su n) T = T `> N-ary n T
 
-module _
+module Quot
   (T : U)(R : El T -> El T -> P)
   (Q : Equiv (El T) (\ i j -> Pr (R i j)))
   where
   open Equiv Q
+  `Q = `Quotient T R Q
 
   homogQuot : (t0 t1 : El T) -> Pr (R t0 t1) ->
-    Pr (Oq (`Quotient T R Q) `[ t0 ] `[ t1 ])
+    Pr (Oq `Q `[ t0 ] `[ t1 ])
   homogQuot t0 t1 r = hide (t1 , t1 , r , refl T t1 , eqR t1)
 
+  -- when doing things in a quotient, we can assume a representative
+  quotElimP : (x0 : El `Q ) -> (M : El `Q -> P) ->
+    ((t : El T) -> Pr (M `[ t ])) ->
+    Pr (M x0)
+  quotElimP x0 M holds = elElim `Q x0 (\ x0 -> `Pr (M x0)) (holds , _)
+
+  N-ary-Rel : Nat -> Set -> Set
+  N-ary-Rel ze S = S
+  N-ary-Rel (su n) S = El `Q -> N-ary-Rel n S
+  
+  N-ary-RelNP : (S : U) (f : El S -> El `Q) (n : Nat) -> (N-ary-Rel n P) -> P
+  N-ary-RelNP S f ze NR = NR
+  N-ary-RelNP S f (su n) NR = S `-> \ s -> N-ary-RelNP S f n (NR (f s))
+
+  quotElimPN : (n : Nat) -> (M : N-ary-Rel n P) -> Pr (N-ary-RelNP T `[_] n M `=>
+    N-ary-RelNP `Q id n M)
+  quotElimPN ze M hyp = hyp
+  quotElimPN (su n) M hyp x = quotElimP x (\ x -> N-ary-RelNP `Q id n (M x))
+    \ t -> quotElimPN n (M `[ t ]) (hyp t)
+  
   eqQ : (x y : El T) -> Pr (Oq T x y) -> Pr (R x y)
   eqQ x y q = J T q (\ y _ -> `Pr (R x y)) (eqR x)
 
   unHomogQuot : (t0 t1 : El T)
-    -> Pr (Oq (`Quotient T R Q) `[ t0 ] `[ t1 ])
+    -> Pr (Oq `Q `[ t0 ] `[ t1 ])
     -> Pr (R t0 t1)
   unHomogQuot t0 t1 q = irr (R t0 t1) (mapHide (help t0 t1) q) where
     help : (t0 t1 : El T)
@@ -103,21 +124,21 @@ module _
     `/\ (T `-> \ t -> LiftingOK n (f t))
 
   lifting : (n : Nat)(f : El (N-ary n T))(OK : Pr (LiftingOK n f))
-         -> El (N-ary n (`Quotient T R Q))
+         -> El (N-ary n `Q)
   liftLater : (n : Nat)(f g : El (N-ary n T))(fOK : Pr (LiftingOK n f))(gOK : Pr (LiftingOK n g))
     -> Pr (FunRelated n f g)
-    -> Pr (Oq (N-ary n (`Quotient T R Q))
+    -> Pr (Oq (N-ary n `Q)
          (lifting n f fOK) (lifting n g gOK))
   lifting ze f OK = `[ f ]
-  lifting (su n) f (OKnow , OKlater) x = elElim (`Quotient T R Q) x (\ _ -> N-ary n (`Quotient T R Q))
+  lifting (su n) f (OKnow , OKlater) x = elElim `Q x (\ _ -> N-ary n `Q)
     ( (\ t -> lifting n (f t) (OKlater t))
     , \ t0 t1 tr -> liftLater n (f t0) (f t1) (OKlater t0) (OKlater t1) (OKnow t0 t1 tr)
     )
   liftLater ze f g fOK gOK fg = homogQuot f g fg
-  liftLater (su n) f g fOK gOK fg t0 t1 tq = J (`Quotient T R Q) tq
-    (\ t1 _ -> `Pr (Oq (N-ary n (`Quotient T R Q)) (lifting (su n) f fOK t0) (lifting (su n) g gOK t1)))
-    (elElim (`Quotient T R Q) t0
-      (\ t0 ->  `Pr (Oq (N-ary n (`Quotient T R Q)) (lifting (su n) f fOK t0) (lifting (su n) g gOK t0)))
+  liftLater (su n) f g fOK gOK fg t0 t1 tq = J `Q tq
+    (\ t1 _ -> `Pr (Oq (N-ary n `Q) (lifting (su n) f fOK t0) (lifting (su n) g gOK t1)))
+    (elElim `Q t0
+      (\ t0 ->  `Pr (Oq (N-ary n `Q) (lifting (su n) f fOK t0) (lifting (su n) g gOK t0)))
       ( (\ t -> liftLater n (f t) (g t) (snd fOK t) (snd gOK t) (fg t))
       , _))
 
@@ -145,7 +166,7 @@ HomogTac _ x y = `Zero
 
 homogTac : (T : U)(x y : El T) -> Pr (HomogTac T x y) -> Pr (Oq T x y)
   -- this is a bit wicked, unpacking representatives; should elim properly
-homogTac (`Quotient T R Q) `[ x ] `[ y ] r = homogQuot T R Q x y r
+homogTac (`Quotient T R Q) `[ x ] `[ y ] r = Quot.homogQuot T R Q x y r
 homogTac (S `-> T) f g r x y q =
   J S q (\ y _ -> `Pr (Eq (T x) (T y) (f x) (g y))) (r x)
 
