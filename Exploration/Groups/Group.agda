@@ -3,6 +3,7 @@ module Group where
 open import Basics
 open import ExtUni
 open import Reasoning
+open import Quotient
 
 module _ (G : U) where
 
@@ -21,7 +22,7 @@ module _ (G : U) where
       mul (mul w x) (mul y z) ~ mul w (mul (mul x y) z))
     middle4 w x y z =
       mul (mul w x) (mul y z) -[ mulmul- _ _ _ >
-      mul w (mul x (mul y z)) < cong (mul _) (mulmul- _ _ _) ]-
+      mul w (mul x (mul y z)) < cong{G} (mul _) (mulmul- _ _ _) ]-
       mul w (mul (mul x y) z) [QED]
 
 
@@ -79,13 +80,13 @@ module _ (G : U) where
       mul x (inv x)
         < mulneu- _ ]-
       mul neu (mul x (inv x))
-        < cong (flip mul _) (mulinv- _) ]-
+        < cong{G} (flip mul _) (mulinv- _) ]-
       mul (mul (inv (inv x)) (inv x)) (mul x (inv x))
         -[ SemiGroup.middle4 semiGroup _ _ _ _ >
       mul (inv (inv x)) (mul (mul (inv x) x) (inv x))
-        -[ cong (mul _) (cong (flip mul _) (mulinv- _)) >
+        -[ cong{G} (mul _) (cong{G} (flip mul _) (mulinv- _)) >
       mul (inv (inv x)) (mul neu (inv x))
-        -[ cong (mul _) (mulneu- _) >
+        -[ cong{G} (mul _) (mulneu- _) >
       mul (inv (inv x)) (inv x)
         -[ mulinv- _ >
       neu [QED]
@@ -94,7 +95,7 @@ module _ (G : U) where
     mul-neu x =
       mul x neu < refl (G `> G) (mul _) _ _ (mulinv- _) ]-
       mul x (mul (inv x) x)  < mulmul- _ _ _ ]-
-      mul (mul x (inv x)) x  -[ cong (flip mul _) (mul-inv _) >
+      mul (mul x (inv x)) x  -[ cong{G} (flip mul _) (mul-inv _) >
       mul neu x              -[ mulneu- _ >
       x                      [QED]
 
@@ -104,9 +105,9 @@ module _ (G : U) where
     invinv : Pr (ALL 1 G  \ x -> inv (inv x) ~ x)
     invinv x =
       inv (inv x)                         < mulneu- _ ]-
-      mul neu (inv (inv x))               < cong (flip mul _) (mul-inv _) ]-
+      mul neu (inv (inv x))               < cong{G} (flip mul _) (mul-inv _) ]-
       mul (mul x (inv x)) (inv (inv x))  -[ mulmul- _ _ _ >
-      mul x (mul (inv x) (inv (inv x)))  -[ cong (mul _) (mul-inv _) >
+      mul x (mul (inv x) (inv (inv x)))  -[ cong{G} (mul _) (mul-inv _) >
       mul x neu                          -[ mul-neu _ >
       x                                  [QED]
 
@@ -115,6 +116,28 @@ module _ (G : U) where
       inv neu            < mulneu- _ ]-
       mul neu (inv neu)  -[ mul-inv _ >
       neu                [QED]
+
+    invmul : Pr (ALL 2 G \ x y -> inv (mul x y) ~ mul (inv y) (inv x))
+    invmul x y =
+       inv (mul x y)
+         < mul-neu _ ]-
+       mul (inv (mul x y)) neu < cong{G} (mul _) ((
+         mul (mul x y) (mul (inv y) (inv x))
+           -[ SemiGroup.middle4 semiGroup _ _ _ _ >
+         mul x (mul (mul y (inv y)) (inv x))
+           -[ cong{G} (\ z -> mul x (mul z (inv x))) (mul-inv y) >
+         mul x (mul neu (inv x))
+           -[ cong{G} (mul x) (mulneu- _) >
+         mul x (inv x)
+           -[ mul-inv x >
+         neu [QED] )) ]-
+       mul (inv (mul x y)) (mul (mul x y) (mul (inv y) (inv x)))
+         < mulmul- _ _ _ ]-
+       mul (mul (inv (mul x y)) (mul x y)) (mul (inv y) (inv x))
+         -[ cong{G} (\ z -> mul z (mul (inv y) (inv x))) (mulinv- (mul x y)) >
+       mul neu (mul (inv y) (inv x))
+         -[ mulneu- _ >
+       mul (inv y) (inv x) [QED]
 
   module _ (X : Monoid) where
   
@@ -159,19 +182,57 @@ module _ {G : U} where
   tupleGroup g = neu , inv , mul , mulneu- , mulmul- , mulinv-
     where open Group g
 
-  record Action (g : Group G)(X : U) : Set where
-    open Group g
-    
-    field
-      act : El (X `> G `> X)
+  module _ (GG : Group G) where
+    open Group GG
 
-      act-neu : Pr (ALL 1 X \ x -> Oq X (act x neu) x)
-      act-mul : Pr (ALL 1 X \ x -> ALL 2 G \ g h ->
-                    Oq X (act x (mul g h)) (act (act x g) h))
+    record Action (X : U) : Set where
+      field
+        act : El (X `> G `> X)
+ 
+        act-neu : Pr (ALL 1 X \ x -> Oq X (act x neu) x)
+        act-mul : Pr (ALL 1 X \ x -> ALL 2 G \ g h ->
+                      Oq X (act x (mul g h)) (act (act x g) h))
                     
-    open EQPRF X
+      open EQPRF X
 
-{-
-    actinv : Pr (X `-> \ x -> G `-> \ g -> Eq X X (act x (mul g (inv g))) x)
-    actinv x g = {!!}
--}
+      actinv : Pr (X `-> \ x -> G `-> \ g -> Oq X (act x (mul g (inv g))) x)
+      actinv x g = 
+         act x (mul g (inv g)) -[ cong{G} (act x) (mul-inv g) >
+         act x neu -[ act-neu x >
+         x [QED]
+
+      _~G~_ : El X -> El X -> P
+      x ~G~ y = G `# \ g -> Oq X (act x g) y
+
+      open Equiv
+      ActEquiv : Equiv (El X) (\ x y -> Pr (x ~G~ y))
+      eqR ActEquiv x = hide (neu , act-neu x)
+      eqS ActEquiv x y (hide gq) = hide (let g = fst gq in (inv g , (
+        act y (inv g)          < cong{X} (\ y -> act y (inv g)) (snd gq)  ]-
+        act (act x g) (inv g) < act-mul x g (inv g) ]-
+        act x (mul g (inv g)) -[ actinv x g >
+        x [QED])))
+      eqT ActEquiv x y z (hide gq) (hide hq) = hide
+        let g = fst gq ; h = fst hq in mul g h , (
+        act x (mul g h) -[ act-mul x g h >
+        act (act x g) h -[ cong{X} (\ y -> act y h) (snd gq) >
+        act y h -[ snd hq >
+        z [QED])
+
+    module _ {X : U}(A : Action X){Y : U} where
+      open Action
+
+      faction : Action (X `> Y)
+      act faction fu gr x = fu (act A x (inv gr))
+      act-neu faction fu = homogTac (X `> Y) (\ x -> fu (act A x (inv neu))) fu \ x ->
+        EQPRF.cong Y {X} fu (let open EQPRF X in
+        act A x (inv neu) -[ cong{G} (act A x) invneu >
+        act A x neu       -[ act-neu A x >
+        x [QED]) --  (act-neu A x)
+      act-mul faction fu gr0 gr1 = homogTac (X `> Y)
+        (\ x -> fu (act A x (inv (mul gr0 gr1))))
+        (\ x -> fu (act A (act A x (inv gr1)) (inv gr0)))
+        \ x -> EQPRF.cong Y {X} fu (let open EQPRF X in
+           act A x (inv (mul gr0 gr1)) -[ cong{G} (act A x) (invmul gr0 gr1) >
+           act A x (mul (inv gr1) (inv gr0)) -[ act-mul A x _ _ >
+           act A (act A x (inv gr1)) (inv gr0) [QED] )

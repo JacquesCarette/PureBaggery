@@ -41,6 +41,7 @@ sui (paq q) = paq q
 _+N_ : Nat -> Nat -> Nat
 ze +N y = y
 su x +N y = su (x +N y)
+infixr 20 _+N_
 
 _+Ninj : (n x y : Nat) -> (n +N x) =N= (n +N y) -> x =N= y
 (ze +Ninj) x y q = q
@@ -93,6 +94,7 @@ mulHom x = homFromMonoid+N Monoid+N x
 
 _*N_ : Nat -> Nat -> Nat
 n *N x = HomMonoid.hom (mulHom x) n
+infixr 30 _*N_
 
 _-dividesU_ : Nat -> Nat -> U
 n -dividesU m = `Nat `>< \ q -> `Pr (Oq `Nat m (q *N n))
@@ -249,39 +251,75 @@ module _ where
     (a *N n) % (b *N n)               -N syd-mul a b n >
     ((a % b) *N n)                    [N]
 
-  private
-    -- compute-shifted-scale
-    -- will only be called from this file
-    compute-shifted-scale : (a n x cnt : Nat) -> Nat
-    -- x and n reach 0 at the same time
-    compute-shifted-scale a n ze ze = ze
-    -- x has reached 0 in this interval
-    compute-shifted-scale a n ze (su cnt) = a
-    -- x still has to go, but we've exhausted our n supply, next round
-    compute-shifted-scale a n (su x) ze = su (compute-shifted-scale a n x n)
-    -- keep going
-    compute-shifted-scale a n (su x) (su cnt) = compute-shifted-scale a n x cnt
+  module _ (n : Nat) where
   
-  -- in strides of n, where is x ?
-  -- i.e. q such that q*n <= x < (q+1)*n
-  scale : (n x : Nat) -> Nat
-  scale n x = compute-shifted-scale 0 n x n
+    private
+      mod-inv-work : (x a c : Nat) -> Nat
+      mod-inv-work ze     a c      = c
+      mod-inv-work (su x) a ze     = mod-inv-work x (su a) n
+      mod-inv-work (su x) a (su c) = mod-inv-work x (su a) c
 
-  -- a few tests, to make sure we get the right answer
-  private
-    s13 : scale 10 13 =N= 1
-    s13 = rn
-    s13g : let q = 10 *N scale 10 13 in (q +N (13 % q)) =N= 13
-    s13g = rn
+    {- e.g. if n = 4 and x is 12, initially, we count
+      12  0 0
+      11  1 4
+      10  2 3
+       9  3 2
+       8  4 1
+       7  5 0
+       6  6 4
+       5  7 3
+       4  8 2
+       3  9 1
+       2 10 0
+       1 11 4
+       0 12 3
 
-  can : Nat -> Nat -> Nat
-  can n x = let q = n *N scale (su n) x in x % q
-  
-  invN : Nat -> Nat -> Nat
-  invN n x = let q = (su n) *N (su (scale (su n) x)) in x % q
+      as *integers*, c - x is always what we're trying to compute
 
-  -- testing: oops!
-  {-
+      i.e. su n divides x0 + (c - x)   (where x0 is the initial value)
+
+      the invariants are that a + x = x0 and su n divides a + c
+    -}
+    
+      mod-inv-work-lemma : (x a c : Nat)
+        -> El (su n -dividesU (a +N c))
+        -> El (su n -dividesU ((a +N x) +N mod-inv-work x a c))
+        
+      mod-inv-work-lemma ze a c (q , p) = q , naq (
+        ((a +N ze) +N c)   -N coNg (_+N c) (paq (mul-neu a)) >
+        (a +N c)           -N paq p >
+        (q *N su n)        [N])
+        
+      mod-inv-work-lemma (su x) a ze (q , p)
+        with q' , p' <- mod-inv-work-lemma x (su a) n (su q , naq (
+          (su (a +N n))       -N coNg su (a +Ncomm n) >
+          (su n +N a)         < coNg (su n +N_) (paq (mul-neu a)) N-
+          (su n +N (a +N ze)) -N coNg (su n +N_) (paq p) >
+          (su n +N q *N su n) -N rn >
+          (su q *N su n)  [N]))
+        = q' , naq (
+          ((a +N su x) +N mod-inv-work x (su a) n)
+             -N coNg (_+N mod-inv-work x (su a) n) (a +Nsu x) >
+          ((su a +N x) +N mod-inv-work x (su a) n) -N paq p' >
+          (q' *N su n) [N])
+          
+      mod-inv-work-lemma (su x) a (su c) (q , p)
+        with q' , p' <- mod-inv-work-lemma x (su a) c (q , naq (
+           (su a +N c)    < a +Nsu c N-
+           (a +N su c)    -N paq p >
+           (q *N su n)    [N]))
+           = q' ,  naq (
+          ((a +N su x) +N mod-inv-work x (su a) c)
+             -N coNg (_+N mod-inv-work x (su a) c) (a +Nsu x) >
+          ((su a +N x) +N mod-inv-work x (su a) c) -N paq p' >
+          (q' *N su n) [N])
+
+    invN : Nat -> Nat
+    invN x = mod-inv-work x ze ze
+
+    invN-lemma : (x : Nat) -> El (su n -dividesU (x +N invN x))
+    invN-lemma x = mod-inv-work-lemma x ze ze (ze , <>)
+    
   private
     inv4-7 : invN 4 7 =N= 3
     inv4-7 = rn
@@ -290,12 +328,7 @@ module _ where
     inv4-5 : invN 4 5 =N= 0
     inv4-5 = rn
     inv4-0 : invN 4 0 =N= 0
-    inv4-0 = {!!}
-    
-  invN-correct : (n x : Nat) -> Pr (Oq `Nat (invN n x +N x) (su n *N scale (su n) x))
-  invN-correct n x = {!!}
-  -}
---------------------------------
+    inv4-0 = rn
 
 module _ (n : Nat) where
 
@@ -388,60 +421,26 @@ module BuildFin (n : Nat) where
     assoc-rep x y z = lift-=N ((x +N y) +N z) (x +N (y +N z))
       (paq (Monoid.mulmul- Monoid+N x y z))
 
-  {- this now depends on something that's not quite true
-  negF : G -> G
-  negF = lifting 1 (invN n)
-    ((\ a0 a1 -> mapHide \ (s , qs) -> ze ,
-      naq (syd-ze (invN n a0) (invN n a1) (syd-invN a0 a1 s qs)) ) , _)
-  -}
-
   ze+ : (x : G) -> Pr (Oq (FinSu n) (zeF +F x) x)
   ze+ = quotElimPN 1 (\ x -> Oq (FinSu n) (zeF +F x) x) ze+-rep
 
   assocF : (x y z : G) -> Pr (Oq (FinSu n) ((x +F y) +F z) (x +F (y +F z)))
   assocF = quotElimPN 3 (\ x y z -> Oq (FinSu n) ((x +F y) +F z) (x +F (y +F z)))
     assoc-rep
-{-
 
   inv : G -> G
   inv `[ x ] = `[ invN n x ]
 
-  -- more this proof up when it's done
-  inv-add : (n x : Nat) ->
-    let q = scale (su n) x in (invN n x +N x) =N= (q *N su n)
-  inv-add n ze = 
-    (n *N 0) +N 0 -N paq (Monoid.mul-neu Monoid+N (n *N 0)) >
-    n *N 0        -N n *Nze >
-    0             [N]
-  inv-add n (su x) = 
-    (invN n (su x) +N su x)            -N rn >
-    ((su x % (su n *N q)) +N su x)     -N {!inv-add n x!} >
-    q *N su n                [N] 
-    where
-      q = scale (su n) (su x)
-      q' = scale (su n) x
-      -- inv-add n x == invN n x +N x = q' *N su n
-      -- (x % (su n *N q')) +N x == q' *N su n
-      
-  inv+ : (x : G) -> Pr (Oq (Fin n) (inv x +F x) zeF)
-  inv+ `[ x ] = hide (
-    invN n x +N x ,
-    (q *N su n) ,
-    hide (ze , naq (syd-ze (invN n x +N x) _ rn)) ,
-    naq (inv-add n x) ,
-    hide (q ,
-      naq (syd-zer (q *N su n))))
-    where
-      q : Nat
-      q = scale (su n) x
-      
-{- -- sadly, we must make do with the P version of this thing
-data [_+N_]~_ : Nat -> Nat -> Nat -> Set where
-  ze : forall {y} ->                      [ ze   +N y ]~ y
-  su : forall {x y z} -> [ x +N y ]~ z -> [ su x +N y ]~ su z
--}
+  inv+ : (x : G) -> Pr (Oq (FinSu n) (inv x +F x) zeF)
+  inv+ = quotElimPN 1 (\ x -> Oq (FinSu n) (inv x +F x) zeF)
+    \ x -> homogQuot (invN n x +N x) ze (hide ((id >><< \ {q} h -> naq (
+      ((invN n x +N x) % ze) -N syd-zer _ >
+      (invN n x +N x)        -N invN n x +Ncomm x >
+      (x +N invN n x)        -N paq h >
+      (q *N su n) [N])
+    )
+     (invN-lemma n x)))
 
-{-
 -- if we don't get nice inversion via pattern matching, is it worth it?
 [_+N_]~_ : Nat -> Nat -> Nat -> P
 [ ze   +N y ]~ z    = Eq `Nat `Nat y z
@@ -456,227 +455,32 @@ ind+N : (x y z : Nat)(p : Pr ([ x +N y ]~ z))
      -> El (M x y z)
 ind+N ze y z p M mze _ = J `Nat {y}{z} p (\ z _ -> M ze y z) mze
 ind+N (su x) y (su z) p M mze msu = msu (ind+N x y z p M mze msu)
--}
 
--- derive "relation induction", i.e., the eliminator for the above inductive presentation?
+--------------
 
--- the following gadgetry is more or less what's needed to generate a
--- small category internal to U, with a composition relation in P
+NotBothSu : Nat -> Nat -> P
+NotBothSu (su _) (su _) = `Zero
+NotBothSu     _      _  = `One
 
-{-
-module _ where
+Integer : U
+Integer = `Nat `>< \ down -> `Nat `>< \ up -> `Pr (NotBothSu down up)
 
-  private
-    T : Nat -> Nat -> U
-    T x y = `Nat `>< \ z -> `Pr ([ x +N y ]~ z)
-  
-  add : forall x y -> El (T x y)
-  add  ze    y = y , refl `Nat y
-  add (su x) y = (su >><< id) (add x y)
+-- prove these are a group
 
-  addUniq : (x y : Nat)(a b : El (T x y)) -> Pr (Eq (T x y) (T x y) a b)
-  addUniq x y (a , p) = ind+N x y a p
-    (\ x y z -> T x y `-> \ (b , _) -> `Pr (Eq `Nat `Nat z b `/\ `One))
-    (\ (z , q) -> q , <>)
-    (\ { h (su w , q) -> h (w , q) })
+zeZ : El Integer
+zeZ = ze , ze , <>
 
-_+N_ : El (`Nat `> `Nat `> `Nat)
-x +N y = fst (add x y)
+normZ : Nat -> Nat -> El Integer
+normZ (su d) (su u) = normZ d u
+normZ  ze        u  = ze   ,  u , <>
+normZ (su d)  ze    = su d , ze , <>
 
--- is this all we need?
-ind+N' : (x y : Nat)
-     -> (M : Nat -> Nat -> Nat -> U)
-     -> (mze : {y : Nat} -> El (M ze y y))
-     -> (msu : {x y z : Nat} -> El (M x y z) -> El (M (su x) y (su z)))
-     -> El (M x y (x +N y))
-ind+N' ze y M mze _ = mze --  J `Nat {y}{z} p (\ z _ -> M ze y z) mze
-ind+N' (su x) y M mze msu = msu (ind+N' x y M mze msu)
+_+Z_ : El (Integer `> Integer `> Integer)
+(dx , ux , _) +Z (dy , uy , _) = normZ (dx +N dy) (ux +N uy)
 
-
-ze+N_ : (n : Nat) -> Pr ([ ze +N n ]~ n)
-ze+N n = refl `Nat n
-
-_+Nze : (n : Nat) -> Pr ([ n +N ze ]~ n)
-ze +Nze = _
-su n +Nze = n +Nze
-
-module _ where
-  private
-    M : Nat -> Nat -> Nat -> U
-    M n01 n12 n02 =
-     `Nat `-> \ n13 -> `Nat `-> \ n23 -> `Pr ([ n12 +N n23 ]~ n13) `>
-     (`Nat `>< \ n03 -> `Pr ([ n01 +N n13 ]~ n03 `/\ [ n02 +N n23 ]~ n03))
-  assoc+N03 : (n01 n12 n02 : Nat) -> Pr ([ n01 +N n12 ]~ n02) -> El (M n01 n12 n02)
-  assoc+N03 n01 n12 n02 v = ind+N n01 n12 n02 v M
-    (\ n13 n23 w -> n13 , refl `Nat n13 , w)
-    (\ h n13 n23 w -> (su >><< id) (h n13 n23 w))
-
-
-_<N_ : Nat -> Nat -> P
-x    <N ze = `Zero
-ze   <N su z = `One
-su x <N su z = x <N z
-
-n<Nsun : (n : Nat) -> Pr (n <N su n)
-n<Nsun ze = _
-n<Nsun (su n) = n<Nsun n
-
-trans<N : (i j k : Nat) -> Pr (i <N j) -> Pr (j <N k) -> Pr (i <N k)
-trans<N ze (su j) (su k) p q = _
-trans<N (su i) (su j) (su k) p q = trans<N i j k p q
-
-Fin : Nat -> U
-Fin n = `Nat `>< \ k -> `Pr (k <N n)
-
-tooBig<N : (n e : Nat) -> Pr ((n +N e) <N n) -> Zero
-tooBig<N (su n) e l = tooBig<N n e l
-
-[_*N_]~_ : Nat -> Nat -> Nat -> P
-[ ze   *N y ]~ ze   = `One
-[ ze   *N y ]~ su _ = `Zero
-[ su x *N y ]~ z    = `In (`Nat `>< \ xy -> `Pr (([ x *N y ]~ xy) `/\ ([ y +N xy ]~ z)))
-
-module _ where
-
-  private
-    T : Nat -> Nat -> U
-    T x y = `Nat `>< \ z -> `Pr ([ x *N y ]~ z)
-  
-  mul : forall x y -> El (T x y)
-  mul ze y = ze , _
-  mul (su x) y
-    with xy , h <- mul x y
-    with z , p <- add y xy
-       = z , hide (xy , h , p)
-
-  mulUniq : (x y : Nat)(a b : El (T x y)) -> Pr (Eq (T x y) (T x y) a b)
-  mulUniq ze y (ze , p) (ze , q) = _
-  mulUniq (su x) y (a , hide p) (b , hide q)
-    with xy , h <- mul x y
-       = {!!}
-
--- but functional induction is worth it, one way or another
-ind*N : (x y z : Nat)(p : Pr ([ x *N y ]~ z))
-     -> (M : Nat -> Nat -> Nat -> U)
-     -> (mze : {y : Nat} -> El (M ze y ze))
-     -> (msu : {x y xy z : Nat} -> El (M x y xy) -> Pr ([ y +N xy ]~ z) -> El (M (su x) y z))
-     -> El (M x y z)
-ind*N ze y ze p M mze msu = mze
-ind*N (su x) y z (hide p) M mze msu
-  with xy , h <- mul x y
-  with z' , q <- add y xy
-     = msu (ind*N x y xy h M mze msu) {!!}
-
-
-
--- a little extra never hurt anybody
--- mulAdd n x s = n * x + s
-mulAdd : Nat -> Nat -> Nat -> Nat
-mulAdd ze     x s = s
-mulAdd (su n) x s = x +N mulAdd n x s
-
-_*N_ : Nat -> Nat -> Nat
-x *N y = mulAdd x y ze
--}
-{-
--- subtraction as a view
-data InFin? (n : Nat) : Nat -> Set where
-  inFin : (k : El (Fin n)) -> InFin? n (fst k)
-  tooBigBy : (e : Nat) -> InFin? n (n +N e)
-
-inFin? : (n m : Nat) -> InFin? n m
-inFin? ze m          = tooBigBy m
-inFin? (su n) ze     = inFin (ze , _)
-inFin? (su n) (su m) with inFin? n m
-inFin? (su n) (su .k) | inFin (k , kp) = inFin (su k , kp)
-inFin? (su n) (su .(n +N e)) | tooBigBy e = tooBigBy e
-
-substNatEq : (x y : Nat)(q : Pr (Eq `Nat `Nat x y))(P : Nat -> Set)
-  -> P x -> P y
-substNatEq ze ze q P px = px
-substNatEq (su x) (su y) q P px = substNatEq x y q (su - P) px
-
-data UnPlus (n : Nat) : Set where
-  split+ : ((a b : Nat) -> Pr (Eq `Nat `Nat n (su a +N b)) -> UnPlus b) -> UnPlus n
-
-unPlus : (n : Nat) -> UnPlus n
-unPlus ze = split+ \ _ _ ()
-unPlus (su n) with unPlus n
-... | res@(split+ unp) = split+ \
-  { ze b pf     -> substNatEq n b pf UnPlus res
-  ; (su a) b pf -> unp a b pf
-  }
-
-data DivMod : Nat -> Nat -> Set where
-  divBy0 : (n : Nat) -> DivMod n ze
-  quotRem : {d : Nat}(q : Nat)(r : El (Fin d)) -> DivMod (mulAdd q d (fst r)) d
-
-{-
-data DivModR : (n d : Nat) -> DivMod n d -> Set where
-  divModRd0 : {n : Nat} -> DivModR n ze (divBy0 n)
-  divModStop : {d : Nat}{r@(k , _) : El (Fin (su d))} -> DivModR k (su d) (quotRem ze r)
-  divModStep : {q d n m : Nat}{r@(k , _) : El (Fin (su d))}
-    -> DivModR n (su d) (quotRem q r)
-    -> Pr (Eq `Nat `Nat (su d +N n) m)
-    -> DivModR m (su d) (quotRem (su q) r)
--}
-
-divMod' : (n d : Nat) -> UnPlus n -> DivMod n d
-divMod' n ze r = divBy0 n
-divMod' n (su d) r with inFin? (su d) n
-divMod' .(fst k) (su d) r | inFin k = quotRem ze k
-divMod' .(su d +N e) (su d) (split+ f) | tooBigBy e with divMod' e (su d) (f d e (refl `Nat (d +N e)))
-divMod' .(su d +N (mulAdd q (su d) (fst r))) (su d) (split+ f) | tooBigBy ._ | quotRem q r
-  = quotRem (su q) r
-
-divMod : (n d : Nat) -> DivMod n d
-divMod n d = divMod' n d (unPlus n)
-
-reduce : (n : Nat) -> Nat -> El (Fin (su n))
-reduce n k with divMod k (su n)
-reduce n .(mulAdd q (su n) (fst r)) | quotRem q r = r
-
-{-
-reducePlus : (n x : Nat) -> Pr (Eq (Fin (su n)) (Fin (su n))
-  (reduce n (su n +N x)) (reduce n x))
-reducePlus n x with inFin? n (n +N x)
-... | z = {!!}
-
-reduceMulAdd : (q n r : Nat) -> Pr (
-  Eq (Fin (su n)) (Fin (su n))
-    (reduce n (mulAdd q (su n) r)) (reduce n r))
-reduceMulAdd ze n r = refl (Fin (su n)) (reduce n r)
-reduceMulAdd (su q) n r = (_, <>) let open EQPRF `Nat in
-  fst (reduce n (su n +N mulAdd q (su n) r)) -[ fst (reducePlus n (mulAdd q (su n) r)) >
-  fst (reduce n (mulAdd q (su n) r)) -[ fst (reduceMulAdd q n r) >
-  fst (reduce n r) [QED]
--}
-
-finZero : (n : Nat) -> El (Fin (su n))
-finZero n = 0 , _
-
-finPlus : (n : Nat) -> El (Fin (su n) `> Fin (su n) `> Fin (su n))
-finPlus n (x , _) (y , _) = reduce n (x +N y)
-
-plusInverse : (n : Nat) -> El (Fin (su n)) -> El (Fin (su n))
-plusInverse n (ze , p) = n , n<sun n
-plusInverse (su n) (su i , p) with j , q <- plusInverse n (i , p)
-  = j , trans< j (su n) (su (su n)) q (n<sun (su n))
-
-plusAbsorbZero : (n : Nat)(x : El (Fin (su n))) ->
-  Pr (Eq (Fin (su n)) (Fin (su n))(finPlus n (finZero n) x) x)
-plusAbsorbZero n (x , p) with inFin? (su n) x
-... | inFin (k , _) = refl `Nat k , _
-... | tooBigBy e with () <- tooBig< n e p
-
-{-
-reduceLemma : (n : Nat)(i j : Nat) ->
-  Pr (Eq (Fin (su n)) (Fin (su n))
-      (finPlus n (reduce n i) (reduce n j))
-      (reduce n (i +N j)))
-reduceLemma n i j with divMod i (su n) | divMod j (su n)
-reduceLemma n .(mulAdd qi (su n) ri) .(mulAdd qj (su n) rj) | quotRem qi (ri , ip) | quotRem qj (rj , jp) = {!!}
--}
--}
-
--}
+invZ : El (Integer `> Integer)
+invZ (d , u , p) = u , d , help d u p where
+  help : (x y : Nat) -> Pr (NotBothSu x y `=> NotBothSu y x)
+  help  ze     ze    p = <>
+  help  ze    (su y) p = <>
+  help (su x)  ze    p = <>

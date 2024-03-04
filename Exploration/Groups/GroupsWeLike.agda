@@ -45,16 +45,15 @@ module _ where
     open Group.Group G -- later rename the file
     open EQPRF X
 
-{-
-Cyclic : (n : Nat) -> Group (Fin n)
+Cyclic : (n : Nat) -> Group (FinSu n)
 Cyclic n = record
   { neu = G.zeF
-  ; inv = {!!}
+  ; inv = G.inv
   ; mul = G._+F_
   ; mulneu- = G.ze+
   ; mulmul- = G.assocF
-  ; mulinv- = {!!}
+  ; mulinv- = G.inv+
   }
   where
     module G = BuildFin n
--}
+
