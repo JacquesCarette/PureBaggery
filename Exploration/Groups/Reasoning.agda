@@ -3,6 +3,7 @@ module Reasoning where
 open import Basics
 open import Quotient
 open import ExtUni
+open import Nary
 
 module _ (X : U) where
 
@@ -64,11 +65,6 @@ module _ {X : U} where
   z [qed] = hoq (z [QED])
 -}
 
--- N-ary function type (in U)
-N-ary : Nat -> U -> U
-N-ary ze T = T
-N-ary (su n) T = T `> N-ary n T
-
 module Quot
   (T : U)(R : El T -> El T -> P)
   (Q : Equiv (El T) (\ i j -> Pr (R i j)))
@@ -86,18 +82,10 @@ module Quot
     Pr (M x0)
   quotElimP x0 M holds = elElim `Q x0 (\ x0 -> `Pr (M x0)) (holds , _)
 
-  N-ary-Rel : Nat -> Set -> Set
-  N-ary-Rel ze S = S
-  N-ary-Rel (su n) S = El `Q -> N-ary-Rel n S
-  
-  N-ary-RelNP : (S : U) (f : El S -> El `Q) (n : Nat) -> (N-ary-Rel n P) -> P
-  N-ary-RelNP S f ze NR = NR
-  N-ary-RelNP S f (su n) NR = S `-> \ s -> N-ary-RelNP S f n (NR (f s))
-
-  quotElimPN : (n : Nat) -> (M : N-ary-Rel n P) -> Pr (N-ary-RelNP T `[_] n M `=>
-    N-ary-RelNP `Q id n M)
+  quotElimPN : (n : Nat) -> (M : N-ary-Rel n P (El `Q)) -> Pr (N-ary-RelNP T `Q `[_] n M `=>
+    N-ary-RelNP `Q `Q id n M)
   quotElimPN ze M hyp = hyp
-  quotElimPN (su n) M hyp x = quotElimP x (\ x -> N-ary-RelNP `Q id n (M x))
+  quotElimPN (su n) M hyp x = quotElimP x (\ x -> N-ary-RelNP `Q `Q id n (M x))
     \ t -> quotElimPN n (M `[ t ]) (hyp t)
   
   eqQ : (x y : El T) -> Pr (Oq T x y) -> Pr (R x y)
@@ -114,20 +102,16 @@ module Quot
       (\ r1 -> eqT t0 m0 t1 r0 r1)
       r1
 
-  FunRelated : (n : Nat)(f g : El (N-ary n T)) -> P
-  FunRelated ze f g = R f g
-  FunRelated (su n) f g = T `-> \ t -> FunRelated n (f t) (g t)
-
   LiftingOK : (n : Nat)(f : El (N-ary n T)) -> P
   LiftingOK ze     f = `One
   LiftingOK (su n) f
-    =   (T `-> \ t0 -> T `-> \ t1 -> R t0 t1 `=> FunRelated n (f t0) (f t1))
+    =   (T `-> \ t0 -> T `-> \ t1 -> R t0 t1 `=> FunRelated T R n (f t0) (f t1))
     `/\ (T `-> \ t -> LiftingOK n (f t))
 
   lifting : (n : Nat)(f : El (N-ary n T))(OK : Pr (LiftingOK n f))
          -> El (N-ary n `Q)
   liftLater : (n : Nat)(f g : El (N-ary n T))(fOK : Pr (LiftingOK n f))(gOK : Pr (LiftingOK n g))
-    -> Pr (FunRelated n f g)
+    -> Pr (FunRelated T R n f g)
     -> Pr (Oq (N-ary n `Q)
          (lifting n f fOK) (lifting n g gOK))
   lifting ze f OK = `[ f ]
@@ -143,6 +127,7 @@ module Quot
       ( (\ t -> liftLater n (f t) (g t) (snd fOK t) (snd gOK t) (fg t))
       , _))
 
+  -- uses Q implicitly through eqT
   module EQUIVPRF where
 
     _~[_>_ : forall x {y z}
@@ -159,6 +144,7 @@ module Quot
     _[qed] : forall z -> Pr (R z z)
     z [qed] = eqR _
 
+-- Tactic for homogeneous quotients and function types
 HomogTac : (T : U)(x y : El T) -> P
   -- this is a bit wicked, unpacking representatives; should elim properly
 HomogTac (`Quotient T R Q) `[ x ] `[ y ] = R x y
