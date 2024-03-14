@@ -37,9 +37,9 @@ module EQPRF (X : U) where
   !_ : {x y : El X} -> Pr (Oq X x y) -> Pr (Oq X y x)
   ! p = _ < p ]- _ [QED]
 
-  -- frequent pattern; unfortunately the {Y} can rarely be inferred
-  cong : {Y : U}{x y : El Y} (f : El (Y `> X)) -> Pr (Oq Y x y) -> Pr (Oq X (f x) (f y))
-  cong {Y} {x} {y} f x~y = refl (Y `> X) f x y x~y
+  -- frequent pattern; unfortunately the Y can rarely be inferred, so explicit
+  cong : (Y : U){x y : El Y} (f : El (Y `> X)) -> Pr (Oq Y x y) -> Pr (Oq X (f x) (f y))
+  cong Y {x} {y} f x~y = refl (Y `> X) f x y x~y
 
   trans : (x y z : El X) ->
     Pr (Oq X x y) -> Pr (Oq X y z) -> Pr (Oq X x z)
