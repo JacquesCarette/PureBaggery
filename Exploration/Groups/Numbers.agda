@@ -75,7 +75,7 @@ module _ {X : U}(MX : Monoid X) where
     (b -times x) < mulneu- (b -times x) ]-
     mul neu (b -times x) [QED]
   hommul (homFromMonoid+N x) (su a) b = 
-    mul x ((a +N b) -times x) -[ cong (mul x) (hommul (homFromMonoid+N x) a b) >
+    mul x ((a +N b) -times x) -[ cong{X} (mul x) (hommul (homFromMonoid+N x) a b) >
     mul x (mul (a -times x) (b -times x)) < mulmul- x (a -times x) (b -times x) ]-
     mul (mul x (a -times x)) (b -times x) [QED]
 
@@ -86,7 +86,7 @@ module _ {X : U}(MX : Monoid X) where
     help ze = homneu h
     help (su n) = 
       hom h (su n) -[ hommul h 1 n >
-      mul (hom h 1) (hom h n) -[ cong (mul (hom h 1)) (help n) >
+      mul (hom h 1) (hom h n) -[ cong{X} (mul (hom h 1)) (help n) >
       mul (hom h 1) (n -times hom h 1) [QED]
 
 mulHom : Nat -> HomMonoid Monoid+N Monoid+N
