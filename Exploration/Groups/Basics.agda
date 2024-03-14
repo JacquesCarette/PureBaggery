@@ -1,6 +1,5 @@
 module Basics where
 
-
 --------------------------------------------------------------------
 -- First, a lot of kit to get started
 
@@ -72,6 +71,7 @@ flip : forall {i j k}{A : Set i}{B : Set j}{C : A -> B -> Set k}
   (b : B)(a : A) -> C a b
 flip f b a = f a b
 
+-- Parallel application of a pair of functions onto a pair.
 _>><<_ : forall {S S' : Set}{T : S -> Set}{T' : S' -> Set}
   (f : S -> S')(g : {s : S} -> T s -> T' (f s))
   -> (S >< T) -> (S' >< T')

@@ -40,6 +40,7 @@ Pr (`In T) = Hide (El T)
 infixr 10 _`/\_
 infixr 5  _`->_
 
+-- n-ary predicates (over U, in P)
 ALLCOD : Nat -> U -> Set
 ALLCOD ze S = P
 ALLCOD (su n) S = El S -> ALLCOD n S
@@ -77,6 +78,7 @@ El (S `-> T) = (s : El S) -> El (T s)
 El (`Pr A)   = Pr A -- Hide (Pr A)
 El (`Quotient T R Q)  = Quotient (El T) (\ i j -> Pr (R i j)) Q
 
+-- non-dependent coproduct
 _`+_ : U -> U -> U
 S `+ T = `Two `>< (S <01> T)
 
@@ -85,6 +87,7 @@ _`=>_ : P -> P -> P
 A `=> B = `Pr A `-> \ _ -> B
 infixr 5 _`=>_
 
+-- Predicate representing inhabitation of a (unary) relation R
 _`#_ : (X : U) -> (El X -> P) -> P
 X `# R = `In (X `>< \ x -> `Pr (R x))
 

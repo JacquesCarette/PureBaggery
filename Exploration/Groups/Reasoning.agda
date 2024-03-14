@@ -17,7 +17,7 @@ module _ (X : U) where
   HOMEQ _ _ = homEq
 -}
 
--- combinators for equational reasoning
+-- combinators for equational reasoning (over U)
 module EQPRF (X : U) where
   module _ {y z : El X} where
     _-[_>_ : (x : El X) -> Pr (Oq X x y) -> Pr (Oq X y z) -> Pr (Oq X x z)
@@ -36,7 +36,7 @@ module EQPRF (X : U) where
   !_ : {x y : El X} -> Pr (Oq X x y) -> Pr (Oq X y x)
   ! p = _ < p ]- _ [QED]
 
-  -- frequent pattern
+  -- frequent pattern; unfortunately the {Y} can rarely be inferred
   cong : {Y : U}{x y : El Y} (f : El (Y `> X)) -> Pr (Oq Y x y) -> Pr (Oq X (f x) (f y))
   cong {Y} {x} {y} f x~y = refl (Y `> X) f x y x~y
 
@@ -64,6 +64,7 @@ module _ {X : U} where
   z [qed] = hoq (z [QED])
 -}
 
+-- N-ary function type (in U)
 N-ary : Nat -> U -> U
 N-ary ze T = T
 N-ary (su n) T = T `> N-ary n T

@@ -13,6 +13,7 @@ record Equiv (X : Set)(R : X -> X -> Set) : Set where
     eqS : (x y : X) -> R x y -> R y x
     eqT : (x y z : X) -> R x y -> R y z -> R x z
 
+-- specifically: no one should use `[_] in a match or `rep`
 record Quotient (X : Set)(R : X -> X -> Set)(Q : Equiv X R) : Set where
   constructor `[_]
   field
