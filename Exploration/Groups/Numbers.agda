@@ -9,6 +9,7 @@ open import Group
 open import Hom
 open import Quotient
 
+-- at times more convenient wrapping of `Nat proofs 
 record _=N=_ (x y : Nat) : Set where
   constructor paq
   field
@@ -31,22 +32,30 @@ _[N] : (n : Nat) -> n =N= n
 n [N] = rn
 infixr 3 _[N]
 
+-- unary and binary version of cong
 coNg : (f : Nat -> Nat){x y : Nat} -> x =N= y -> f x =N= f y
 coNg f {x}{y} (paq q) = paq (refl (`Nat `> `Nat) f x y q)
+
+coNg2 : (f : Nat -> Nat -> Nat) {w x y z : Nat} ->
+  w =N= y -> x =N= z -> f w x =N= f y z
+coNg2 f {w}{x}{y}{z} (paq p) (paq q) = paq (refl (`Nat `> `Nat `> `Nat) f w y p x z q)
 
 -- su injective
 sui : {x y : Nat} -> su x =N= su y -> x =N= y
 sui (paq q) = paq q
 
+-- Natural number addition
 _+N_ : Nat -> Nat -> Nat
 ze +N y = y
 su x +N y = su (x +N y)
 infixr 20 _+N_
 
+-- injective on left
 _+Ninj : (n x y : Nat) -> (n +N x) =N= (n +N y) -> x =N= y
 (ze +Ninj) x y q = q
 (su n +Ninj) x y q = (n +Ninj) x y (sui q)
 
+-- (`Nat, ze, _+N_) is the data of a Monoid
 module _ where
   open Monoid
   
@@ -59,6 +68,8 @@ module _ where
   mulmul- Monoid+N ze y z = refl `Nat (y +N z)
   mulmul- Monoid+N (su x) y z = mulmul- Monoid+N x y z
 
+-- `Nat induces a monoid action on any other monoid (_-times_)
+-- which in turn induces a monoid homorphism
 module _ {X : U}(MX : Monoid X) where
   open Monoid MX
   open EQPRF X
@@ -71,24 +82,24 @@ module _ {X : U}(MX : Monoid X) where
   homFromMonoid+N : El X -> HomMonoid Monoid+N MX
   hom (homFromMonoid+N x) n = n -times x
   homneu (homFromMonoid+N x) = refl X neu
-  hommul (homFromMonoid+N x) ze b = 
-    (b -times x) < mulneu- (b -times x) ]-
-    mul neu (b -times x) [QED]
+  hommul (homFromMonoid+N x) ze b = ! mulneu- (b -times x)
   hommul (homFromMonoid+N x) (su a) b = 
-    mul x ((a +N b) -times x) -[ cong X (mul x) (hommul (homFromMonoid+N x) a b) >
+    mul x ((a +N b) -times x)             -[ cong X (mul x) (hommul (homFromMonoid+N x) a b) >
     mul x (mul (a -times x) (b -times x)) < mulmul- x (a -times x) (b -times x) ]-
     mul (mul x (a -times x)) (b -times x) [QED]
 
+  -- this induces homomorphism is unique
   onlyHomFromMonoid+N : (h : HomMonoid Monoid+N MX)
     -> Pr (Oq (`Nat `> X) (hom h) (_-times (hom h 1)))
   onlyHomFromMonoid+N h = homogTac (`Nat `> X) (hom h) (_-times (hom h 1)) help where
     help : (n : Nat) -> Pr (Oq X (hom h n) (n -times hom h 1))
     help ze = homneu h
     help (su n) = 
-      hom h (su n) -[ hommul h 1 n >
-      mul (hom h 1) (hom h n) -[ cong X (mul (hom h 1)) (help n) >
+      hom h (su n)                     -[ hommul h 1 n >
+      mul (hom h 1) (hom h n)          -[ cong X (mul (hom h 1)) (help n) >
       mul (hom h 1) (n -times hom h 1) [QED]
 
+-- define multiplication as that unique induced Hom
 mulHom : Nat -> HomMonoid Monoid+N Monoid+N
 mulHom x = homFromMonoid+N Monoid+N x
 
@@ -112,37 +123,42 @@ trichotomy : (x y : Nat)(M : Nat -> Nat -> Nat -> U)
   -> ((n : Nat) -> El (M n n ze))
   -> ((a d : Nat) -> El (M (a +N su d) a (su d)))
   -> El (M x y (x % y))
-trichotomy ze ze M l e g = e ze
-trichotomy ze (su y) M l e g = l ze y
-trichotomy (su x) ze M l e g = g ze x
+trichotomy ze     ze     M l e g = e ze
+trichotomy ze     (su y) M l e g = l ze y
+trichotomy (su x) ze     M l e g = g ze x
 trichotomy (su x) (su y) M l e g = trichotomy x y (\ x y z -> M (su x) (su y) z)
   (su - l)
   (su - e)
   (su - g)
 
+-- Symmetric difference is... symmetric
 syd-sym : (x y : Nat) -> (x % y) =N= (y % x)
 syd-sym  ze     ze    = rn
 syd-sym  ze    (su y) = rn
 syd-sym (su x)  ze    = rn
 syd-sym (su x) (su y) = syd-sym x y
 
+-- syd of equal things is zero
 syd-ze : (x y : Nat) -> x =N= y -> (x % y) =N= ze
 syd-ze ze     ze     q = rn 
 syd-ze (su x) (su y) q = syd-ze x y (sui q)
 
+-- relation with +
 syd+N : (x y z : Nat) -> z =N= (x +N y) -> (x % z) =N= y
 syd+N ze     y     z  p = p
 syd+N (su x) y (su z) p = syd+N x y z (sui p)
 
+-- syd is (left-) cancellative.
 syd-can : (x y z : Nat) -> ((x +N y) % (x +N z)) =N= (y % z)
 syd-can ze y z = rn
 syd-can (su x) y z = syd-can x y z
 
 -- this is not free as _%_ analyzes its lhs first
 syd-zer : (x : Nat) -> (x % ze) =N= x
-syd-zer ze = rn
+syd-zer ze     = rn
 syd-zer (su x) = rn
 
+-- the usual properties of + and *
 module _ where
 
   open Monoid Monoid+N
@@ -156,10 +172,10 @@ module _ where
   x +Ncomm su y =
     (x +N su y) -N x +Nsu y >
     (su x +N y) -N coNg su (x +Ncomm y) >
-    (su y +N x) [N] -- trans (x +N su y) (su (x +N y)) (su (y +N x)) (x +Nsu y) (x +Ncomm y)
+    (su y +N x) [N]
 
   _*Nze : (x : Nat) -> (x *N ze) =N= ze
-  ze *Nze = rn
+  ze *Nze   = rn
   su x *Nze = x *Nze
  
 module _ where
@@ -241,8 +257,7 @@ module _ where
         (((w +N su d) +N su yx) % w) [N]))
         M m
 
--- HERE
-
+-- can pull out multiplication on the right
   syd-mul : (a b n : Nat) -> ((a *N n) % (b *N n)) =N= ((a % b) *N n)
   syd-mul ze b n = rn
   syd-mul (su a) ze n = syd-zer (su a *N n)
@@ -251,8 +266,10 @@ module _ where
     (a *N n) % (b *N n)               -N syd-mul a b n >
     ((a % b) *N n)                    [N]
 
+  -- modular inverse
   module _ (n : Nat) where
-  
+
+    -- core 'worker' routine
     private
       mod-inv-work : (x a c : Nat) -> Nat
       mod-inv-work ze     a c      = c
@@ -300,7 +317,8 @@ module _ where
         = q' , naq (
           ((a +N su x) +N mod-inv-work x (su a) n)
              -N coNg (_+N mod-inv-work x (su a) n) (a +Nsu x) >
-          ((su a +N x) +N mod-inv-work x (su a) n) -N paq p' >
+          ((su a +N x) +N mod-inv-work x (su a) n)
+             -N paq p' >
           (q' *N su n) [N])
           
       mod-inv-work-lemma (su x) a (su c) (q , p)
@@ -341,16 +359,14 @@ module _ (n : Nat) where
       (n -dividesU a `> n -dividesU b `> n -dividesU (a +N b))
     addLem a b (qa , pa) (qb , pb) = qa +N qb ,
       naq (
-        a +N b                 -N coNg (_+N b) (paq pa) >
-        (qa *N n) +N b         -N coNg ((qa *N n) +N_) (paq pb) >
+        a +N b                 -N coNg2 _+N_ {a} (paq pa) (paq pb) >
         (qa *N n) +N (qb *N n) < paq (hommul qa qb) N-
         (qa +N qb) *N n        [N])
 
     %Lem : (a b : Nat) -> El
       (n -dividesU a `> n -dividesU b `> n -dividesU (a % b))
     %Lem a b (qa , pa) (qb , pb) = qa % qb , naq (
-      a % b                 -N coNg (a %_) (paq pb) >
-      a % (qb *N n)         -N coNg (_% (qb *N n)) {a} (paq pa) >
+      a % b                 -N coNg2 _%_ {a} (paq pa) (paq pb) >
       (qa *N n) % (qb *N n) -N syd-mul qa qb n >
       (qa % qb) *N n        [N])
 
@@ -391,47 +407,44 @@ module BuildFin (n : Nat) where
   _+F_ : G -> G -> G
   _+F_ = lifting 2 _+N_
       ( (\ a0 a1 ar b -> mapHide (id >><< \ {s} q -> naq (
-                ((a0 +N b) % (a1 +N b)) -N coNg (_% (a1 +N b)) (a0 +Ncomm b) >
-                ((b +N a0) % (a1 +N b)) -N coNg ((b +N a0) %_) (a1 +Ncomm b) >
+                ((a0 +N b) % (a1 +N b)) -N coNg2 _%_ {a0 +N b} (a0 +Ncomm b) (a1 +Ncomm b) >
                 ((b +N a0) % (b +N a1)) -N syd-can b a0 a1 >
-                (a0 % a1) -N paq q >
-                (s *N su n) [N]))
+                (a0 % a1)               -N paq q >
+                (s *N su n)             [N]))
            ar)
       , \ a -> (\ b0 b1 -> mapHide (id >><< (\ {s} q -> naq (
                   ((a +N b0) % (a +N b1)) -N syd-can a b0 b1 >
-                  (b0 % b1) -N paq q >
-                  (s *N su n) [N]))))
+                  (b0 % b1)               -N paq q >
+                  (s *N su n)             [N]))))
             , _)
 
-  -- move this up when done, but it's not quite right
-  {-
-  syd-invN : (a0 a1 s : Nat) -> Pr (Oq `Nat (a0 % a1) (s *N su n)) ->
-    invN n a0 =N= invN n a1
-  syd-invN a0 a1 s q = {!!}
-  -}
+  infix 5 _=F=_
+  _=F=_ : G -> G -> Set
+  x =F= y = Pr (Oq (FinSu n) x y)
+  
   private
-    lift-=N : (x y : Nat) -> x =N= y -> Pr (Oq (FinSu n) `[ x ] `[ y ])
+    lift-=N : (x y : Nat) -> x =N= y -> `[ x ] =F= `[ y ]
     lift-=N x y p = homogQuot x y (hide (ze , naq (syd-ze x y p)))
     
-    ze+-rep : (x : Nat) -> Pr (Oq (FinSu n) (zeF +F `[ x ]) `[ x ])
+    ze+-rep : (x : Nat) -> zeF +F `[ x ] =F= `[ x ]
     ze+-rep x = lift-=N (ze +N x) x rn
 
-    assoc-rep : (x y z : Nat) -> Pr (Oq (FinSu n) ((`[ x ] +F `[ y ]) +F `[ z ])
-                                             (`[ x ] +F (`[ y ] +F `[ z ])))
+    assoc-rep : (x y z : Nat) -> (`[ x ] +F `[ y ]) +F `[ z ] =F=
+                                 `[ x ] +F (`[ y ] +F `[ z ])
     assoc-rep x y z = lift-=N ((x +N y) +N z) (x +N (y +N z))
       (paq (Monoid.mulmul- Monoid+N x y z))
 
-  ze+ : (x : G) -> Pr (Oq (FinSu n) (zeF +F x) x)
+  ze+ : (x : G) -> (zeF +F x) =F= x
   ze+ = quotElimPN 1 (\ x -> Oq (FinSu n) (zeF +F x) x) ze+-rep
 
-  assocF : (x y z : G) -> Pr (Oq (FinSu n) ((x +F y) +F z) (x +F (y +F z)))
+  assocF : (x y z : G) -> (x +F y) +F z =F= x +F (y +F z)
   assocF = quotElimPN 3 (\ x y z -> Oq (FinSu n) ((x +F y) +F z) (x +F (y +F z)))
     assoc-rep
 
   inv : G -> G
   inv `[ x ] = `[ invN n x ]
 
-  inv+ : (x : G) -> Pr (Oq (FinSu n) (inv x +F x) zeF)
+  inv+ : (x : G) -> inv x +F x =F= zeF
   inv+ = quotElimPN 1 (\ x -> Oq (FinSu n) (inv x +F x) zeF)
     \ x -> homogQuot (invN n x +N x) ze (hide ((id >><< \ {q} h -> naq (
       ((invN n x +N x) % ze) -N syd-zer _ >
