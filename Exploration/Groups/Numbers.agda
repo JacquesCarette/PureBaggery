@@ -497,3 +497,26 @@ invZ (d , u , p) = u , d , help d u p where
   help  ze     ze    p = <>
   help  ze    (su y) p = <>
   help (su x)  ze    p = <>
+
+_-Z_ : El (Integer `> Integer `> Integer)
+x -Z y = x +Z (invZ y)
+
+-- convenient abbreviation
+ZZ : Set
+ZZ = El Integer
+
+_=Z=_ : ZZ -> ZZ -> Set
+x =Z= y = Pr (Oq Integer x y) 
+
+-- the properties making it into a Group
+module _ where
+  open Monoid Monoid+N
+  open EQPRF `Nat
+  
+  ze+Z : (x : ZZ) -> (zeZ +Z x) =Z= x
+  ze+Z (ze , d , p) = _ , refl `Nat d , _
+  ze+Z (su u , ze , p) = refl `Nat u , _ , _
+
+{- this looks to be a bit of a nightmare if done by direct induction
+  assocZ : (x y z : ZZ) -> ((x +Z y) +Z z) =Z= (x +Z (y +Z z))
+-}
