@@ -5,8 +5,11 @@ open import Quotient
 open import ExtUni
 open import Reasoning
 open import Group
+open import Iso
+open import GroupsWeLike
+open import Numbers
 
-module _ (W P : U)(G : Group W)(A : ACTION.Action G P)
+module Representable (W P : U)(G : Group W)(A : ACTION.Action G P)
   where
 
   open Group.Group G
@@ -51,3 +54,62 @@ module _ (W P : U)(G : Group W)(A : ACTION.Action G P)
         module QR = Quot (P `> R) AR._~G~_ AR.ActEquiv
         module AT = Action (faction A {T})
         module QT = Quot (P `> T) AT._~G~_ AT.ActEquiv
+
+Jumble : U -> U -> U
+Jumble P X = FObj X where
+  open Representable (P <=> P) P (Automorphism P) (AutAct P)
+
+
+{-
+move these somewhere more appropriate?
+-}
+
+_<_ : Nat -> Nat -> P
+x < ze = `Zero
+ze < su y = `One
+su x < su y = x < y
+
+Fin : Nat -> U
+Fin n = `Nat `>< \ i -> `Pr (i < n)
+
+finL : (n m : Nat) -> El (Fin n `> Fin (n +N m))
+finL n m (i , p) = i , slackR i n m p where
+  slackR : (i n m : Nat) -> Pr ((i < n) `=> (i < (n +N m)))
+  slackR ze (su n) m p = <>
+  slackR (su i) (su n) m p = slackR i n m p
+
+finR : (n m : Nat) -> El (Fin m `> Fin (n +N m))
+finR n m (i , p) = (n +N i) , shiftL n i m p where
+  shiftL : (n i m : Nat) -> Pr ((i < m) `=> ((n +N i) < (n +N m)))
+  shiftL ze i m p = p
+  shiftL (su n) i m p = shiftL n i m p
+
+finCase : (n m : Nat)(i : El (Fin (n +N m)))(F : El (Fin (n +N m)) -> U)
+  -> ((j : El (Fin n)) -> El (F (finL n m j)))
+  -> ((k : El (Fin m)) -> El (F (finR n m k)))
+  -> El (F i)
+finCase ze m ip F fl fr = fr ip
+finCase (su n) m (ze , p) F fl fr = fl (ze , <>)
+finCase (su n) m (su i , p) F fl fr = finCase n m (i , p) (\ (i , p) -> F (su i , p))
+  (\ (j , p) -> fl (su j , p))
+  fr
+
+Bag : U -> U
+Bag X = `Nat `>< \ n -> Jumble (Fin n) X
+
+module _ (X : U) where
+
+  nilB : El (Bag X)
+  nilB = 0 , `[ snd - naughtE ]
+
+  oneB : El (X `> Bag X)
+  oneB x = 1 , `[ (\ _ -> x) ]
+
+  _+B_ : El (Bag X `> Bag X `> Bag X)
+  (n , [f]) +B (m , [g]) = (n +N m) , elElim (Jumble (Fin n) X) [f] (\ _ -> Jumble (Fin (n +N m)) X)
+    ( (\ f -> elElim (Jumble (Fin m) X) [g] (\ _ -> Jumble (Fin (n +N m)) X)
+        ( (\ g -> `[ (\ ip -> finCase n m ip (\ _ -> X) f g) ])
+        , {!!})
+        )
+    , {!!}
+    )

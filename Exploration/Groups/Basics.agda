@@ -19,7 +19,11 @@ mapHide f (hide s) = hide (f s)
 -- empty, singleton and (exactly) 2 point set along with eliminator
 data Zero' : Set where
 Zero = Hide Zero'
+naughtE : forall {k}{X : Set k } -> Zero -> X
+naughtE (hide ())
+
 record One : Set where constructor <>
+
 data Two : Set where `0 `1 : Two
 _<01>_ : forall {k}{P : Two -> Set k} -> P `0 -> P `1 -> (b : Two) -> P b
 (p0 <01> p1) `0 = p0
