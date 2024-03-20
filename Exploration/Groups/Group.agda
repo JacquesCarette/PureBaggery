@@ -203,7 +203,7 @@ module _ {G : U} where
   tupleGroup g = neu , inv , mul , mulneu- , mulmul- , mulinv-
     where open Group g
 
-  module _ (GG : Group G) where
+  module ACTION (GG : Group G) where
     open Group GG
 
     record Action (X : U) : Set where
