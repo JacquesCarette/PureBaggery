@@ -45,6 +45,27 @@ module EQPRF (X : U) where
     Pr (Oq X x y) -> Pr (Oq X y z) -> Pr (Oq X x z)
   trans x y z xy yz = x -[ xy > y -[ yz > z [QED]  
 
+  record _==_ (x y : El X) : Set where
+    constructor bleu
+    field
+      vert : Pr (Oq X x y)
+  open _==_ public
+
+  module _ {y z : El X} where
+  
+    _==[_>_ : (x : El X) -> x == y -> y == z -> x == z
+    vert (x ==[ p > q) = x -[ vert p > y -[ vert q > z [QED]
+    _<_]==_ : (x : El X) -> y == x -> y == z -> x == z
+    vert (x < p ]== q) = x < vert p ]- y -[ vert q > z [QED]
+    infixr 2 _==[_>_ _<_]==_
+  _[==] : (x : El X) -> x == x
+  vert (x [==]) = refl X x
+  infixr 3 _[==]
+
+  congB : (Y : U){x y : El Y} (f : El (Y `> X)) -> Pr (Oq Y x y) -> f x == f y
+  vert (congB Y {x} {y} f x~y) = refl (Y `> X) f x y x~y
+
+
 {-
 module _ {X : U} where
 
