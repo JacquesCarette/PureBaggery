@@ -257,3 +257,50 @@ module _ {G : U} where
            act A x (inv (mul gr0 gr1))         -[ cong G (act A x) (invmul gr0 gr1) >
            act A x (mul (inv gr1) (inv gr0))   -[ act-mul A x _ _ >
            act A (act A x (inv gr1)) (inv gr0) [QED] )
+
+module _ {X Y : U} where
+
+  module _ (SX : SemiGroup X)(SY : SemiGroup Y) where
+
+    open SemiGroup
+
+    _*SemiGroup*_ : SemiGroup (X `* Y)
+    mul _*SemiGroup*_ (x0 , y0) (x1 , y1) = mul SX x0 x1 , mul SY y0 y1
+    mulmul- _*SemiGroup*_ (x0 , y0) (x1 , y1) (x2 , y2) = mulmul- SX x0 x1 x2 , mulmul- SY y0 y1 y2
+
+  module _ (MX : Monoid X)(MY : Monoid Y) where
+
+    open Monoid
+
+    _*Monoid*_ : Monoid (X `* Y)
+    _*Monoid*_ = monoid/ _ (semiGroup MX *SemiGroup* semiGroup MY) (record
+      { neu = neu MX , neu MY
+      ; mulneu- = \ (x , y) -> mulneu- MX x , mulneu- MY y
+      ; mul-neu = \ (x , y) -> mul-neu MX x , mul-neu MY y
+      })
+
+  module _ (GX : Group X)(GY : Group Y) where
+
+    open Group
+
+    _*Group*_ : Group (X `* Y)
+    _*Group*_ = group/ _ (monoid GX *Monoid* monoid GY) (record
+      { inv = inv GX >><< inv GY
+      ; mulinv- = \ (x , y) -> mulinv- GX x , mulinv- GY y
+      })
+
+    open ACTION
+    module _ {A B : U}(AGXA : Action GX A)(AGYB : Action GY B) where
+
+      open Action
+      
+      pairActsOnSum : Action _*Group*_ (A `+ B)
+      fst (act pairActsOnSum (z , _) (x , y)) = z
+      snd (act pairActsOnSum (`0 , a) (x , y)) = act AGXA a x
+      snd (act pairActsOnSum (`1 , b) (x , y)) = act AGYB b y
+      fst (act-neu pairActsOnSum (z , _)) = refl `Two z
+      snd (act-neu pairActsOnSum (`0 , a)) = act-neu AGXA a
+      snd (act-neu pairActsOnSum (`1 , b)) = act-neu AGYB b
+      fst (act-mul pairActsOnSum (z , _) _ _) = refl `Two z
+      snd (act-mul pairActsOnSum (`0 , a) (x0 , y0) (x1 , y1)) = act-mul AGXA a x0 x1
+      snd (act-mul pairActsOnSum (`1 , b) (x0 , y0) (x1 , y1)) = act-mul AGYB b y0 y1

@@ -166,3 +166,12 @@ module _ {R S : U} (f : El (R <=> S)) where
   after-inv = eqIso {S} {S} (compIso S R S (invIso R S f) f) (idIso S)
     (bwd-fwd f')
     (bwd-fwd f')
+
+module _ {P Q : U}(pf : P <==> P)(pq : P <==> Q) where
+
+  via : Q <==> Q
+  via = 
+    Q < pq ]=
+    P =[ pf >
+    P =[ pq >
+    Q [ISO]

@@ -59,7 +59,45 @@ Jumble : U -> U -> U
 Jumble P X = FObj X where
   open Representable (P <=> P) P (Automorphism P) (AutAct P)
 
+module _ (X : U){P Q : U}(pq : P <==> Q) where
+  open EQPRF X
 
+  isoPmapJumble : El (Jumble P X `> Jumble Q X)
+  isoPmapJumble [f] = elElim (Jumble P X) [f] (\ _ -> Jumble Q X)
+    ( (\ f -> `[ bwd pq - f ])
+    , \ h k hk -> homogTac (Jumble Q X) `[ bwd pq - h ] `[ bwd pq - k ]
+      (mapHide (\ (pr , hkP) -> osi (via (iso' {P}{P} pr) pq) ,
+        homogTac (Q `> X) _ _ \ x -> vert (
+            h (bwd pq (fwd pq (bwd (iso' {P}{P} pr) (bwd pq x))))
+              ==[ congB P h (fwd-bwd pq _) >
+            h (bwd (iso' {P}{P} pr) (bwd pq x))
+              ==[ bleu (hkP (bwd pq x) (bwd pq x) (refl P _)) >
+            k (bwd pq x)
+              [==])
+        ) hk)
+    )
+
+module _ (X : U){P Q : U}(pq : P <==> Q) where
+  open EQPRF X
+
+  isoPisoJumbleP : Jumble P X <==> Jumble Q X
+  fwd isoPisoJumbleP = isoPmapJumble X pq
+  bwd isoPisoJumbleP = isoPmapJumble X (invIso' pq)
+  fwd-bwd isoPisoJumbleP [f] = elElim (Jumble P X) [f]
+    (\ [f] -> `Pr (Oq (Jumble P X) (bwd isoPisoJumbleP (fwd isoPisoJumbleP [f])) [f]))
+    ( (\ f -> homogTac (Jumble P X) (bwd isoPisoJumbleP (fwd isoPisoJumbleP `[ f ])) `[ f ]
+        (hide (idIso P , homogTac (P `> X) ((fwd pq - bwd pq) - f) f
+          \ p -> vert (congB P f (fwd-bwd pq p)))))
+    , _
+    )
+  bwd-fwd isoPisoJumbleP [f] = elElim (Jumble Q X) [f]
+    (\ [f] -> `Pr (Oq (Jumble Q X) (fwd isoPisoJumbleP (bwd isoPisoJumbleP [f])) [f]))
+    ( (\ f -> homogTac (Jumble Q X) (fwd isoPisoJumbleP (bwd isoPisoJumbleP `[ f ])) `[ f ]
+        (hide (idIso Q , homogTac (Q `> X) ((bwd pq - fwd pq) - f) f
+          \ q -> vert (congB Q f (bwd-fwd pq q)))))
+    , _
+    )
+    
 {-
 move these somewhere more appropriate?
 -}
@@ -181,6 +219,7 @@ module _ (X : U) where
   oneB : El (X `> Bag X)
   oneB x = 1 , `[ (\ _ -> x) ]
 
+{-
   _+B_ : El (Bag X `> Bag X `> Bag X)
   (n , [f]) +B (m , [g]) = (n +N m) , elElim (Jumble (Fin n) X) [f] (\ _ -> Jumble (Fin (n +N m)) X)
     ( (\ f -> elElim (Jumble (Fin m) X) [g] (\ _ -> Jumble (Fin (n +N m)) X)
@@ -194,8 +233,19 @@ module _ (X : U) where
                        (finCase n m (\ _ -> X) f h)
                           (finCaseAut (idIso (Fin n)) fm) i)
                           (finCase n m (\ _ -> X) f k i)))
-                    {!!}
-                    \ i -> let iH = q i i (refl (Fin m) i) in vert (
+                    (\ j -> vert (  -- we're identity on the left, so it's pushing finL through finCase
+                      finCase n m (\ _ -> X) f h
+                       (finCase n m (\ _ -> Fin (n +N m)) (finL n m) _ (finL n m j))
+                        ==[ congB (Fin (n +N m)) (finCase n m (\ _ -> X) f h)
+                            (finCaseL n m (\ _ -> Fin (n +N m)) (finL n m) _ j) >
+                      finCase n m (\ _ -> X) f h (finL n m j)
+                        ==[ bleu (finCaseL n m (\ _ -> X) f h j) >
+                      f j
+                        < bleu (finCaseL n m (\ _ -> X) f k j) ]==
+                      (finCase n m (\ _ -> X) f k (finL n m j))
+                        [==]))
+                    (\ i -> let iH = q i i (refl (Fin m) i) in vert (
+                        -- on the right, we actually need the relatedness of h and k
                       (finCase n m (\ _ -> X) f h ((id <+N> frl) (finR n m i)))
                         ==[ congB (Fin (n +N m)) (finCase n m (\ _ -> X) f h) (sumRight id frl i) >
                       (finCase n m (\ _ -> X) f h (finR n m (frl i)))
@@ -204,13 +254,15 @@ module _ (X : U) where
                         ==[ bleu iH >
                       k i
                         < bleu (finCaseR n m (\ _ -> X) f k i) ]==
-                      (finCase n m (\ _ -> X) f k (finR n m i)) [==])))
+                      (finCase n m (\ _ -> X) f k (finR n m i)) [==]))))
                - homogTac (Jumble (Fin (n +N m)) X)
                   `[ finCase n m (\ _ -> X) f h ]
                   `[ finCase n m (\ _ -> X) f k ])
         )
-    , {!!}
+    , \ h k -> mapHide \ (fn@(flr , frl , fq0 , fq1) , q) ->
+        {!!} , {!!} , {!!}
     )
     where
       open FINSUM n n m m
       open FINSUMAUT n m
+-}
