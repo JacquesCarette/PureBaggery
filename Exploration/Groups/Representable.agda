@@ -9,8 +9,15 @@ open import Iso
 open import GroupsWeLike
 open import Numbers
 
-module Representable (W P : U)(G : Group W)(A : ACTION.Action G P)
-  where
+record Representable : Set where
+  field
+    {Wiggles} : U
+    Positions : U
+    Grp  : Group Wiggles
+    Act : ACTION.Action Grp Positions
+    
+module REPRESENTABLE (R : Representable) where
+  open Representable R renaming (Wiggles to W; Grp to G; Positions to Pos; Act to A)
 
   open Group.Group G
   open ACTION G
@@ -19,7 +26,7 @@ module Representable (W P : U)(G : Group W)(A : ACTION.Action G P)
   -- for element data stored at P positions, wiggled by G
 
   FObj : U -> U
-  FObj X = `Quotient (P `> X) _~G~_ ActEquiv where
+  FObj X = `Quotient (Pos `> X) _~G~_ ActEquiv where
     open Action (faction A {X})
    
   FArr : (S T : U) -> El (S `> T) -> El (FObj S `> FObj T)
@@ -29,35 +36,57 @@ module Representable (W P : U)(G : Group W)(A : ACTION.Action G P)
        (mapHide (id >><< (\ q -> \ p0 p1 pq -> refl (S `> T) f _ _ (q p0 p1 pq))) cq)
     ) where
         open Action (faction A {T})
-        open Quot (P `> T) _~G~_ ActEquiv
+        open Quot (Pos `> T) _~G~_ ActEquiv
 
   FId : (X : U) -> Pr (Oq (FObj X `> FObj X) (FArr X X id) id)
   FId X = homogTac (FObj X `> FObj X) (FArr X X id) id
     (\ [c] -> quotElimP [c] (\ [c] -> Oq (FObj X) (FArr X X id [c]) (id [c]))
-      (\ c -> homogQuot (c - id) c (hide (neu , (homogTac (P `> X) (act c neu) c \ p ->
-        act-neu c p p (refl P p) ))))
+      (\ c -> homogQuot (c - id) c (hide (neu , (homogTac (Pos `> X) (act c neu) c \ p ->
+        act-neu c p p (refl Pos p) ))))
     )
     where
       open Action (faction A {X})
-      open Quot (P `> X) _~G~_ ActEquiv
+      open Quot (Pos `> X) _~G~_ ActEquiv
 
   FComp : (R S T : U)(f : El (R `> S))(g : El (S `> T))
     -> Pr (Oq (FObj R `> FObj T) (FArr R T (f - g)) (FArr R S f - FArr S T g))
   FComp R S T f g = homogTac (FObj R `> FObj T) (FArr R T (f - g)) (FArr R S f - FArr S T g)
     \ [c] -> QR.quotElimP [c]
       (\ [c] -> Oq (FObj T) (FArr R T (f - g) [c]) ((FArr R S f - FArr S T g) [c]))
-      \ c -> QT.homogQuot (c - (f - g)) ((c - f) - g) (hide (neu , homogTac (P `> T)
+      \ c -> QT.homogQuot (c - (f - g)) ((c - f) - g) (hide (neu , homogTac (Pos `> T)
         (AT.act (c - (f - g)) neu) ((c - f) - g) \ p ->
-          AT.act-neu (c - (f - g)) p p (refl P p)))
+          AT.act-neu (c - (f - g)) p p (refl Pos p)))
     where
         module AR = Action (faction A {R})
-        module QR = Quot (P `> R) AR._~G~_ AR.ActEquiv
+        module QR = Quot (Pos `> R) AR._~G~_ AR.ActEquiv
         module AT = Action (faction A {T})
-        module QT = Quot (P `> T) AT._~G~_ AT.ActEquiv
+        module QT = Quot (Pos `> T) AT._~G~_ AT.ActEquiv
+
+record ContainerDesc : Set where
+  constructor _<|_
+  field
+    Shape : U
+    Store : El Shape -> Representable
+
+  [_]C : U -> U
+  [_]C X = Shape `>< \ s -> let open REPRESENTABLE (Store s) in FObj X
+
+open ContainerDesc public
+open Representable public
+
+_*C_ : ContainerDesc -> ContainerDesc -> ContainerDesc
+Shape ((Sh0 <| St0) *C (Sh1 <| St1)) = Sh0 `* Sh1
+Wiggles (Store ((Sh0 <| St0) *C (Sh1 <| St1)) (sh0 , sh1)) = _
+Positions (Store ((Sh0 <| St0) *C (Sh1 <| St1)) (sh0 , sh1)) = Positions (St0 sh0) `+ Positions (St1 sh1)
+Grp (Store ((Sh0 <| St0) *C (Sh1 <| St1)) (sh0 , sh1)) = Grp (St0 sh0) *Group* Grp (St1 sh1)
+Act (Store ((Sh0 <| St0) *C (Sh1 <| St1)) (sh0 , sh1)) = pairActsOnSum _ _ (Act (St0 sh0)) (Act (St1 sh1))
+
+JumbleR : U -> Representable
+JumbleR P = record { Positions = P ; Grp = Automorphism P ; Act = AutAct P }
 
 Jumble : U -> U -> U
 Jumble P X = FObj X where
-  open Representable (P <=> P) P (Automorphism P) (AutAct P)
+  open REPRESENTABLE (JumbleR P)
 
 module _ (X : U){P Q : U}(pq : P <==> Q) where
   open EQPRF X
@@ -158,56 +187,41 @@ FinAut n = Fin n <=> Fin n
 FinEn : Nat -> U
 FinEn n = Fin n `> Fin n
 
-module FINSUM (n n' m m' : Nat)(h : El (Fin n `> Fin n'))(k : El (Fin m `> Fin m')) where
-  _<+N>_ : El (Fin (n +N m) `> Fin (n' +N m'))
-  _<+N>_ = finCase n m (\ _ -> Fin (n' +N m')) (h - finL n' m') (k - finR n' m')
+module FINSUMADD (n m : Nat) where
+  finSumAdd : Fin (n +N m) <==> (Fin n `+ Fin m)
+  fwd finSumAdd = finCase n m (\ _ -> (Fin n `+ Fin m)) (`0 ,_) (`1 ,_)
+  bwd finSumAdd = /\ (finL n m <01> finR n m)
+  fwd-bwd finSumAdd = finCase n m (\ s -> `Pr (Oq (Fin (n +N m)) (bwd finSumAdd (fwd finSumAdd s)) s))
+    (\ j -> let open EQPRF (Fin (n +N m)) in vert (
+            (bwd finSumAdd (finCase n m (\ _ -> (Fin n `+ Fin m)) (`0 ,_) (`1 ,_) (finL n m j)))
+              ==[ congB (Fin n `+ Fin m) {fwd finSumAdd (finL n m j)} {`0 , j}
+                      (bwd finSumAdd) (finCaseL n m (\ _ -> (Fin n `+ Fin m)) (`0 ,_) (`1 ,_) j ) >
+            (bwd finSumAdd (`0 , j))
+              ==[ reflB >
+             finL n m j [==]))
+    \ k -> let open EQPRF (Fin (n +N m)) in vert (
+            (bwd finSumAdd (finCase n m (\ _ -> (Fin n `+ Fin m)) (`0 ,_) (`1 ,_) (finR n m k)))
+              ==[ congB (Fin n `+ Fin m) {fwd finSumAdd (finR n m k)} {`1 , k}
+                      (bwd finSumAdd) (finCaseR n m (\ _ -> (Fin n `+ Fin m)) (`0 ,_) (`1 ,_) k ) >
+            (bwd finSumAdd (`1 , k))
+              ==[ reflB >
+             finR n m k [==])
+  bwd-fwd finSumAdd (`0 , j) = finCaseL n m (\ _ -> (Fin n `+ Fin m)) (`0 ,_) (`1 ,_) j
+  bwd-fwd finSumAdd (`1 , k) = finCaseR n m (\ _ -> (Fin n `+ Fin m)) (`0 ,_) (`1 ,_) k
   
-  sumLeft : (i : El (Fin n)) -> Pr (Oq (Fin (n' +N m')) (_<+N>_ (finL n m i)) (finL n' m' (h i)))
-  sumLeft = finCaseL n m (\ _ -> Fin (n' +N m')) (h - finL n' m') (k - finR n' m')
-
-  sumRight : (i : El (Fin m)) -> Pr (Oq (Fin (n' +N m')) (_<+N>_ (finR n m i)) (finR n' m' (k i)))
-  sumRight = finCaseR n m (\ _ -> Fin (n' +N m')) (h - finL n' m') (k - finR n' m')
-
 module FINSUMAUT (n m : Nat) where
-  open FINSUM n n m m
+  open FINSUMADD n m
 
   finCaseAut : El (FinAut n `> FinAut m `> FinAut (n +N m))
-  finCaseAut (f , fop , fq0 , fq1) (g , gop , gq0 , gq1)
-    = (f <+N> g)
-    , (fop <+N> gop)
-    , (finCase n m (\ ip -> `Pr (Oq (Fin (n +N m)) ((fop <+N> gop) ((f <+N> g) ip)) ip))
-        (\ jp -> vert (leftLemma f fop g gop fq0 jp))
-        (\ kp -> vert (rightLemma f fop g gop gq0 kp)))
-    , (finCase n m (\ ip -> `Pr (Oq (Fin (n +N m)) ((f <+N> g) ((fop <+N> gop) ip)) ip))
-        (\ jp -> vert (leftLemma fop f gop g fq1 jp))
-        (\ kp -> vert (rightLemma fop f gop g gq1 kp)))
-    where
-    open EQPRF (Fin (n +N m))
-    leftLemma : (h hop : El (FinEn n))(k kop : El (FinEn m))
-      -> ((i : El (Fin n)) -> Pr (Oq (Fin n) (hop (h i)) i))
-      -> (i : El (Fin n)) -> (hop <+N> kop) ((h <+N> k) (finL n m i)) == (finL n m i)
-    leftLemma h hop k kop hhopq i = 
-      ((hop <+N> kop) ((h <+N> k) (finL n m i)))
-        ==[ congB (Fin (n +N m)) (hop <+N> kop) (sumLeft h k i) >
-      ((hop <+N> kop) (finL n m (h i)))
-        ==[ bleu (sumLeft hop kop (h i)) >
-      (finL n m (hop (h i)))
-        ==[ congB (Fin n) (finL n m) (hhopq i) >
-      (finL n m i) [==]
-    rightLemma : (h hop : El (FinEn n))(k kop : El (FinEn m))
-      -> ((i : El (Fin m)) -> Pr (Oq (Fin m) (kop (k i)) i))
-      -> (i : El (Fin m)) -> (hop <+N> kop) ((h <+N> k) (finR n m i)) == (finR n m i)
-    rightLemma h hop k kop kkopq i =
-      ((hop <+N> kop) ((h <+N> k) (finR n m i)))
-        ==[ congB (Fin (n +N m)) (hop <+N> kop) (sumRight h k i) >
-      ((hop <+N> kop) (finR n m (k i)))
-        ==[ bleu (sumRight hop kop (k i)) >
-      (finR n m (kop (k i)))
-        ==[ congB (Fin m) (finR n m) (kkopq i) >
-      (finR n m i) [==]
+  finCaseAut f g = osi (
+    Fin (n +N m) =[ finSumAdd >
+    Fin n `+ Fin m =[ sgIso `Two (iso' f <01> iso' g) >
+    Fin n `+ Fin m < finSumAdd ]=
+    Fin (n +N m) [ISO])
 
 Bag : U -> U
 Bag X = `Nat `>< \ n -> Jumble (Fin n) X
+
 
 module _ (X : U) where
 
@@ -218,6 +232,10 @@ module _ (X : U) where
 
   oneB : El (X `> Bag X)
   oneB x = 1 , `[ (\ _ -> x) ]
+
+  module _ (n m : Nat) where
+    Jumble+ : El (Jumble (Fin n) X `> Jumble (Fin m) X `> Jumble (Fin (n +N m)) X)
+    Jumble+ [f] [g] = {!!}
 
 {-
   _+B_ : El (Bag X `> Bag X `> Bag X)

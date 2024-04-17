@@ -65,6 +65,8 @@ module EQPRF (X : U) where
   congB : (Y : U){x y : El Y} (f : El (Y `> X)) -> Pr (Oq Y x y) -> f x == f y
   vert (congB Y {x} {y} f x~y) = refl (Y `> X) f x y x~y
 
+  reflB : {x : El X} -> x == x
+  reflB {x} = bleu (refl X x)
 
 {-
 module _ {X : U} where
@@ -178,3 +180,53 @@ homogTac (`Quotient T R Q) `[ x ] `[ y ] r = Quot.homogQuot T R Q x y r
 homogTac (S `-> T) f g r x y q =
   J S q (\ y _ -> `Pr (Eq (T x) (T y) (f x) (g y))) (r x)
 
+-- Going towards: Heterogeneous Quotients
+-- package up our quotient data more conveniently
+record UQuot : Set where
+  field
+    Carrier : U
+    Rel : El Carrier -> El Carrier -> P
+    EquivR : Equiv (El Carrier) (\ i j -> Pr (Rel i j))
+
+  `UQuot : U
+  `UQuot = `Quotient Carrier Rel EquivR
+
+open UQuot public
+
+-- type of function between carriers of quotients
+LiftFrom : List UQuot -> UQuot -> U
+LiftFrom l u = cataList (Carrier - _`>_) (Carrier u) l
+
+-- type of function between quotients themselves
+LiftTo : List UQuot -> UQuot -> U
+LiftTo l u = cataList (`UQuot - _`>_) (`UQuot u) l
+
+HFunRelated : (l : List UQuot) (u : UQuot) (f g : El (LiftFrom l u)) -> P
+HFunRelated [] u f g = Rel u f g
+HFunRelated (x ,- l) u f g = Carrier x `-> \ y -> HFunRelated l u (f y) (g y)
+
+-- What are the conditions to go from `LiftFrom l u` to `LiftTo l u` ?
+LiftMust : (l : List UQuot) (u : UQuot) (f : El (LiftFrom l u)) -> P
+LiftMust [] u f = `One
+LiftMust (x ,- l) u f =
+  (Carrier x `-> \ y0 -> Carrier x `-> \ y1 -> `Pr (Rel x y0 y1) `-> \ yr -> HFunRelated l u (f y0) (f y1) )
+  `/\ (Carrier x `-> \ y -> LiftMust l u (f y))
+
+UQlifting : (l : List UQuot) (u : UQuot) (f : El (LiftFrom l u)) -> Pr (LiftMust l u f) ->
+  El (LiftTo l u)
+UQliftLater : (l : List UQuot) (u : UQuot) (f g : El (LiftFrom l u)) -> (fOK : Pr (LiftMust l u f)) ->
+  (gOK : Pr (LiftMust l u g)) -> Pr (HFunRelated l u f g) ->
+  Pr (Oq (LiftTo l u) (UQlifting l u f fOK) (UQlifting l u g gOK))
+
+UQlifting [] u f p         = `[ f ]
+UQlifting (x ,- l) u f (pn , pl) s = elElim (`UQuot x) s (\ _ -> LiftTo l u)
+  ( (\ y -> UQlifting l u (f y) (pl y))
+  , \ y0 y1 yr -> UQliftLater l u (f y0) (f y1) (pl y0) (pl y1) (pn y0 y1 yr)
+  ) 
+
+UQliftLater [] u f g fOK gOK fg = homogTac (`UQuot u) `[ f ] `[ g ] fg
+UQliftLater (x ,- l) u f g fOK gOK fg = homogTac (LiftTo (x ,- l) u)
+  (UQlifting (x ,- l) u f fOK) (UQlifting (x ,- l) u g gOK)
+  \ s -> elElim (`UQuot x) s (\ s -> `Pr (Oq (LiftTo l u)
+            (UQlifting (x ,- l) u f fOK s) (UQlifting (x ,- l) u g gOK s)))
+  ((\ y -> UQliftLater l u (f y) (g y) (snd fOK y) (snd gOK y) (fg y)) , _)

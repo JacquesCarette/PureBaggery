@@ -84,3 +84,16 @@ _>><<_ : forall {S S' : Set}{T : S -> Set}{T' : S' -> Set}
 -- Nat is useful for non-trivial examples
 data Nat : Set where ze : Nat ; su : Nat -> Nat
 {-# BUILTIN NATURAL Nat #-}
+
+-- Lists come in handy too
+data List (A : Set) : Set where
+  [] : List A
+  _,-_ : A -> List A -> List A
+
+list : {A B : Set} -> (A -> B) -> List A -> List B
+list f [] = []
+list f (x ,- xs) = f x ,- list f xs
+
+cataList : forall {b} {A : Set} {B : Set b} -> (A -> B -> B) -> B -> List A -> B
+cataList _ b [] = b
+cataList _/_ b (x ,- xs) = x / cataList _/_ b xs

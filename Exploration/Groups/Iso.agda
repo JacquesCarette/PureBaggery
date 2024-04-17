@@ -117,6 +117,7 @@ module _ (R : U) where
   infixr 2 _=[_>_ _<_]=_
   infixr 3 _[ISO]
 
+-- Sigma aka sum of isos
 module _ (A : U){S T : El A -> U}
          (f : (a : El A) -> S a <==> T a)
   where
