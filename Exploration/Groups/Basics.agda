@@ -89,6 +89,7 @@ data Nat : Set where ze : Nat ; su : Nat -> Nat
 data List (A : Set) : Set where
   [] : List A
   _,-_ : A -> List A -> List A
+infixr 20 _,-_
 
 list : {A B : Set} -> (A -> B) -> List A -> List B
 list f [] = []

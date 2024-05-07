@@ -216,6 +216,12 @@ module _ {G : U} where
                     
       open EQPRF X
 
+      act-eq-neu : Pr (ALL 1 G \ g -> ALL 1 X \ x -> Oq G g neu `=> Oq X (act x g) x)
+      act-eq-neu g x q = 
+        act x g -[ cong G (act x) q >
+        act x neu -[ act-neu x >
+        x [QED]
+
       actinv : Pr (X `-> \ x -> G `-> \ g -> Oq X (act x (mul g (inv g))) x)
       actinv x g = 
          act x (mul g (inv g)) -[ cong G (act x) (mul-inv g) >
