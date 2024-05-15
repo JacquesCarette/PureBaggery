@@ -15,7 +15,8 @@ record Representable : Set where
     Positions : U
     Grp  : Group Wiggles
     Act : ACTION.Action Grp Positions
-    
+
+-- Extension of a representable
 module REPRESENTABLE (R : Representable) where
   open Representable R renaming (Wiggles to W; Grp to G; Positions to Pos; Act to A)
 
@@ -66,6 +67,14 @@ module REPRESENTABLE (R : Representable) where
         module AT = Action (faction A {T})
         module QT = Quot (Pos `> T) AT._~G~_ AT.ActEquiv
 
+-- Representable Morphism
+record _=Repr=>_ (R S : Representable) : Set where
+  private
+    module R = Representable R
+    module S = Representable S
+  field
+    groupAct=> : R.Act =Action=> S.Act
+    
 record ContainerDesc : Set where
   constructor _<|_
   field
@@ -75,9 +84,50 @@ record ContainerDesc : Set where
   [_]C : U -> U
   [_]C X = Shape `>< \ s -> let open REPRESENTABLE (Store s) in FObj X
 
+  -- and [_]C is a Functor (all the hard work is in REPRESENTABLE)
+  
+  
 open ContainerDesc public
 open Representable public
 
+record _=CtrD=>_ (C D : ContainerDesc) : Set where
+  private
+    module C = ContainerDesc C
+    module D = ContainerDesc D
+  open REPRESENTABLE
+  field
+    shape=> : El (C.Shape `> D.Shape)
+    store<= : forall c -> D.Store (shape=> c) =Repr=> C.Store c
+
+  -- induced action on containers
+  [_]C=> : (X : U) -> El ([ C ]C X `> [ D ]C X)
+  [_]C=> X (s , f) = shape=> s ,
+    UQlifting (FQuot (C.Store s) X ,- []) (FQuot (D.Store (shape=> s)) X)
+    (carrier=> -_)
+    ((\ f0 f1 -> mapHide (mor >><< \ {g} pq p0 p1 pr → 
+      f0 (carrier=> (dact p0 (inv GD (mor g))))  < cong WD (dact p0 - (carrier=> - f0)) (inv-pres g) ]-
+      f0 (carrier=> (dact p0 (mor (inv GC g))))  < cong PC f0 (act-pres p0 (inv GC g)) ]-
+      f0 (cact (carrier=> p0) (inv GC g))        -[ pq (carrier=> p0) (carrier=> p1) (EQPRF.cong PC PD carrier=> pr) >
+      f1 (carrier=> p1)                          [QED]))
+      , _)
+    f
+    where
+      open _=Repr=>_ (store<= s)
+      open _=Action=>_ groupAct=>
+      open _=Group=>_ group=>
+      open Group.Group
+      open ACTION.Action
+      open EQPRF X
+      PC = Positions (C.Store s)
+      PD = Positions (D.Store (shape=> s))
+      GC = Grp (C.Store s)
+      GD = Grp (D.Store (shape=> s))
+      cact = act (Act (C.Store s))
+      dact = act (Act (D.Store (shape=> s)))
+      WD = Wiggles (D.Store (shape=> s))
+
+  -- and it is natural (TODO)
+  
 _*C_ : ContainerDesc -> ContainerDesc -> ContainerDesc
 Shape ((Sh0 <| St0) *C (Sh1 <| St1)) = Sh0 `* Sh1
 Wiggles (Store ((Sh0 <| St0) *C (Sh1 <| St1)) (sh0 , sh1)) = _
@@ -315,7 +365,7 @@ module _ (X : U) where
 
   oneB : El (X `> Bag X)
   oneB x = 1 , `[ (\ _ -> x) ]
-
+{-
   module _ (n m : Nat) where
     open FINSUMAUT n m
     Jumble+ : El (Jumble (Fin n) X `> Jumble (Fin m) X `> Jumble (Fin (n +N m)) X)
@@ -329,7 +379,7 @@ module _ (X : U) where
         (\ g0 g1 gr -> mapHide {!!} gr)
         , _
       )
-
+-}
 {-
   _+B_ : El (Bag X `> Bag X `> Bag X)
   (n , [f]) +B (m , [g]) = (n +N m) , elElim (Jumble (Fin n) X) [f] (\ _ -> Jumble (Fin (n +N m)) X)

@@ -310,3 +310,103 @@ module _ {X Y : U} where
       fst (act-mul pairActsOnSum (z , _) _ _) = refl `Two z
       snd (act-mul pairActsOnSum (`0 , a) (x0 , y0) (x1 , y1)) = act-mul AGXA a x0 x1
       snd (act-mul pairActsOnSum (`1 , b) (x0 , y0) (x1 , y1)) = act-mul AGYB b y0 y1
+
+-- Homomorphisms for everything
+module _ where
+  -- SemiGroup
+  record _=SemiGroup=>_ {X Y : U} (R : SemiGroup X) (S : SemiGroup Y) : Set where
+    private
+      module R = SemiGroup R
+      module S = SemiGroup S
+    field
+      mor : El (X `> Y)
+      mul-pres : Pr (ALL 2 X \ x0 x1 -> Oq Y (mor (R.mul x0 x1)) (S.mul (mor x0) (mor x1)))
+
+  record _=Monoid=>_ {X Y : U} (R : Monoid X) (S : Monoid Y) : Set where
+    private
+      module R = Monoid R
+      module S = Monoid S
+    field
+      semigroup=> : R.semiGroup =SemiGroup=> S.semiGroup
+
+    open _=SemiGroup=>_ semigroup=> public
+    field
+      neu-pres : Pr (Oq Y (mor R.neu) S.neu)
+
+  record _=Group=>_ {X Y : U} (R : Group X) (S : Group Y) : Set where
+    private
+      module R = Group R
+      module S = Group S
+    field
+      monoid=> : R.monoid =Monoid=> S.monoid
+
+    open _=Monoid=>_ monoid=> public
+    
+    -- automatically preserves the inverse
+    inv-pres : Pr (ALL 1 X \ x -> Oq Y (mor (R.inv x)) (S.inv (mor x)))
+    inv-pres x = 
+      mor (R.inv x)                                         -[ SM.intro> _ _ (S.mul-inv (mor x))  >
+      S.mul (mor (R.inv x)) (S.mul (mor x) (S.inv (mor x))) < S.mulmul- _ _ _ ]-
+      S.mul (S.mul (mor (R.inv x)) (mor x)) (S.inv (mor x)) -[ SM.elim< _ _ (
+          S.mul (mor (R.inv x)) (mor x) < mul-pres _ _ ]-
+          mor (R.mul (R.inv x) x)       -[ cong X mor (R.mulinv- _) >
+          mor R.neu                     -[ neu-pres >
+          S.neu                         [QED]) >
+      S.inv (mor x) [QED]
+      where
+        open EQPRF Y
+        module SM = Monoid S.monoid
+
+  module _ {G H : U} {GG : Group G} {HH : Group H} where
+    private
+      module GA = ACTION GG
+      module HA = ACTION HH
+
+{-  -- This is the classical version of an action homomorphism, with the
+    -- group homomorphism in the forward direction
+    record _=Action=>_ {X Y : U} (AX : GA.Action X) (AY : HA.Action Y) : Set where
+      private
+        module AX = GA.Action AX
+        module AY = HA.Action AY
+        
+      field
+        carrier=> : El (X `> Y)
+        -- conceivable that we don't need a full homormorphism here
+        group=> : GG =Group=> HH
+        act-pres : Pr (ALL 1 X \ x -> ALL 1 G \ g ->
+          Oq Y (AY.act (carrier=> x) (_=Group=>_.mor group=> g)) (carrier=> (AX.act x g)))
+
+      pres-~G~ : Pr (ALL 2 X \ x0 x1 -> x0 AX.~G~ x1 `=> carrier=> x0 AY.~G~ carrier=> x1)
+      pres-~G~ x0 x1 = mapHide (\ (g , g-pres) ->
+        mor g ,
+        (AY.act (carrier=> x0) (mor g) -[ act-pres x0 g >
+        carrier=> (AX.act x0 g)        -[ cong X carrier=> g-pres >
+        carrier=> x1                   [QED]))
+        where
+          open _=Group=>_ group=>
+          open EQPRF Y
+-}
+
+    -- This is the one we're trying out...
+    record _=Action=>_ {X Y : U} (AX : GA.Action X) (AY : HA.Action Y) : Set where
+      private
+        module AX = GA.Action AX
+        module AY = HA.Action AY
+        
+      field
+        carrier=> : El (X `> Y)
+        -- conceivable that we don't need a full homormorphism here
+        group=> : HH =Group=> GG
+        act-pres : Pr (ALL 1 X \ x -> ALL 1 H \ h ->
+          Oq Y (AY.act (carrier=> x) h ) (carrier=> (AX.act x (_=Group=>_.mor group=> h))))
+{-
+      pres-~G~ : Pr (ALL 2 X \ x0 x1 -> x0 AX.~G~ x1 `=> carrier=> x0 AY.~G~ carrier=> x1)
+      pres-~G~ x0 x1 = mapHide (\ (g , g-pres) ->
+        mor g ,
+        (AY.act (carrier=> x0) (mor g) -[ act-pres x0 g >
+        carrier=> (AX.act x0 g)        -[ cong X carrier=> g-pres >
+        carrier=> x1                   [QED]))
+        where
+          open _=Group=>_ group=>
+          open EQPRF Y
+-}
