@@ -31,6 +31,12 @@ module _ where
       open Group.Group G -- later rename the file
       open EQPRF C
 
+    ActZero : Action `Zero
+    ActZero = record
+      { act = \ ()
+      ; act-neu = _
+      ; act-mul = _
+      }
 
   module _ (X : U) where
   

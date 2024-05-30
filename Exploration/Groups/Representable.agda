@@ -85,7 +85,7 @@ record ContainerDesc : Set where
   [_]C X = Shape `>< \ s -> let open REPRESENTABLE (Store s) in FObj X
 
   -- and [_]C is a Functor (all the hard work is in REPRESENTABLE)
-  
+
   
 open ContainerDesc public
 open Representable public
@@ -127,6 +127,22 @@ record _=CtrD=>_ (C D : ContainerDesc) : Set where
       WD = Wiggles (D.Store (shape=> s))
 
   -- and it is natural (TODO)
+
+Rep : U -> Representable
+Wiggles (Rep S) = _
+Positions (Rep S) = S
+Grp (Rep S) = Trivial
+Act (Rep S) = IdentityAct Trivial S
+
+KC : U -> ContainerDesc
+Shape (KC X) = `One
+Store (KC X) _ = Rep `Zero
+
+OneC = KC `One
+
+IC : ContainerDesc
+Shape IC = `One
+Store IC _ = Rep `One
   
 _*C_ : ContainerDesc -> ContainerDesc -> ContainerDesc
 Shape ((Sh0 <| St0) *C (Sh1 <| St1)) = Sh0 `* Sh1
@@ -352,16 +368,39 @@ module FINSUMAUT (n m : Nat) where
     Fin n `+ Fin m < finSumAdd ]=
     Fin (n +N m) [ISO])
 
+BagC : ContainerDesc
+Shape BagC = `Nat
+Store BagC n = JumbleR (Fin n)
+
+
 Bag : U -> U
-Bag X = `Nat `>< \ n -> Jumble (Fin n) X
+Bag = [ BagC ]C -- `Nat `>< \ n -> Jumble (Fin n) X
 
 
 module _ (X : U) where
 
   open EQPRF X
+  open _=CtrD=>_
+
+  nilBCM : OneC =CtrD=> BagC
+  shape=> nilBCM _ = 0
+  _=Action=>_.carrier=> (_=Repr=>_.groupAct=> (store<= nilBCM _)) = snd
+  _=SemiGroup=>_.mor (_=Monoid=>_.semigroup=> (_=Group=>_.monoid=> (_=Action=>_.group=> (_=Repr=>_.groupAct=> (store<= nilBCM _))))) _ = id , id , (snd - naughtE) , (snd - naughtE)
+  _=SemiGroup=>_.mul-pres (_=Monoid=>_.semigroup=> (_=Group=>_.monoid=> (_=Action=>_.group=> (_=Repr=>_.groupAct=> (store<= nilBCM _))))) _ _ = (snd - naughtE) , (snd - naughtE) , _
+  _=Monoid=>_.neu-pres (_=Group=>_.monoid=> (_=Action=>_.group=> (_=Repr=>_.groupAct=> (store<= nilBCM _)))) = (snd - naughtE) , (snd - naughtE) , _
+  _=Action=>_.act-pres (_=Repr=>_.groupAct=> (store<= nilBCM _)) = _
 
   nilB : El (Bag X)
-  nilB = 0 , `[ snd - naughtE ]
+  nilB = [ nilBCM ]C=> X (_ , `[ naughtE ])
+  -- 0 , `[ snd - naughtE ]
+
+  oneBCM : IC =CtrD=> BagC
+  shape=> oneBCM _ = 1
+  _=Action=>_.carrier=> (_=Repr=>_.groupAct=> (store<= oneBCM _)) = _
+  _=SemiGroup=>_.mor (_=Monoid=>_.semigroup=> (_=Group=>_.monoid=> (_=Action=>_.group=> (_=Repr=>_.groupAct=> (store<= oneBCM _))))) _ = id , id , (\ { (ze , p) -> _ }) , \ { (ze , p) -> _ }
+  _=SemiGroup=>_.mul-pres (_=Monoid=>_.semigroup=> (_=Group=>_.monoid=> (_=Action=>_.group=> (_=Repr=>_.groupAct=> (store<= oneBCM _))))) _ _ = (\ { (ze , _) (ze , _) -> _ }) , (\ { (ze , _) (ze , _) -> _ }) , _
+  _=Monoid=>_.neu-pres (_=Group=>_.monoid=> (_=Action=>_.group=> (_=Repr=>_.groupAct=> (store<= oneBCM _)))) = (\ { (ze , _) (ze , _) -> _ }) , (\ { (ze , _) (ze , _) -> _ }) , _
+  _=Action=>_.act-pres (_=Repr=>_.groupAct=> (store<= oneBCM _)) = _
 
   oneB : El (X `> Bag X)
   oneB x = 1 , `[ (\ _ -> x) ]
