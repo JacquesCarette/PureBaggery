@@ -62,6 +62,10 @@ module _ {I : Set} where
 id : forall {k}{X : Set k} -> X -> X
 id x = x
 
+kon_ : forall {k l}{X : Set k}{Y : Set l} -> X -> Y -> X
+kon_ x _ = x
+infixr 20 kon_
+
 -- dependent function composition, pipe style
 _-_ : forall {i j k}{A : Set i}{B : A -> Set j}{C : (a : A) -> B a -> Set k}
   (f : (a : A) -> B a)
