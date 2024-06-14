@@ -1,3 +1,4 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 module Group where
 
 open import Basics
@@ -469,7 +470,7 @@ module _ where
         
         field
           carrier=> : El (X `> Y)
-          -- conceivable that we don't need a full homormorphism here
+          -- conceivable that we don't need a full homomorphism here
           group=> : HH =Group=> GG
           act-pres : Pr (ALL 1 X \ x -> ALL 1 H \ h ->
             Oq Y (AY.act (carrier=> x) h ) (carrier=> (AX.act x (_=Group=>_.mor group=> h))))
@@ -569,3 +570,17 @@ module _ {A B X : U}{G : Group A}{H : Group B}(gh : G =Group=> H) where
     carrier=> groupHomActionMor = id
     group=> groupHomActionMor = gh
     act-pres groupHomActionMor x g = refl X _
+
+module _ {A X Y : U}{G : Group A}(f : X <==> Y) where
+  private
+    module GA = ACTION G
+    module GAA = GA.Action
+
+  module _ (gx : GA.Action X) where
+
+    isoActionHom=> : gx =Action=> (GA.isoAction gx f)
+    isoActionHom=> = {!!}
+
+    -- likely to fit in (backend of composition) in hole in Representable
+    isoActionHom<= : (GA.isoAction gx f) =Action=> gx
+    isoActionHom<= = {!!}

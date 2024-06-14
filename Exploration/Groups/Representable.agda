@@ -1,3 +1,4 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 module Representable where
 
 open import Basics
@@ -127,6 +128,7 @@ record _=CtrD=>_ (C D : ContainerDesc) : Set where
       WD = Wiggles (D.Store (shape=> s))
 
   -- and it is natural (TODO)
+-- 8><
 
 Rep : U -> Representable
 Wiggles (Rep S) = _
@@ -368,6 +370,7 @@ module FINSUMAUT (n m : Nat) where
     Fin n `+ Fin m < finSumAdd ]=
     Fin (n +N m) [ISO])
 
+-- 8><
 BagC : ContainerDesc
 Shape BagC = `Nat
 Store BagC n = JumbleR (Fin n)
@@ -416,7 +419,9 @@ module _ (X : U) where
 
   catBCM : (BagC *C BagC) =CtrD=> BagC
   shape=> catBCM (l , r) = l +N r
-  store<= catBCM (l , r) = record { groupAct=> = {!!} }
+  store<= catBCM (l , r) = record { groupAct=> = (groupHomActionMor {!!} _ -Action- {!!}) -Action- (isoActionHom<= (invIso' (FINSUMADD.finSumAdd l r)) paos) }
+    -- likely need to show that Fin (l +N r) <=> Fin l `+ Fin r
+    -- round-trips
     {-record { groupAct=> = record
     { carrier=> = finCase l r (\ _ -> Fin l `+ Fin r) (`0 ,_) (`1 ,_)
     ; group=> = record { monoid=> = record
