@@ -5,7 +5,8 @@ open import Basics
 open import Quotient
 open import ExtUni
 open import Reasoning
-open import Group
+open import Algebras
+open import Action as ACT -- to deal with a name conflict
 open import Iso
 open import GroupsWeLike
 open import Numbers
@@ -21,7 +22,7 @@ record Representable : Set where
 module REPRESENTABLE (R : Representable) where
   open Representable R renaming (Wiggles to W; Grp to G; Positions to Pos; Act to A)
 
-  open Group.Group G
+  open Algebras.Group G
   open ACTION G
 
   -- we should be trying to construct an endofunctor on (U , `>)
@@ -29,7 +30,7 @@ module REPRESENTABLE (R : Representable) where
 
   FQuot : U -> UQuot
   FQuot X = record { Carrier = Pos `> X ; Rel = _~G~_ ; EquivR = ActEquiv }
-    where open Action (faction A {X})
+    where open ACTION.Action (faction A {X})
   
 
   FObj : U -> U
@@ -41,7 +42,7 @@ module REPRESENTABLE (R : Representable) where
     , \ c0 c1 cq -> homogQuot (c0 - f) (c1 - f)
        (mapHide (id >><< (\ q -> \ p0 p1 pq -> refl (S `> T) f _ _ (q p0 p1 pq))) cq)
     ) where
-        open Action (faction A {T})
+        open ACTION.Action (faction A {T})
         open Quot (Pos `> T) _~G~_ ActEquiv
 
   FId : (X : U) -> Pr (Oq (FObj X `> FObj X) (FArr X X id) id)
@@ -51,7 +52,7 @@ module REPRESENTABLE (R : Representable) where
         act-neu c p p (refl Pos p) ))))
     )
     where
-      open Action (faction A {X})
+      open ACTION.Action (faction A {X})
       open Quot (Pos `> X) _~G~_ ActEquiv
 
   FComp : (R S T : U)(f : El (R `> S))(g : El (S `> T))
@@ -63,9 +64,9 @@ module REPRESENTABLE (R : Representable) where
         (AT.act (c - (f - g)) neu) ((c - f) - g) \ p ->
           AT.act-neu (c - (f - g)) p p (refl Pos p)))
     where
-        module AR = Action (faction A {R})
+        module AR = ACTION.Action (faction A {R})
         module QR = Quot (Pos `> R) AR._~G~_ AR.ActEquiv
-        module AT = Action (faction A {T})
+        module AT = ACTION.Action (faction A {T})
         module QT = Quot (Pos `> T) AT._~G~_ AT.ActEquiv
 
 -- Representable Morphism
@@ -74,7 +75,7 @@ record _=Repr=>_ (R S : Representable) : Set where
     module R = Representable R
     module S = Representable S
   field
-    groupAct=> : R.Act =Action=> S.Act
+    groupAct=> : _=Action=>_ {R.Positions} {S.Positions} R.Act S.Act
     
 record ContainerDesc : Set where
   constructor _<|_
@@ -116,7 +117,7 @@ record _=CtrD=>_ (C D : ContainerDesc) : Set where
       open _=Repr=>_ (store<= s)
       open _=Action=>_ groupAct=>
       open _=Group=>_ group=>
-      open Group.Group
+      open Algebras.Group
       open ACTION.Action
       open EQPRF X
       PC = Positions (C.Store s)
@@ -156,7 +157,7 @@ Act (Store ((Sh0 <| St0) *C (Sh1 <| St1)) (sh0 , sh1)) = pairActsOnSum _ _ (Act 
 module _ (S T : ContainerDesc) where
 
   open REPRESENTABLE
-  open Group.Group
+  open Algebras.Group
   open ACTION.Action
 
   pairC : (X : U) -> (([ S ]C X `* [ T ]C X) <==> [ S *C T ]C X)
@@ -419,7 +420,7 @@ module _ (X : U) where
 
   catBCM : (BagC *C BagC) =CtrD=> BagC
   shape=> catBCM (l , r) = l +N r
-  store<= catBCM (l , r) = record { groupAct=> = (groupHomActionMor {!!} _ -Action- {!!}) -Action- (isoActionHom<= (invIso' (FINSUMADD.finSumAdd l r)) paos) }
+  store<= catBCM (l , r) = record { groupAct=> = (groupHomActionMor {!!} _ -Action- {!!}) -Action- ({!isoActionHom<= (invIso' (FINSUMADD.finSumAdd l r)) paos!}) }
     -- likely need to show that Fin (l +N r) <=> Fin l `+ Fin r
     -- round-trips
     {-record { groupAct=> = record

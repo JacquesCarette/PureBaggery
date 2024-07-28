@@ -11,83 +11,81 @@ open import Algebras
 -- defines various bits of Actions of an Algebra over a carrier G in U,
 -- up to group.
 
-module _ {G : U} where
+module ACTION {G : U} (GG : Group G) where
+  open Group GG
 
-  module ACTION (GG : Group G) where
-    open Group GG
+  record Action (X : U) : Set where
+    field
+      act : El (X `> G `> X)
 
-    record Action (X : U) : Set where
-      field
-        act : El (X `> G `> X)
- 
-        act-neu : Pr (ALL 1 X \ x -> Oq X (act x neu) x)
-        act-mul : Pr (ALL 1 X \ x -> ALL 2 G \ g h ->
-                      Oq X (act x (mul g h)) (act (act x g) h))
-                    
-      open EQPRF X
+      act-neu : Pr (ALL 1 X \ x -> Oq X (act x neu) x)
+      act-mul : Pr (ALL 1 X \ x -> ALL 2 G \ g h ->
+                    Oq X (act x (mul g h)) (act (act x g) h))
 
-      act-eq-neu : Pr (ALL 1 G \ g -> ALL 1 X \ x -> Oq G g neu `=> Oq X (act x g) x)
-      act-eq-neu g x q = 
-        act x g -[ cong G (act x) q >
-        act x neu -[ act-neu x >
-        x [QED]
+    open EQPRF X
 
-      actinv : Pr (X `-> \ x -> G `-> \ g -> Oq X (act x (mul g (inv g))) x)
-      actinv x g = 
-         act x (mul g (inv g)) -[ cong G (act x) (mul-inv g) >
-         act x neu             -[ act-neu x >
-         x                     [QED]
+    act-eq-neu : Pr (ALL 1 G \ g -> ALL 1 X \ x -> Oq G g neu `=> Oq X (act x g) x)
+    act-eq-neu g x q = 
+      act x g   -[ cong G (act x) q >
+      act x neu -[ act-neu x >
+      x         [QED]
 
-      _~G~_ : El X -> El X -> P
-      x ~G~ y = G `# \ g -> Oq X (act x g) y
+    actinv : Pr (X `-> \ x -> G `-> \ g -> Oq X (act x (mul g (inv g))) x)
+    actinv x g = 
+       act x (mul g (inv g)) -[ cong G (act x) (mul-inv g) >
+       act x neu             -[ act-neu x >
+       x                     [QED]
 
-      open Equiv
-      ActEquiv : Equiv (El X) (\ x y -> Pr (x ~G~ y))
-      eqR ActEquiv x = hide (neu , act-neu x)
-      eqS ActEquiv x y (hide gq) = hide (let g = fst gq in (inv g , (
-        act y (inv g)          < cong X (\ y -> act y (inv g)) (snd gq)  ]-
-        act (act x g) (inv g)  < act-mul x g (inv g) ]-
-        act x (mul g (inv g))  -[ actinv x g >
-        x [QED])))
-      eqT ActEquiv x y z (hide gq) (hide hq) = hide
-        let g = fst gq ; h = fst hq in mul g h , (
-        act x (mul g h) -[ act-mul x g h >
-        act (act x g) h -[ cong X (\ y -> act y h) (snd gq) >
-        act y h -[ snd hq >
-        z [QED])
+    _~G~_ : El X -> El X -> P
+    x ~G~ y = G `# \ g -> Oq X (act x g) y
 
-    module _ {X : U}(A : Action X){Y : U} where
-      open Action
+    open Equiv
+    ActEquiv : Equiv (El X) (\ x y -> Pr (x ~G~ y))
+    eqR ActEquiv x = hide (neu , act-neu x)
+    eqS ActEquiv x y (hide gq) = hide (let g = fst gq in (inv g , (
+      act y (inv g)          < cong X (\ y -> act y (inv g)) (snd gq)  ]-
+      act (act x g) (inv g)  < act-mul x g (inv g) ]-
+      act x (mul g (inv g))  -[ actinv x g >
+      x [QED])))
+    eqT ActEquiv x y z (hide gq) (hide hq) = hide
+      let g = fst gq ; h = fst hq in mul g h , (
+      act x (mul g h) -[ act-mul x g h >
+      act (act x g) h -[ cong X (\ y -> act y h) (snd gq) >
+      act y h -[ snd hq >
+      z [QED])
 
-      faction : Action (X `> Y)
-      act faction fu gr x = fu (act A x (inv gr))
-      act-neu faction fu = homogTac (X `> Y) (\ x -> fu (act A x (inv neu))) fu \ x ->
-        EQPRF.cong Y X fu (let open EQPRF X in
-        act A x (inv neu) -[ cong G (act A x) invneu >
-        act A x neu       -[ act-neu A x >
-        x [QED]) --  (act-neu A x)
-      act-mul faction fu gr0 gr1 = homogTac (X `> Y)
-        (\ x -> fu (act A x (inv (mul gr0 gr1))))
-        (\ x -> fu (act A (act A x (inv gr1)) (inv gr0)))
-        \ x -> EQPRF.cong Y X fu (let open EQPRF X in
-           act A x (inv (mul gr0 gr1))         -[ cong G (act A x) (invmul gr0 gr1) >
-           act A x (mul (inv gr1) (inv gr0))   -[ act-mul A x _ _ >
-           act A (act A x (inv gr1)) (inv gr0) [QED] )
+  module _ {X : U}(A : Action X){Y : U} where
+    open Action
 
-    module _ {X : U}(A : Action X){Y : U}(f : X <==> Y) where
-      open Action
-      open EQPRF Y
+    faction : Action (X `> Y)
+    act faction fu gr x = fu (act A x (inv gr))
+    act-neu faction fu = homogTac (X `> Y) (\ x -> fu (act A x (inv neu))) fu \ x ->
+      EQPRF.cong Y X fu (let open EQPRF X in
+      act A x (inv neu) -[ cong G (act A x) invneu >
+      act A x neu       -[ act-neu A x >
+      x [QED]) --  (act-neu A x)
+    act-mul faction fu gr0 gr1 = homogTac (X `> Y)
+      (\ x -> fu (act A x (inv (mul gr0 gr1))))
+      (\ x -> fu (act A (act A x (inv gr1)) (inv gr0)))
+      \ x -> EQPRF.cong Y X fu (let open EQPRF X in
+         act A x (inv (mul gr0 gr1))         -[ cong G (act A x) (invmul gr0 gr1) >
+         act A x (mul (inv gr1) (inv gr0))   -[ act-mul A x _ _ >
+         act A (act A x (inv gr1)) (inv gr0) [QED] )
 
-      isoAction : Action Y
-      act isoAction y g = fwd f (act A (bwd f y) g)
-      act-neu isoAction y = vert (
-        fwd f (act A (bwd f y) neu) ==[ congB X (fwd f) (act-neu A _) >
-        fwd f (bwd f y) ==[ bleu (bwd-fwd f y) >
-        y [==])
-      act-mul isoAction y g h = vert (
-        fwd f (act A (bwd f y) (mul g h)) ==[ congB X (fwd f) (act-mul A (bwd f y) g h)  >
-        fwd f (act A (act A (bwd f y) g) h) < congB X (\ x -> fwd f (act A x h)) (fwd-bwd f _) ]==
-        fwd f (act A (bwd f (fwd f (act A (bwd f y) g))) h) [==])
+  module _ {X : U}(A : Action X){Y : U}(f : X <==> Y) where
+    open Action
+    open EQPRF Y
+
+    isoAction : Action Y
+    act isoAction y g = fwd f (act A (bwd f y) g)
+    act-neu isoAction y = vert (
+      fwd f (act A (bwd f y) neu) ==[ congB X (fwd f) (act-neu A _) >
+      fwd f (bwd f y) ==[ bleu (bwd-fwd f y) >
+      y [==])
+    act-mul isoAction y g h = vert (
+      fwd f (act A (bwd f y) (mul g h)) ==[ congB X (fwd f) (act-mul A (bwd f y) g h)  >
+      fwd f (act A (act A (bwd f y) g) h) < congB X (\ x -> fwd f (act A x h)) (fwd-bwd f _) ]==
+      fwd f (act A (bwd f (fwd f (act A (bwd f y) g))) h) [==])
 
 module _ {X Y : U} where
 
@@ -112,7 +110,7 @@ module _ {X Y : U} where
 
   module _ (GX : Group X)(GY : Group Y) where
 
-    open Group
+    open Group using (monoid; inv; mulinv-)
 
     _*Group*_ : Group (X `* Y)
     _*Group*_ = group/ _ (monoid GX *Monoid* monoid GY) (record
@@ -183,11 +181,11 @@ module _ {X Y : U} where
 module _ {A X : U}{G : Group A} where
 
   open ACTION G
-
+  
   module _ {AX : Action X} where
     open _=Action=>_
 
-    idAction : AX =Action=> AX
+    idAction :  _=Action=>_ {X} {X} AX AX
     carrier=> idAction = id
     group=> idAction = idGroup
     act-pres idAction x g = refl X _
@@ -203,7 +201,9 @@ module _ {A X B Y C Z : U}{GA : Group A}{GB : Group B}{GC : Group C} where
     open _=Group=>_
     open EQPRF Z
 
-    _-Action-_ : AX =Action=> BY -> BY =Action=> CZ -> AX =Action=> CZ
+    -- this ugliness is new in 2.6.3, fix later
+    _-Action-_ : _=Action=>_ {X} {Y} AX BY -> _=Action=>_ {Y} {Z} BY CZ
+               -> _=Action=>_ {X} {Z} AX CZ
     carrier=> (f -Action- g) = carrier=> f - carrier=> g
     group=> (f -Action- g) = group=> g -Group- group=> f
     act-pres (f -Action- g) x c = vert (
@@ -271,11 +271,12 @@ module _ {A B X : U}{G : Group A}{H : Group B}(gh : G =Group=> H) where
       HAA.act (HAA.act x (mor g0)) (mor g1) [==])
 
     open _=Action=>_
-    groupHomActionMor : ha =Action=> groupHomAction
+    groupHomActionMor : _=Action=>_ {X} {X} ha groupHomAction
     carrier=> groupHomActionMor = id
     group=> groupHomActionMor = gh
     act-pres groupHomActionMor x g = refl X _
 
+{-
 module _ {A X Y : U}{G : Group A}(f : X <==> Y) where
   private
     module GA = ACTION G
@@ -289,3 +290,4 @@ module _ {A X Y : U}{G : Group A}(f : X <==> Y) where
     -- likely to fit in (backend of composition) in hole in Representable
     isoActionHom<= : (GA.isoAction gx f) =Action=> gx
     isoActionHom<= = {!!}
+-}

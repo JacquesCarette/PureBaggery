@@ -3,7 +3,7 @@ module Hom where
 open import Basics
 open import ExtUni
 open import Reasoning
-open import Group
+open import Algebras
 
 -- TODO: refactor hierarchically
 

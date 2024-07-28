@@ -1,6 +1,6 @@
 module List where
 
-open import Basics
+open import Basics hiding (List; list)
 open import ExtUni
 
 postulate

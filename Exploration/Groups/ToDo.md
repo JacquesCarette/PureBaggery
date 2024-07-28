@@ -8,7 +8,6 @@
   - Bag
 
 - Split Group:
-  - Group (and below) and their morphisms
   - Action and their morphisms
   - ActionsWeLike (and ActionMorphisms here too)
 
@@ -31,3 +30,11 @@
 
 - add CyclicContDesc
 - derivatives !
+
+---
+
+# Done
+- Split Group
+  - Group (and below) and their morphisms
+- Make everything compile again (ugh)
+

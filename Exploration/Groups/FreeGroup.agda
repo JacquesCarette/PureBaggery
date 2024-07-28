@@ -1,8 +1,8 @@
 module FreeGroup where
 
 open import ExtUni
-open import Group
-open import Basics
+open import Algebras
+open import Basics hiding (List; list)
 open import List
 open import Quotient
 open import Reasoning
@@ -11,7 +11,7 @@ module _ (X : U) where
 
   open EQPRF (List (`Two `* X))
 
-  open Group.Group
+  open Algebras.Group
   open Equiv
 
   postulate -- moving the goalposts
@@ -35,9 +35,9 @@ module _ (X : U) where
   eqQ-FGQ : {xs ys : El (List (`Two `* X))}
          -> Pr (Eq (List (`Two `* X)) (List (`Two `* X)) xs ys)
          -> Pr (`In (FGQ xs ys))
-  eqQ-FGQ {xs}{ys} q = eqQ (List _) (\ xs ys -> `In (FGQ xs ys)) eqFGQ xs ys q
+  eqQ-FGQ {xs}{ys} q = Quot.eqQ (List _) (\ xs ys -> `In (FGQ xs ys)) eqFGQ xs ys q
 
-  open EQUIVPRF (List _) (\ xs ys -> `In (FGQ xs ys)) eqFGQ 
+  open Quot.EQUIVPRF (List _) (\ xs ys -> `In (FGQ xs ys)) eqFGQ 
 
   invcal' : (b : Two)(x : El X) -> El (FGQ (cat _ (the _ (not b , x)) (the _ (b , x))) (nil _) )
   invcal' `0 x = invcal `1 x
@@ -96,46 +96,49 @@ module _ (X : U) where
             , _ ))
         , _ ))
       , _ )
-  mulinv- FreeGroup cxs = elElim FreeGroupCarrier cxs
+  mulinv- FreeGroup cxs =
+    let congL = cong (List _) in
+    elElim FreeGroupCarrier cxs
     (\ cxs -> `Pr
       (Eq FreeGroupCarrier FreeGroupCarrier
         (mul FreeGroup (inv FreeGroup cxs) cxs) (neu FreeGroup)))
     ( (\ xs -> homogTac FreeGroupCarrier _ _
       (listElim _ xs (\ xs -> `Pr (`In (FGQ (cat _ (list _ _ _ (rev _ xs)) xs) (nil _))))
-         (eqQ-FGQ (
-            cat _ (list _ _ (not >><< id) (rev _ (nil _))) (nil _)
-              -[ catnil _ _ >
+         (eqQ-FGQ (cat _ (list _ _ _ (rev _ (nil _))) (nil _) -[ catnil _ _ >
+                   list _ _ _ (rev _ (nil _))                 -[ cong (List _) (list _ _ _) (revnil _) >
+                   list _ _ _ (nil _)                         -[ listnil >
+                   nil _ [QED] {-
             list _ _ (not >><< id) (rev _ (nil _))
               -[ cong (list _ _ (not >><< id)) (revnil _) >
             list _ _ (not >><< id) (nil _)
               -[ listnil >
-            nil _ [QED]))
+            nil _ [QED] -}))
          \ s ss ssh -> 
             cat _ (list _ _ (not >><< id) (rev _ (cat _ (the _ s) ss))) (cat _ (the _ s) ss)
               ~[ eqQ-FGQ (
                    cat _ (list _ _ (not >><< id) (rev _ (cat _ (the _ s) ss))) (cat _ (the _ s) ss)
-                     -[ cong (\ xs -> cat _ (list _ _ _ xs) (cat _ (the _ s) ss)) (revcat _ _ _) >
+                     -[ congL (\ xs -> cat _ (list _ _ _ xs) (cat _ (the _ s) ss)) (revcat _ _ _) >
                    cat _ (list _ _ (not >><< id) (cat _ (rev _ ss) (rev _ (the _ s)))) (cat _ (the _ s) ss)
-                     -[ cong (\ xs -> cat _ xs (cat _ (the _ s) ss)) listcat >
+                     -[ congL (\ xs -> cat _ xs (cat _ (the _ s) ss)) listcat >
                    cat _ (cat _ (list _ _ (not >><< id) (rev _ ss)) (list _ _ (not >><< id) (rev _ (the _ s)))) (cat _ (the _ s) ss)
-                     -[ cong (\ xs -> cat _ (cat _ _ (list _ _ _ xs)) (cat _ (the _ s) ss)) (revthe _ s) >
+                     -[ congL (\ xs -> cat _ (cat _ _ (list _ _ _ xs)) (cat _ (the _ s) ss)) (revthe _ s) >
                    cat _ (cat _ (list _ _ (not >><< id) (rev _ ss)) (list _ _ (not >><< id) (the _ s))) (cat _ (the _ s) ss)
-                     -[ cong (\xs -> cat _ (cat _ _ xs) (cat _ (the _ s) ss)) listthe >
+                     -[ congL (\xs -> cat _ (cat _ _ xs) (cat _ (the _ s) ss)) listthe >
                    cat _ (cat _ (list _ _ (not >><< id) (rev _ ss)) (the _ ((not >><< id) s))) (cat _ (the _ s) ss)
                      -[ catcat _ _ _ _ >
                    cat _ (list _ _ (not >><< id) (rev _ ss)) (cat _ (the _ ((not >><< id) s)) (cat _ (the _ s) ss))
-                     < cong (cat _ _) (catcat _ _ _ _) ]-
+                     < congL (cat _ _) (catcat _ _ _ _) ]-
                    cat _ (list _ _ (not >><< id) (rev _ ss))
                      (cat _ (cat _ (the _ ((not >><< id) s)) (the _ s))
                         ss)
-                     [QED]  
+                     [QED]
               ) >
             cat _ (list _ _ (not >><< id) (rev _ ss))
               (cat _ (cat _ (the _ ((not >><< id) s)) (the _ s))
                 ss)
               ~[ hide (catfgq _ _ _ (hide (fgqcat _ _ _ (hide (invcal' _ _))))) >
             cat _ (list _ _ (not >><< id) (rev _ ss)) (cat _ (nil _) ss)
-              ~[ eqQ-FGQ (cong (cat _ _) (nilcat _ ss)) >
+              ~[ eqQ-FGQ (cong (List _) (cat _ _) (nilcat _ ss)) >
             cat _ (list _ _ (not >><< id) (rev _ ss)) ss
               ~[ ssh >
             nil _

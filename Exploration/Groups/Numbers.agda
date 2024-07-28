@@ -5,7 +5,7 @@ module Numbers where
 open import Basics
 open import ExtUni
 open import Reasoning
-open import Group
+open import Algebras
 open import Hom
 open import Quotient
 

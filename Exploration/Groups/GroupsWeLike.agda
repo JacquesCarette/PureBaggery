@@ -2,7 +2,8 @@ module GroupsWeLike where
 
 open import ExtUni
 open import Reasoning
-open import Group
+open import Algebras
+open import Action
 open import Iso
 open import Basics
 open import Numbers
@@ -28,7 +29,7 @@ module _ where
       ; act-neu = mul-neu
       ; act-mul = \ a b c -> ! mulmul- a b c
       } where
-      open Group.Group G -- later rename the file
+      open Algebras.Group G -- later rename the file
       open EQPRF C
 
     ActZero : Action `Zero
