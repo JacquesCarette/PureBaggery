@@ -3,7 +3,7 @@ module GroupsWeLike where
 open import ExtUni
 open import Reasoning
 open import Algebras
-open import Action
+open import Actions
 open import Iso
 open import Basics
 open import Numbers

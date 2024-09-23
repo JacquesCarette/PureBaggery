@@ -1,11 +1,10 @@
 {-# OPTIONS --allow-unsolved-metas #-}
-module Action where
+module Actions where
 
 open import Basics
 open import ExtUni
 open import Reasoning
 open import Quotient
-open import Iso
 open import Algebras
 
 -- defines various bits of Actions of an Algebra over a carrier G in U,
@@ -36,6 +35,7 @@ module ACTION {G : U} (GG : Group G) where
        act x neu             -[ act-neu x >
        x                     [QED]
 
+    -- every action induces an equivalence on the acted-on type
     _~G~_ : El X -> El X -> P
     x ~G~ y = G `# \ g -> Oq X (act x g) y
 
@@ -54,90 +54,11 @@ module ACTION {G : U} (GG : Group G) where
       act y h -[ snd hq >
       z [QED])
 
-  module _ {X : U}(A : Action X){Y : U} where
-    open Action
 
-    faction : Action (X `> Y)
-    act faction fu gr x = fu (act A x (inv gr))
-    act-neu faction fu = homogTac (X `> Y) (\ x -> fu (act A x (inv neu))) fu \ x ->
-      EQPRF.cong Y X fu (let open EQPRF X in
-      act A x (inv neu) -[ cong G (act A x) invneu >
-      act A x neu       -[ act-neu A x >
-      x [QED]) --  (act-neu A x)
-    act-mul faction fu gr0 gr1 = homogTac (X `> Y)
-      (\ x -> fu (act A x (inv (mul gr0 gr1))))
-      (\ x -> fu (act A (act A x (inv gr1)) (inv gr0)))
-      \ x -> EQPRF.cong Y X fu (let open EQPRF X in
-         act A x (inv (mul gr0 gr1))         -[ cong G (act A x) (invmul gr0 gr1) >
-         act A x (mul (inv gr1) (inv gr0))   -[ act-mul A x _ _ >
-         act A (act A x (inv gr1)) (inv gr0) [QED] )
-
-  module _ {X : U}(A : Action X){Y : U}(f : X <==> Y) where
-    open Action
-    open EQPRF Y
-
-    isoAction : Action Y
-    act isoAction y g = fwd f (act A (bwd f y) g)
-    act-neu isoAction y = vert (
-      fwd f (act A (bwd f y) neu) ==[ congB X (fwd f) (act-neu A _) >
-      fwd f (bwd f y) ==[ bleu (bwd-fwd f y) >
-      y [==])
-    act-mul isoAction y g h = vert (
-      fwd f (act A (bwd f y) (mul g h)) ==[ congB X (fwd f) (act-mul A (bwd f y) g h)  >
-      fwd f (act A (act A (bwd f y) g) h) < congB X (\ x -> fwd f (act A x h)) (fwd-bwd f _) ]==
-      fwd f (act A (bwd f (fwd f (act A (bwd f y) g))) h) [==])
-
-module _ {X Y : U} where
-
-  module _ (SX : SemiGroup X)(SY : SemiGroup Y) where
-
-    open SemiGroup
-
-    _*SemiGroup*_ : SemiGroup (X `* Y)
-    mul _*SemiGroup*_ (x0 , y0) (x1 , y1) = mul SX x0 x1 , mul SY y0 y1
-    mulmul- _*SemiGroup*_ (x0 , y0) (x1 , y1) (x2 , y2) = mulmul- SX x0 x1 x2 , mulmul- SY y0 y1 y2
-
-  module _ (MX : Monoid X)(MY : Monoid Y) where
-
-    open Monoid
-
-    _*Monoid*_ : Monoid (X `* Y)
-    _*Monoid*_ = monoid/ _ (semiGroup MX *SemiGroup* semiGroup MY) (record
-      { neu = neu MX , neu MY
-      ; mulneu- = \ (x , y) -> mulneu- MX x , mulneu- MY y
-      ; mul-neu = \ (x , y) -> mul-neu MX x , mul-neu MY y
-      })
-
-  module _ (GX : Group X)(GY : Group Y) where
-
-    open Group using (monoid; inv; mulinv-)
-
-    _*Group*_ : Group (X `* Y)
-    _*Group*_ = group/ _ (monoid GX *Monoid* monoid GY) (record
-      { inv = inv GX >><< inv GY
-      ; mulinv- = \ (x , y) -> mulinv- GX x , mulinv- GY y
-      })
-
-    open ACTION
-    module _ {A B : U}(AGXA : Action GX A)(AGYB : Action GY B) where
-
-      open Action
-      
-      pairActsOnSum : Action _*Group*_ (A `+ B)
-      fst (act pairActsOnSum (z , _) (x , y)) = z
-      snd (act pairActsOnSum (`0 , a) (x , y)) = act AGXA a x
-      snd (act pairActsOnSum (`1 , b) (x , y)) = act AGYB b y
-      fst (act-neu pairActsOnSum (z , _)) = refl `Two z
-      snd (act-neu pairActsOnSum (`0 , a)) = act-neu AGXA a
-      snd (act-neu pairActsOnSum (`1 , b)) = act-neu AGYB b
-      fst (act-mul pairActsOnSum (z , _) _ _) = refl `Two z
-      snd (act-mul pairActsOnSum (`0 , a) (x0 , y0) (x1 , y1)) = act-mul AGXA a x0 x1
-      snd (act-mul pairActsOnSum (`1 , b) (x0 , y0) (x1 , y1)) = act-mul AGYB b y0 y1
-
-  module _ {G H : U} {GG : Group G} {HH : Group H} where
-    private
-      module GA = ACTION GG
-      module HA = ACTION HH
+module _ {G H : U} {GG : Group G} {HH : Group H} where
+  private
+    module GA = ACTION GG
+    module HA = ACTION HH
 
 {-  -- This is the classical version of an action homomorphism, with the
     -- group homomorphism in the forward direction
@@ -164,19 +85,19 @@ module _ {X Y : U} where
           open EQPRF Y
 -}
 
-    -- This is the one we're trying out...
-    module _ {X Y : U} (AX : GA.Action X) (AY : HA.Action Y) where
-      record _=Action=>_ : Set where
-        private
-          module AX = GA.Action AX
-          module AY = HA.Action AY
-        
-        field
-          carrier=> : El (X `> Y)
-          -- conceivable that we don't need a full homomorphism here
-          group=> : HH =Group=> GG
-          act-pres : Pr (ALL 1 X \ x -> ALL 1 H \ h ->
-            Oq Y (AY.act (carrier=> x) h ) (carrier=> (AX.act x (_=Group=>_.mor group=> h))))
+  -- This is the one we're trying out...
+  module _ {X Y : U} (AX : GA.Action X) (AY : HA.Action Y) where
+    record _=Action=>_ : Set where
+      private
+        module AX = GA.Action AX
+        module AY = HA.Action AY
+
+      field
+        carrier=> : El (X `> Y)
+        -- conceivable that we don't need a full homomorphism here
+        group=> : HH =Group=> GG
+        act-pres : Pr (ALL 1 X \ x -> ALL 1 H \ h ->
+          Oq Y (AY.act (carrier=> x) h ) (carrier=> (AX.act x (_=Group=>_.mor group=> h))))
 
 module _ {A X : U}{G : Group A} where
 
@@ -185,7 +106,7 @@ module _ {A X : U}{G : Group A} where
   module _ {AX : Action X} where
     open _=Action=>_
 
-    idAction :  _=Action=>_ {X} {X} AX AX
+    idAction :  AX =Action=> AX
     carrier=> idAction = id
     group=> idAction = idGroup
     act-pres idAction x g = refl X _
@@ -201,9 +122,8 @@ module _ {A X B Y C Z : U}{GA : Group A}{GB : Group B}{GC : Group C} where
     open _=Group=>_
     open EQPRF Z
 
-    -- this ugliness is new in 2.6.3, fix later
-    _-Action-_ : _=Action=>_ {X} {Y} AX BY -> _=Action=>_ {Y} {Z} BY CZ
-               -> _=Action=>_ {X} {Z} AX CZ
+    _-Action-_ : AX =Action=> BY -> BY =Action=> CZ
+              -> AX =Action=> CZ
     carrier=> (f -Action- g) = carrier=> f - carrier=> g
     group=> (f -Action- g) = group=> g -Group- group=> f
     act-pres (f -Action- g) x c = vert (
@@ -271,7 +191,7 @@ module _ {A B X : U}{G : Group A}{H : Group B}(gh : G =Group=> H) where
       HAA.act (HAA.act x (mor g0)) (mor g1) [==])
 
     open _=Action=>_
-    groupHomActionMor : _=Action=>_ {X} {X} ha groupHomAction
+    groupHomActionMor : ha =Action=> groupHomAction
     carrier=> groupHomActionMor = id
     group=> groupHomActionMor = gh
     act-pres groupHomActionMor x g = refl X _

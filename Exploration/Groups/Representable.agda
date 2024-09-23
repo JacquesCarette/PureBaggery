@@ -6,7 +6,8 @@ open import Quotient
 open import ExtUni
 open import Reasoning
 open import Algebras
-open import Action as ACT -- to deal with a name conflict
+open import ProductsForAlgebras
+open import Actions as ACT -- to deal with a name conflict
 open import Iso
 open import GroupsWeLike
 open import Numbers
@@ -75,7 +76,7 @@ record _=Repr=>_ (R S : Representable) : Set where
     module R = Representable R
     module S = Representable S
   field
-    groupAct=> : _=Action=>_ {R.Positions} {S.Positions} R.Act S.Act
+    groupAct=> : R.Act =Action=> S.Act
     
 record ContainerDesc : Set where
   constructor _<|_

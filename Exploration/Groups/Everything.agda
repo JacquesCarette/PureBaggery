@@ -6,7 +6,7 @@ module Everything where
 -- would make sense to sort this by dependency, but this is better
 -- than nothing
 
-open import Action
+open import Actions
 open import Algebras
 open import Basics
 open import Category
@@ -18,6 +18,7 @@ open import Iso
 open import List
 open import Nary
 open import Numbers
+open import ProductsForAlgebras
 open import Quotient
 open import Reasoning
 open import Representable

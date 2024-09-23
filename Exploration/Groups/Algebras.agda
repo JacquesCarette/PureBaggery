@@ -8,7 +8,8 @@ open import Reasoning
 -- up to group. Intermediate steps give good places to put
 -- oft used combinators and some lemmas. The homomorphisms
 -- of each of these Algebras are also defined here, as well as
--- id Homs and composition of homomorphisms.
+-- id Homs and composition of homomorphisms. i.e., we give all
+-- the stuff to make Things and their Categories of Thing Homs
 
 -- Naming convention:
 -- - X/ in the context of a Y means
