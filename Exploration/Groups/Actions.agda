@@ -99,6 +99,8 @@ module _ {G H : U} {GG : Group G} {HH : Group H} where
         act-pres : Pr (ALL 1 X \ x -> ALL 1 H \ h ->
           Oq Y (AY.act (carrier=> x) h ) (carrier=> (AX.act x (_=Group=>_.mor group=> h))))
 
+    record _<=Action=>_ : Set where
+      
 module _ {A X : U}{G : Group A} where
 
   open ACTION G
@@ -133,23 +135,6 @@ module _ {A X B Y C Z : U}{GA : Group A}{GB : Group B}{GC : Group C} where
         ==[ congB Y (carrier=> g) (act-pres f x (mor (group=> g) c)) >
       carrier=> g (carrier=> f (AA.Action.act AX x (mor (group=> f) (mor (group=> g) c)))) [==])
     
-
-{-
-      module _ (HG : HH =Group=> GG)(f : X <==> Y) where
-        open _=Group=>_ HG
-        private
-          module AX = GA.Action AX
-          module AY = HA.Action AY
-        
-        homGroupIsoAct : _=Action=>_
-        homGroupIsoAct = record
-          { carrier=> = fwd f
-          ; group=> = HG
-          ; act-pres = \ x h -> vert (
-              AY.act (fwd f x) h ==[ {!!} >    -- we suspect this to be nonsense
-              fwd f (AX.act x (mor h)) [==])
-          } where open EQPRF Y
--}
 
 {-
       pres-~G~ : Pr (ALL 2 X \ x0 x1 -> x0 AX.~G~ x1 `=> carrier=> x0 AY.~G~ carrier=> x1)
@@ -196,18 +181,4 @@ module _ {A B X : U}{G : Group A}{H : Group B}(gh : G =Group=> H) where
     group=> groupHomActionMor = gh
     act-pres groupHomActionMor x g = refl X _
 
-{-
-module _ {A X Y : U}{G : Group A}(f : X <==> Y) where
-  private
-    module GA = ACTION G
-    module GAA = GA.Action
 
-  module _ (gx : GA.Action X) where
-
-    isoActionHom=> : gx =Action=> (GA.isoAction gx f)
-    isoActionHom=> = {!!}
-
-    -- likely to fit in (backend of composition) in hole in Representable
-    isoActionHom<= : (GA.isoAction gx f) =Action=> gx
-    isoActionHom<= = {!!}
--}

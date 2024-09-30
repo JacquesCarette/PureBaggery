@@ -3,6 +3,7 @@ module Algebras where
 open import Basics
 open import ExtUni
 open import Reasoning
+open import Iso
 
 -- defines various bits of Algebra over a carrier G in U,
 -- up to group. Intermediate steps give good places to put
@@ -320,3 +321,45 @@ module _ where
     
       _-Group-_ : R =Group=> S -> S =Group=> T -> R =Group=> T
       monoid=> (rs -Group- st) = monoid=> rs -Monoid- monoid=> st
+
+-- Isomomorphisms for everything
+module _ {X Y : U} where
+  open EQPRF X
+  
+  -- SemiGroup
+  record _<=SemiGroup=>_ (R : SemiGroup X) (S : SemiGroup Y) : Set where
+    open SemiGroup
+    open _=SemiGroup=>_
+    
+    field
+      fwdmor : R =SemiGroup=> S
+      hasInv : El (HasInv X Y (mor fwdmor))
+
+    private
+      xy : X <==> Y
+      xy = iso' ((mor fwdmor) , hasInv)
+
+    bwdmor : S =SemiGroup=> R
+    bwdmor .mor = fst hasInv
+    bwdmor .mul-pres y0 y1 = vert (
+      bwd xy (mul S y0 y1)
+        < bleu (refl (Y `> Y `> X) (\ y0 y1 -> bwd xy (mul S y0 y1))
+          _ _ (bwd-fwd xy y0)
+          _ _ (bwd-fwd xy y1)) ]==
+      bwd xy (mul S (fwd xy (bwd xy y0)) (fwd xy (bwd xy y1)))
+        < congB Y (bwd xy) (mul-pres fwdmor _ _) ]==
+      bwd xy (fwd xy (mul R (bwd xy y0) (bwd xy y1)))
+        ==[ bleu (fwd-bwd xy _) >
+      mul R (bwd xy y0) (bwd xy y1) [==] )
+    
+  record _<=Monoid=>_ (R : Monoid X) (S : Monoid Y) : Set where
+    open _=Monoid=>_
+    field
+      fwdmor : R =Monoid=> S
+      hasInv : El (HasInv X Y (mor fwdmor))
+      
+  record _<=Group=>_ (R : Group X) (S : Group Y) : Set where
+    open _=Group=>_
+    field
+      fwdmor : R =Group=> S
+      hasInv : El (HasInv X Y (mor fwdmor))

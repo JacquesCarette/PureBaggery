@@ -36,6 +36,7 @@ module _ {G : U} (GG : Group G) where
     module _ {Y : U}(f : X <==> Y) where
       open Action
       open EQPRF Y
+      open _=Action=>_
 
       isoAction : Action Y
       act isoAction y g = fwd f (act A (bwd f y) g)
@@ -47,6 +48,18 @@ module _ {G : U} (GG : Group G) where
         fwd f (act A (bwd f y) (mul g h)) ==[ congB X (fwd f) (act-mul A (bwd f y) g h)  >
         fwd f (act A (act A (bwd f y) g) h) < congB X (\ x -> fwd f (act A x h)) (fwd-bwd f _) ]==
         fwd f (act A (bwd f (fwd f (act A (bwd f y) g))) h) [==])
+
+      isoActionHom=> : A =Action=> isoAction
+      isoActionHom=> .carrier=> = fwd f
+      isoActionHom=> .group=> = idGroup
+      isoActionHom=> .act-pres x g = vert (
+        fwd f (act A (bwd f (fwd f x)) g) ==[ congB X (\ z -> fwd f (act A z g)) (fwd-bwd f _)  >
+        fwd f (act A x g)                 [==])
+
+      isoActionHom<= : isoAction =Action=> A
+      isoActionHom<= .carrier=> = bwd f
+      isoActionHom<= .group=> = idGroup
+      isoActionHom<= .act-pres y g = EQPRF.!_ X (fwd-bwd f (act A (bwd f y) g))
 
 module _ {X Y : U}(GX : Group X)(GY : Group Y) where
 
@@ -65,4 +78,4 @@ module _ {X Y : U}(GX : Group X)(GY : Group Y) where
     fst (act-mul pairActsOnSum (z , _) _ _) = refl `Two z
     snd (act-mul pairActsOnSum (`0 , a) (x0 , y0) (x1 , y1)) = act-mul AGXA a x0 x1
     snd (act-mul pairActsOnSum (`1 , b) (x0 , y0) (x1 , y1)) = act-mul AGYB b y0 y1
-    
+

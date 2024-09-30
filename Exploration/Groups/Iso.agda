@@ -4,16 +4,19 @@ open import Basics
 open import ExtUni
 open import Reasoning
 
+-- What it means for a function to have an inverse
+HasInv : (S T : U) -> El (S `> T) -> U
+HasInv S T f
+   = (T `> S) `>< \ g
+  -> `Pr ( (S `-> \ s -> Eq S S (g (f s)) s)
+       `/\ (T `-> \ t -> Eq T T (f (g t)) t)
+         )
+
 -- type equivalence via explicit morphisms
 -- and irrelevant proofs of left/right inverse
 -- aka type isomorphism (strictly speaking, quasi-equivalence)
 _<=>_ : U -> U -> U
-S <=> T
-   = (S `> T) `>< \ f
-  -> (T `> S) `>< \ g
-  -> `Pr ( (S `-> \ s -> Eq S S (g (f s)) s)
-       `/\ (T `-> \ t -> Eq T T (f (g t)) t)
-         )
+S <=> T = (S `> T) `>< HasInv S T
 
 -- make it easier to work with equivalences
 record _<==>_ (S T : U) : Set where

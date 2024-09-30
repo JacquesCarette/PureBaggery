@@ -8,9 +8,13 @@ module Everything where
 
 open import Actions
 open import Algebras
+open import Bags
 open import Basics
 open import Category
+open import Containers
+open import ContainersWeLike
 open import ExtUni
+open import Fin
 open import FreeGroup
 open import GroupsWeLike
 open import Hom
@@ -21,4 +25,5 @@ open import Numbers
 open import ProductsForAlgebras
 open import Quotient
 open import Reasoning
-open import Representable
+open import Representables
+open import RepresentablesWeLike
