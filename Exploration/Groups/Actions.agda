@@ -3,6 +3,7 @@ module Actions where
 
 open import Basics
 open import ExtUni
+open import Iso
 open import Reasoning
 open import Quotient
 open import Algebras
@@ -60,46 +61,60 @@ module _ {G H : U} {GG : Group G} {HH : Group H} where
     module GA = ACTION GG
     module HA = ACTION HH
 
-{-  -- This is the classical version of an action homomorphism, with the
-    -- group homomorphism in the forward direction
-    record _=Action=>_ {X Y : U} (AX : GA.Action X) (AY : HA.Action Y) : Set where
-      private
-        module AX = GA.Action AX
-        module AY = HA.Action AY
-        
-      field
-        carrier=> : El (X `> Y)
-        -- conceivable that we don't need a full homormorphism here
-        group=> : GG =Group=> HH
-        act-pres : Pr (ALL 1 X \ x -> ALL 1 G \ g ->
-          Oq Y (AY.act (carrier=> x) (_=Group=>_.mor group=> g)) (carrier=> (AX.act x g)))
-
-      pres-~G~ : Pr (ALL 2 X \ x0 x1 -> x0 AX.~G~ x1 `=> carrier=> x0 AY.~G~ carrier=> x1)
-      pres-~G~ x0 x1 = mapHide (\ (g , g-pres) ->
-        mor g ,
-        (AY.act (carrier=> x0) (mor g) -[ act-pres x0 g >
-        carrier=> (AX.act x0 g)        -[ cong X carrier=> g-pres >
-        carrier=> x1                   [QED]))
-        where
-          open _=Group=>_ group=>
-          open EQPRF Y
--}
-
-  -- This is the one we're trying out...
   module _ {X Y : U} (AX : GA.Action X) (AY : HA.Action Y) where
     record _=Action=>_ : Set where
       private
         module AX = GA.Action AX
         module AY = HA.Action AY
+        open _=Group=>_
 
       field
-        carrier=> : El (X `> Y)
+        carrier=> : El (X `> Y)    -- COVARIANT!
         -- conceivable that we don't need a full homomorphism here
-        group=> : HH =Group=> GG
+        group=> : HH =Group=> GG   -- CONTRAVARIANT!
         act-pres : Pr (ALL 1 X \ x -> ALL 1 H \ h ->
-          Oq Y (AY.act (carrier=> x) h ) (carrier=> (AX.act x (_=Group=>_.mor group=> h))))
+          Oq Y (AY.act (carrier=> x) h ) (carrier=> (AX.act x (mor group=> h))))
 
+module _ {G H : U} {GG : Group G} {HH : Group H} where
+  private
+    module GA = ACTION GG
+    module HA = ACTION HH
+
+  module _ {X Y : U} (AX : GA.Action X) (AY : HA.Action Y) where
+    open EQPRF X
+    
     record _<=Action=>_ : Set where
+      private
+        module AX = GA.Action AX
+        module AY = HA.Action AY
+        open _=Group=>_
+        open _=Action=>_
+
+      field
+        fwdmor : AX =Action=> AY
+        carrierInv : El (HasInv X Y (carrier=> fwdmor))
+        groupInv : El (HasInv H G (mor (group=> fwdmor)))
+
+      private
+        hg : H <==> G
+        hg = iso' (mor (group=> fwdmor), groupInv)
+        xy : X <==> Y
+        xy = iso' (carrier=> fwdmor , carrierInv)
+
+      bwdmor : AY =Action=> AX
+      carrier=> bwdmor = bwd xy
+      group=> bwdmor = _<=Group=>_.bwdmor (record { fwdmor = group=> fwdmor ; hasInv = groupInv })
+      act-pres bwdmor y g = vert (
+         AX.act (bwd xy y) g
+           < congB G (AX.act (bwd xy y)) (bwd-fwd hg g) ]==
+         AX.act (bwd xy y) (fwd hg (bwd hg g))
+           < bleu (fwd-bwd xy _) ]==
+         bwd xy (fwd xy (AX.act (bwd xy y) (fwd hg (bwd hg g))))
+           < congB Y (bwd xy) (act-pres fwdmor (bwd xy y) (bwd hg g)) ]==
+         bwd xy (AY.act (fwd xy (bwd xy y)) (bwd hg g))
+           ==[ congB Y (\ y -> bwd xy (AY.act y (bwd hg g))) (bwd-fwd xy y) >
+         bwd xy (AY.act y (bwd hg g)) [==])
+        
       
 module _ {A X : U}{G : Group A} where
 

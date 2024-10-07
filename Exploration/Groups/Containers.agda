@@ -67,3 +67,6 @@ record _=CtrD=>_ (C D : ContainerDesc) : Set where
 
   -- and it is natural (TODO)
 
+-- HERE
+-- and what are the cartesian morphisms?
+-- and what are the full blown isos?

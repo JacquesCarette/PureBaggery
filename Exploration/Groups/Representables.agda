@@ -85,6 +85,4 @@ record _<=Repr=>_ (R S : Representable) : Set where
     module R = Representable R
     module S = Representable S
   field
-    fwd : R =Repr=> S
-    bwd : S =Repr=> R
-    -- fwd-bwd : (r : Representable) -> (fwd - bwd) r ??? r
+    groupActIso : R.Act <=Action=> S.Act

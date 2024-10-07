@@ -7,6 +7,7 @@ module Everything where
 -- than nothing
 
 open import Actions
+open import ActionsWeLike
 open import Algebras
 open import Bags
 open import Basics

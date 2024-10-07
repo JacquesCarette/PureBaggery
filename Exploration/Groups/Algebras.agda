@@ -353,13 +353,45 @@ module _ {X Y : U} where
       mul R (bwd xy y0) (bwd xy y1) [==] )
     
   record _<=Monoid=>_ (R : Monoid X) (S : Monoid Y) : Set where
+    open Monoid
+    open _=SemiGroup=>_
     open _=Monoid=>_
+    
     field
       fwdmor : R =Monoid=> S
       hasInv : El (HasInv X Y (mor fwdmor))
-      
+
+    private
+      xy : X <==> Y
+      xy = iso' ((mor fwdmor) , hasInv)
+
+      xySGI : semiGroup R <=SemiGroup=> semiGroup S
+      xySGI = record { fwdmor = semigroup=> fwdmor ; hasInv = hasInv }
+
+    bwdmor : S =Monoid=> R
+    semigroup=> bwdmor = _<=SemiGroup=>_.bwdmor xySGI
+    neu-pres bwdmor = vert (
+      bwd xy (neu S) < congB Y (bwd xy) (neu-pres fwdmor) ]==
+      bwd xy (fwd xy (neu R)) ==[ bleu (fwd-bwd xy _) >
+      neu R [==])
+
+
   record _<=Group=>_ (R : Group X) (S : Group Y) : Set where
+    open Group
+    open _=SemiGroup=>_
+    open _=Monoid=>_
     open _=Group=>_
+    
     field
       fwdmor : R =Group=> S
       hasInv : El (HasInv X Y (mor fwdmor))
+
+    private
+      xy : X <==> Y
+      xy = iso' ((mor fwdmor) , hasInv)
+
+      xyMI : monoid R <=Monoid=> monoid S
+      xyMI = record { fwdmor = monoid=> fwdmor ; hasInv = hasInv }
+
+    bwdmor : S =Group=> R
+    monoid=> bwdmor = _<=Monoid=>_.bwdmor xyMI
