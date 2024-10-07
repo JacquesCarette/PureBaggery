@@ -75,6 +75,9 @@ module _ {G H : U} {GG : Group G} {HH : Group H} where
         act-pres : Pr (ALL 1 X \ x -> ALL 1 H \ h ->
           Oq Y (AY.act (carrier=> x) h ) (carrier=> (AX.act x (mor group=> h))))
 
+      ExtendsToIso : U
+      ExtendsToIso = HasInv X Y carrier=> `* HasInv H G (mor group=>)
+
 module _ {G H : U} {GG : Group G} {HH : Group H} where
   private
     module GA = ACTION GG
@@ -115,7 +118,20 @@ module _ {G H : U} {GG : Group G} {HH : Group H} where
            ==[ congB Y (\ y -> bwd xy (AY.act y (bwd hg g))) (bwd-fwd xy y) >
          bwd xy (AY.act y (bwd hg g)) [==])
         
-      
+module _ {G H : U} {GG : Group G} {HH : Group H} where
+  private
+    module GA = ACTION GG
+    module HA = ACTION HH
+
+  module _ {X Y : U} {AX : GA.Action X}{AY : HA.Action Y}(M : AX =Action=> AY) where
+    open _=Action=>_ M
+
+    actionIso : El ExtendsToIso -> AX <=Action=> AY
+    actionIso (ci , gi) = record { fwdmor = M ; carrierInv = ci ; groupInv = gi }
+
+    
+
+
 module _ {A X : U}{G : Group A} where
 
   open ACTION G
