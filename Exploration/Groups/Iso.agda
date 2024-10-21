@@ -149,10 +149,16 @@ module _ {R S : U} (f g : El (R <=> S)) where
     
   module _
     (fwd-eq : (r0 : El R) -> Pr (Eq S S (fwd f' r0) (fwd g' r0)))
-    (bwd-eq : (s0 : El S) -> Pr (Eq R R (bwd f' s0) (bwd g' s0))) where
+    where
     eqIso : Pr (Eq (R <=> S) (R <=> S) f g)
     fst eqIso       r0 r1 r01 = J R r01 (\ r1 _ -> `Pr (Eq S S (fwd f' r0) (fwd g' r1))) (fwd-eq r0)
-    fst (snd eqIso) s0 s1 s01 = J S s01 (\ s1 _ -> `Pr (Eq R R (bwd f' s0) (bwd g' s1))) (bwd-eq s0)
+    fst (snd eqIso) s0 s1 s01 = J S s01 (\ s1 _ -> `Pr (Eq R R (bwd f' s0) (bwd g' s1))) (vert (
+      bwd f' s0 < congB S (bwd f') (bwd-fwd g' _) ]==
+      bwd f' (fwd g' (bwd g' s0)) < congB S (bwd f') (fwd-eq _) ]==
+      bwd f' (fwd f' (bwd g' s0)) ==[ bleu (fwd-bwd f' (bwd g' s0)) >
+      bwd g' s0 [==] 
+      )) --(bwd-eq s0)
+      where open EQPRF R
     snd (snd eqIso) = _
 
 -- back-and-forth is id
@@ -164,11 +170,9 @@ module _ {R S : U} (f : El (R <=> S)) where
   inv-after : Pr (Eq (R <=> R) (R <=> R) (compIso R S R f (invIso R S f)) (idIso R))
   inv-after = eqIso {R} {R} (compIso R S R f (invIso R S f)) (idIso R)
     (fwd-bwd f')
-    (fwd-bwd f')
 
   after-inv : Pr (Eq (S <=> S) (S <=> S) (compIso S R S (invIso R S f) f) (idIso S))
   after-inv = eqIso {S} {S} (compIso S R S (invIso R S f) f) (idIso S)
-    (bwd-fwd f')
     (bwd-fwd f')
 
 module _ {P Q : U}(pf : P <==> P)(pq : P <==> Q) where

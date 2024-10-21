@@ -139,7 +139,7 @@ module _ (G : U) where
     monoid : Monoid
     monoid = monoid/ semiGroup (record { neu = neu ; mulneu- = mulneu- ; mul-neu = mul-neu })
 
-    open Monoid monoid using (intro<; elim>; elim<)
+    open Monoid monoid using (mul-mul; intro<; elim>; elim<) public
     
     invinv : Pr (ALL 1 G  \ x -> inv (inv x) ~ x)
     invinv x =

@@ -65,7 +65,8 @@ module _ (X : U) where
 
   catBCM : (BagC *C BagC) =CtrD=> BagC
   shape=> catBCM (l , r) = l +N r
-  store<= catBCM (l , r) = record { groupAct=> = (groupHomActionMor {!!} _ -Action- {!!}) -Action- ({!isoActionHom<= (invIso' (FINSUMADD.finSumAdd l r)) paos!}) }
+  groupAct=> (store<= catBCM (l , r)) = want
+    {-record { groupAct=> = (groupHomActionMor {!!} _ -Action- {!!}) -Action- ({!isoActionHom<= (invIso' (FINSUMADD.finSumAdd l r)) paos!}) }-}
     -- likely need to show that Fin (l +N r) <=> Fin l `+ Fin r
     -- round-trips
     {-record { groupAct=> = record
@@ -80,7 +81,27 @@ module _ (X : U) where
     ; act-pres = \ x h -> {!finCaseAut lg rg!}
     } } -}
     where
-      open FINSUMAUT l r
+      --open FINSUMAUT l r
+      open FINSUMADD l r
+      paos : ACTION.Action (Automorphism (Fin l) *Group* Automorphism (Fin r)) (Fin l `+ Fin r)
       paos = pairActsOnSum (Automorphism (Fin l)) (Automorphism (Fin r)) (AutAct (Fin l)) (AutAct (Fin r))
-      open ACTION.Action paos
-
+      step0 : AutAct (Fin (l +N r)) =Action=>
+              isoAction (Automorphism (Fin l) *Group* Automorphism (Fin r))
+              paos (invIso' finSumAdd)
+      step0 = {!!}
+      {-
+      step1 : AutAct (Fin (l +N r)) =Action=>
+              isoAction (Automorphism (Fin (l +N r))) (AutAct (Fin (l +N r))) finSumAdd
+      step1 = isoActionHom=> _ (AutAct (Fin (l +N r))) finSumAdd
+      step2 : isoAction (Automorphism (Fin (l +N r))) (AutAct (Fin (l +N r))) finSumAdd
+               =Action=>
+              isoAction (Automorphism (Fin l) *Group* Automorphism (Fin r))
+              paos (invIso' finSumAdd)
+      step2 = record { carrier=> = {!!} ; group=> = {!!} ; act-pres = {!!} }
+      -}
+      step3 : isoAction (Automorphism (Fin l) *Group* Automorphism (Fin r))
+              paos (invIso' finSumAdd)
+              =Action=> paos
+      step3 = isoActionHom<= _ paos (invIso' finSumAdd)
+      want : AutAct (Fin (l +N r)) =Action=> paos
+      want = step0 -Action- step3

@@ -17,6 +17,7 @@ open import ContainersWeLike
 open import ExtUni
 open import Fin
 open import FreeGroup
+open import GroupHomsWeLike
 open import GroupsWeLike
 open import Hom
 open import Iso
