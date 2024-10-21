@@ -8,6 +8,15 @@ open import Algebras
 open import ProductsForAlgebras
 open import GroupsWeLike
 
+{- HERE!
+What this ought to be saying is:
+
+If G acts on X, there's a group hom from G to Automorphism X
+
+
+(and then use pair acts on sum)
+-}
+
 module _ {X Y : U}(GX : Group X)(GY : Group Y) where
 
   open _=Group=>_

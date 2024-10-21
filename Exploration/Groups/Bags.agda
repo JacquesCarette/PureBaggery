@@ -17,6 +17,7 @@ open import Containers
 open import ContainersWeLike
 open import Representables
 open import RepresentablesWeLike
+open import GroupHomsWeLike
 
 BagC : ContainerDesc
 Shape BagC = `Nat
@@ -88,7 +89,10 @@ module _ (X : U) where
       step0 : AutAct (Fin (l +N r)) =Action=>
               isoAction (Automorphism (Fin l) *Group* Automorphism (Fin r))
               paos (invIso' finSumAdd)
-      step0 = {!!}
+      step0 = record { carrier=> = id
+                     ; group=> = {!groupPairHomAutSum (Automorphism (Fin l)) (Automorphism (Fin r))!}
+                     ; act-pres = {!!} }
+      -- HERE
       {-
       step1 : AutAct (Fin (l +N r)) =Action=>
               isoAction (Automorphism (Fin (l +N r))) (AutAct (Fin (l +N r))) finSumAdd
