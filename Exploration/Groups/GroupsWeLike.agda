@@ -51,16 +51,6 @@ module _ where
       ; mulinv- = \ f -> after-inv {X} {X} f
       }
  
-    open ACTION Automorphism
-
-    AutAct : Action X
-    AutAct = record
-      { act = \ x f -> fwd (iso' {X} {X} f) x
-      ; act-neu = \ x -> refl X x
-      ; act-mul = \ x f g -> refl X _
-      }
-
-
 Cyclic : (n : Nat) -> Group (FinSu n)
 Cyclic n = record
   { neu = G.zeF

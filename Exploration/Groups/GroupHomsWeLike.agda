@@ -7,66 +7,41 @@ open import Iso
 open import Algebras
 open import ProductsForAlgebras
 open import GroupsWeLike
+open import Actions
 
-{- HERE!
-What this ought to be saying is:
+module _ {G : U}{GG : Group G} where
+ open ACTION GG
+ open _=Group=>_
+ open _=Monoid=>_
+ open _=SemiGroup=>_
 
-If G acts on X, there's a group hom from G to Automorphism X
+ module _ {X : U}(AX : Action X) where
 
+  open EQPRF X
+  open Action AX
 
-(and then use pair acts on sum)
--}
+  open Group GG
 
-module _ {X Y : U}(GX : Group X)(GY : Group Y) where
+  actionsPermuteIso : El G -> X <==> X
+  fwd (actionsPermuteIso g) x = act x g
+  bwd (actionsPermuteIso g) x = act x (inv g)
+  fwd-bwd (actionsPermuteIso g) x = vert (
+    (act (act x g) (inv g)) < bleu (act-mul _ _ _) ]==
+    act x (mul g (inv g)) ==[ bleu (act-eq-neu _ _ (mul-inv _)) >
+    x [==])
+  bwd-fwd (actionsPermuteIso g) x = vert (
+    (act (act x (inv g)) g) < bleu (act-mul _ _ _) ]==
+    act x (mul (inv g) g) ==[ bleu (act-eq-neu _ _ (mulinv- _)) >
+    x [==])
 
-  open _=Group=>_
-  open _=Monoid=>_
-  open _=SemiGroup=>_
-  open Group
-
-  groupPairSumIso : El X -> El Y -> (X `+ Y) <==> (X `+ Y)
-  fwd (groupPairSumIso x y) (`0 , x') = `0 , mul GX x' x
-  fwd (groupPairSumIso x y) (`1 , y') = `1 , mul GY y' y
-  bwd (groupPairSumIso x y) (`0 , x') = `0 , mul GX x' (inv GX x) 
-  bwd (groupPairSumIso x y) (`1 , y') = `1 , mul GY y' (inv GY y) 
-  fwd-bwd (groupPairSumIso x y) (`0 , x') = <> , vert (
-    mul GX (mul GX x' x) (inv GX x)  ==[ bleu (mulmul- GX _ _ _) >
-    mul GX x' (mul GX x (inv GX x))  ==[ bleu (elim> GX _ _ (mul-inv GX _)) >
-    x' [==] )
-    where
-      open EQPRF X
-  fwd-bwd (groupPairSumIso x y) (`1 , y') = <> , vert (
-    mul GY (mul GY y' y) (inv GY y)  ==[ bleu (mulmul- GY _ _ _) >
-    mul GY y' (mul GY y (inv GY y))  ==[ bleu (elim> GY _ _ (mul-inv GY _)) >
-    y' [==] )
-    where
-      open EQPRF Y
-  bwd-fwd (groupPairSumIso x y) (`0 , x') = <> , vert (
-    mul GX (mul GX x' (inv GX x)) x  ==[ bleu (mulmul- GX _ _ _) >
-    mul GX x' (mul GX (inv GX x) x) ==[ bleu (elim> GX _ _ (mulinv- GX _)) >
-    x' [==] )
-    where
-      open EQPRF X
-  bwd-fwd (groupPairSumIso x y) (`1 , y') = <> , vert (
-    mul GY (mul GY y' (inv GY y)) y  ==[ bleu (mulmul- GY _ _ _) >
-    mul GY y' (mul GY (inv GY y) y) ==[ bleu (elim> GY _ _ (mulinv- GY _)) >
-    y' [==] )
-    where
-      open EQPRF Y
-
-
-  groupPairHomAutSum : (GX *Group* GY) =Group=> Automorphism (X `+ Y)
-  mor (semigroup=> (monoid=> groupPairHomAutSum)) (x , y) = osi {X `+ Y}{X `+ Y} (groupPairSumIso x y)
-  mul-pres (semigroup=> (monoid=> groupPairHomAutSum)) (x0 , y0) (x1 , y1) = 
-    eqIso {X `+ Y}{X `+ Y}
-      (osi {X `+ Y}{X `+ Y} (groupPairSumIso (mul GX x0 x1) (mul GY y0 y1)))
-      (osi {X `+ Y}{X `+ Y} (compIso' (groupPairSumIso x0 y0) (groupPairSumIso x1 y1)))
-      \ { (`0 , x) -> <> , mul-mul GX _ _ _
-        ; (`1 , y) -> <> , mul-mul GY _ _ _
-        }
-  neu-pres (monoid=> groupPairHomAutSum) = eqIso {X `+ Y}{X `+ Y}
-      (osi {X `+ Y}{X `+ Y} (groupPairSumIso (neu GX) (neu GY)))
-      (osi {X `+ Y}{X `+ Y} idIso')
-      \ { (`0 , x) -> <> , mul-neu GX _
-        ; (`1 , y) -> <> , mul-neu GY _
-        }
+  ActionsPermute : GG =Group=> Automorphism X
+  mor (semigroup=> (monoid=> ActionsPermute)) g =
+    osi (actionsPermuteIso g)
+  mul-pres (semigroup=> (monoid=> ActionsPermute)) g h =
+    eqIso {X}{X}
+      (osi (actionsPermuteIso (mul g h)))
+      (osi (compIso' (actionsPermuteIso g) (actionsPermuteIso h)))
+      \ x -> act-mul x g h
+  neu-pres (monoid=> ActionsPermute) = 
+    eqIso {X}{X} (osi (actionsPermuteIso neu)) (idIso X)
+      \ x -> act-neu x

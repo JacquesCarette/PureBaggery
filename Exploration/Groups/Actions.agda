@@ -31,7 +31,7 @@ module ACTION {G : U} (GG : Group G) where
       x         [QED]
 
     actinv : Pr (X `-> \ x -> G `-> \ g -> Oq X (act x (mul g (inv g))) x)
-    actinv x g = 
+    actinv x g = -- refactor using above?
        act x (mul g (inv g)) -[ cong G (act x) (mul-inv g) >
        act x neu             -[ act-neu x >
        x                     [QED]

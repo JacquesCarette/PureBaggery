@@ -6,12 +6,28 @@ open import Reasoning
 open import Iso
 open import Algebras
 open import Actions
+open import GroupsWeLike
 open import ProductsForAlgebras
+
+module _ (X : U) where
+  open Group (Automorphism X)
+  open ACTION (Automorphism X)
+  open Action
+
+  AutAct : Action X
+  act AutAct x (f , _) = f x
+  act-neu AutAct x = refl X x
+  act-mul AutAct x (f , _) (g , _) = refl X _
 
 module _ {G : U} (GG : Group G) where
   open Group GG
   open ACTION GG
   open Action
+
+  selfAction : Action G
+  act selfAction = mul
+  act-neu selfAction = mul-neu
+  act-mul selfAction = mul-mul
 
   module _ {X : U}(A : Action X) where
     
