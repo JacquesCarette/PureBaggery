@@ -45,10 +45,6 @@ module _ (X : U) where
   neu-pres (monoid=> (group=> (groupAct=> (store<= nilBCM _)))) = (snd - naughtE) , (snd - naughtE) , _
   act-pres (groupAct=> (store<= nilBCM _)) = _
 
-  nilB : El (Bag X)
-  nilB = [ nilBCM ]C=> X (_ , `[ naughtE ])
-  -- 0 , `[ snd - naughtE ]
-
   oneBCM : IC =CtrD=> BagC
   shape=> oneBCM _ = 1
   carrier=> (groupAct=> (store<= oneBCM _)) = _
@@ -59,10 +55,6 @@ module _ (X : U) where
   neu-pres (monoid=> (group=> (groupAct=> (store<= oneBCM _)))) =
     (\ { (ze , _) (ze , _) -> _ }) , (\ { (ze , _) (ze , _) -> _ }) , _
   act-pres (groupAct=> (store<= oneBCM _)) = _
-
-  oneB : El (X `> Bag X)
-  oneB x = [ oneBCM ]C=> X (_ , `[ kon x ])
-  -- oneB x = 1 , `[ (\ _ -> x) ]
 
   catBCM : (BagC *C BagC) =CtrD=> BagC
   shape=> catBCM (l , r) = l +N r
@@ -76,3 +68,41 @@ module _ (X : U) where
     carrier=> want = fwd finSumAdd
     group=> want = ActionsPermute (isoAction _ paos (invIso' finSumAdd))
     act-pres want = act-pres (isoActionHom<= _ paos (invIso' finSumAdd))
+
+  -- Basic Bags and Bag operations
+  nilB : El (Bag X)
+  nilB = [ nilBCM ]C=> X (_ , `[ naughtE ])  -- 0 , `[ snd - naughtE ]
+
+  oneB : El (X `> Bag X)
+  oneB x = [ oneBCM ]C=> X (_ , `[ kon x ])  -- oneB x = 1 , `[ (\ _ -> x) ]
+
+  _+B_ : El (Bag X `> Bag X `> Bag X)
+  B1 +B B2 = [ catBCM ]C=> X (fwd (pairC BagC BagC X) (B1 , B2))
+
+  -- HERE (sort of)
+  -- we need to find the smart way of getting there
+  -- let's show that a Bag is Commutative Monoid
+  {-
+  module _ where
+    open CommMonoid
+    Bag-is-CommMonoid : CommMonoid (Bag X)
+    Bag-is-CommMonoid .neu     = nilB
+    Bag-is-CommMonoid .mul     = _+B_
+    -- computation gives us this one easily enough
+    Bag-is-CommMonoid .mulneu- b@( n , xs) = refl `Nat n ,
+      homogTac (Jumble (Fin n) X) (snd left) (snd right) (hide
+        ((idIso (Fin n))
+        , (homogTac (Fin n `> X) _ _ \ m -> refl X _)))
+      where
+        left right : El (Bag X)
+        left = nilB +B b
+        right = b
+    -- and now we *have* to be smart, else hell awaits
+    Bag-is-CommMonoid .mul-neu b@( n , xs) = Monoid.mul-neu Monoid+N n , {!!}
+      where
+        left right : El (Bag X)
+        left = b +B nilB
+        right = b
+    Bag-is-CommMonoid .mulmul- = {!!}
+    Bag-is-CommMonoid .mulSwap = {!!}
+    -}

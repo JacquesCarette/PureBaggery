@@ -61,6 +61,7 @@ module _ (G : U) where
                   
     semiGroup : SemiGroup
     semiGroup = record { mul = mul ; mulmul- = mulmul- }
+    open SemiGroup semiGroup using (middle4) public
 
     intro> : Pr (ALL 2 G \ x y -> x ~ neu `=> y ~ mul y x)
     intro< : Pr (ALL 2 G \ x y -> x ~ neu `=> y ~ mul x y)
@@ -94,6 +95,46 @@ module _ (G : U) where
         neu = neu ; mul = mul ; mulneu- = mulneu- ;
         mul-neu = mul-neu ; mulmul- = mulmul- }
 
+  record CommMonoid : Set where
+    field
+      neu : El G
+      mul : El (G `> G `> G)
+
+      mulneu- : Pr (ALL 1 G \ x -> mul neu x ~ x)
+      mul-neu : Pr (ALL 1 G \ x -> mul x neu ~ x)
+      mulmul- : Pr (ALL 3 G \ x y z ->
+                   mul (mul x y) z ~ mul x (mul y z))
+
+      mulSwap : Pr (ALL 2 G \ x y -> mul x y ~ mul y x)
+
+    monoid : Monoid
+    monoid = record { neu = neu ; mul = mul ; mulneu- = mulneu-
+                    ; mul-neu = mul-neu ; mulmul- = mulmul- }
+
+    open Monoid monoid
+      using (mul-mul; intro>; intro<; elim>; elim<; middle4) public
+
+    middle4Swap : Pr (ALL 4 G \ w x y z ->
+      mul (mul w x) (mul y z) ~ mul (mul w y) (mul x z))
+    middle4Swap w x y z = 
+      mul (mul w x) (mul y z) -[ middle4 _ _ _ _ >
+      mul w (mul (mul x y) z) -[ cong G (\ a -> mul w (mul a z)) (mulSwap _ _) >
+      mul w (mul (mul y x) z) < middle4 _ _ _ _ ]-
+      mul (mul w y) (mul x z)  [QED]
+      
+  module _ (X : Monoid) where
+    open Monoid X
+
+    record CommMonoid/ : Set where
+      field
+        mulSwap : Pr (ALL 2 G \ x y -> mul x y ~ mul y x)
+
+
+    commMonoid/ : CommMonoid/ -> CommMonoid
+    commMonoid/ CM/ = let open CommMonoid/ CM/ in record {
+        neu = neu ; mul = mul ; mulneu- = mulneu- ;
+        mul-neu = mul-neu ; mulmul- = mulmul- ; mulSwap = mulSwap }
+    
   record Group : Set where
     field
 
@@ -241,6 +282,22 @@ module _ where
     field
       neu-pres : Pr (Oq Y (mor R.neu) S.neu)
 
+  record _=CommMonoid=>_ {X Y : U} (R : CommMonoid X) (S : CommMonoid Y) : Set where
+    private
+      module R = CommMonoid R
+      module S = CommMonoid S
+    field
+      monoid=> : R.monoid =Monoid=> S.monoid
+
+    open _=Monoid=>_ monoid=> public
+    
+    swap-mor : Pr (ALL 2 X \ x0 x1 -> Oq Y (mor (R.mul x0 x1)) (S.mul (mor x1) (mor x0)))
+    swap-mor x0 x1 = 
+      mor (R.mul x0 x1)         -[ mul-pres x0 x1 >
+      S.mul (mor x0) (mor x1)   -[ S.mulSwap (mor x0) (mor x1) >
+      (S.mul (mor x1) (mor x0)) [QED]
+      where open EQPRF Y
+    
   record _=Group=>_ {X Y : U} (R : Group X) (S : Group Y) : Set where
     private
       module R = Group R
@@ -265,6 +322,7 @@ module _ where
         open EQPRF Y
         module SM = Monoid S.monoid
 
+  -- identity X morphisms
   module _ {X : U} where
 
     module _ {S : SemiGroup X} where
@@ -280,6 +338,12 @@ module _ where
       idMonoid : M =Monoid=> M
       semigroup=> idMonoid = idSemiGroup
       neu-pres idMonoid = refl X _
+
+    module _ {M : CommMonoid X} where
+      open _=CommMonoid=>_
+
+      idCommMonoid : M =CommMonoid=> M
+      idCommMonoid .monoid=> = idMonoid
 
     module _ {G : Group X} where
       open _=Group=>_
@@ -314,7 +378,14 @@ module _ where
         mst (neu S)       ==[ bleu (neu-pres st) >
         neu T             [==])
         where mrs = mor (semigroup=> rs) ; mst = mor (semigroup=> st)
-      
+
+    module _ {R : CommMonoid X}{S : CommMonoid Y}{T : CommMonoid Z} where
+      open CommMonoid
+      open _=CommMonoid=>_
+    
+      _-CommMonoid-_ : R =CommMonoid=> S -> S =CommMonoid=> T -> R =CommMonoid=> T
+      (rs -CommMonoid- st) .monoid=> = monoid=> rs -Monoid- monoid=> st
+ 
     module _ {R : Group X}{S : Group Y}{T : Group Z} where
       open Group
       open _=Group=>_
@@ -375,6 +446,9 @@ module _ {X Y : U} where
       bwd xy (fwd xy (neu R)) ==[ bleu (fwd-bwd xy _) >
       neu R [==])
 
+  _<=CommMonoid=>_ : (R : CommMonoid X) (S : CommMonoid Y) -> Set
+  R <=CommMonoid=> S = monoid R <=Monoid=> monoid S
+    where open CommMonoid
 
   record _<=Group=>_ (R : Group X) (S : Group Y) : Set where
     open Group
