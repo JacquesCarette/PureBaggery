@@ -38,15 +38,18 @@ module REPRESENTABLE (R : Representable) where
 
   FObj : U -> U
   FObj X = `UQuot (FObjUQuot X)
-   
+
+  module ReprQuot (T : U) where
+    open ACTION.Action (faction G A {T}) public
+    open Quot (Pos `> T) _~G~_ ActEquiv public
+    
   FArr : (S T : U) -> El (S `> T) -> El (FObj S `> FObj T)
   FArr S T f [c] = elElim (FObj S) [c] (\ _ -> FObj T)
     ( (\ c -> `[ c - f ])
     , \ c0 c1 cq -> homogQuot (c0 - f) (c1 - f)
        (mapHide (id >><< (\ q -> \ p0 p1 pq -> refl (S `> T) f _ _ (q p0 p1 pq))) cq)
     ) where
-        open ACTION.Action (faction G A {T})
-        open Quot (Pos `> T) _~G~_ ActEquiv
+        open ReprQuot T
 
   FId : (X : U) -> Pr (Oq (FObj X `> FObj X) (FArr X X id) id)
   FId X = homogTac (FObj X `> FObj X) (FArr X X id) id
@@ -55,8 +58,7 @@ module REPRESENTABLE (R : Representable) where
         act-neu c p p (refl Pos p) ))))
     )
     where
-      open ACTION.Action (faction G A {X})
-      open Quot (Pos `> X) _~G~_ ActEquiv
+      open ReprQuot X
 
   FComp : (R S T : U)(f : El (R `> S))(g : El (S `> T))
     -> Pr (Oq (FObj R `> FObj T) (FArr R T (f - g)) (FArr R S f - FArr S T g))
@@ -64,14 +66,16 @@ module REPRESENTABLE (R : Representable) where
     \ [c] -> QR.quotElimP [c]
       (\ [c] -> Oq (FObj T) (FArr R T (f - g) [c]) ((FArr R S f - FArr S T g) [c]))
       \ c -> QT.homogQuot (c - (f - g)) ((c - f) - g) (hide (neu , homogTac (Pos `> T)
-        (AT.act (c - (f - g)) neu) ((c - f) - g) \ p ->
-          AT.act-neu (c - (f - g)) p p (refl Pos p)))
+        (QT.act (c - (f - g)) neu) ((c - f) - g) \ p ->
+          QT.act-neu (c - (f - g)) p p (refl Pos p)))
     where
-        module AR = ACTION.Action (faction G A {R})
-        module QR = Quot (Pos `> R) AR._~G~_ AR.ActEquiv
-        module AT = ACTION.Action (faction G A {T})
-        module QT = Quot (Pos `> T) AT._~G~_ AT.ActEquiv
+        module QR = ReprQuot R
+        module QT = ReprQuot T
 
+  -- from a representable, get a version of it filled with its own positions
+  positionTable : El (FObj Pos)
+  positionTable = `[ id ]
+  
 -- Representable Morphism
 record _=Repr=>_ (R S : Representable) : Set where
   private

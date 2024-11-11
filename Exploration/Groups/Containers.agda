@@ -27,8 +27,12 @@ record ContainerDesc : Set where
   [_]CArr X Y f (s , px) = s , FArr X Y f px
     where open REPRESENTABLE (Store s)
 
-  -- and [_]C is a Functor (all the hard work is in REPRESENTABLE)
+  -- and [_]C is a Functor (all the hard work is in REPRESENTABLE) TBD
 
+  -- get a container full of its own positions
+  ctrPos : (sh : El Shape) -> El ([_]C (Representable.Positions (Store sh)))
+  ctrPos sh = sh , positionTable
+    where open REPRESENTABLE (Store sh)
   
 open ContainerDesc public
 open Representable public
@@ -94,3 +98,32 @@ module _ (C D : ContainerDesc) where
       shapeInv : El (HasInv (Shape C) (Shape D) shape=>)
       isCartesian : El IsCartesian
 
+  ------
+  -- Some properties of container morphisms
+  --
+  -- Given two container morphisms, how do we prove they are equal?
+  
+  module _ (F G : _=CtrD=>_) where
+    open _=CtrD=>_
+
+    Pos : (sh : El C.Shape) -> U
+    Pos sh = Representable.Positions (C.Store sh)
+    
+    -- if we know that they agree on positions
+    module _ (agreeOnPos : (sh : El C.Shape) -> Pr (Oq ([ D ]C (Pos sh))
+                           ([ F ]C=> (Pos sh) (C.ctrPos sh))
+                           ([ G ]C=> (Pos sh) (C.ctrPos sh)))) where
+
+      -- one we get rid of the inhomogeneous part and the quotient part, things become clear
+      polyEqIfPosEq : (X : U) -> Pr (Oq  ([ C ]C X `> [ D ]C X) ([ F ]C=> X) ([ G ]C=> X))
+      polyEqIfPosEq X = homogTac ([ C ]C X `> [ D ]C X) ([ F ]C=> X) ([ G ]C=> X)
+        (/\ \ sh st -> let open ReprQuot (C.Store sh) X in
+          quotElimP st (\ st -> Oq ([ D ]C X) ([ F ]C=> X (sh , st)) ([ G ]C=> X (sh , st)))
+                   -- at the end of the day, it's just true, if we say so explicitly enough
+            \ f -> refl ([ D ]C (Pos sh) `> [ D ]C X) ([ D ]CArr (Pos sh) X f)
+              ([ F ]C=> (Pos sh) (C.ctrPos sh))
+              ([ G ]C=> (Pos sh) (C.ctrPos sh))
+              (agreeOnPos sh))
+
+          
+        
