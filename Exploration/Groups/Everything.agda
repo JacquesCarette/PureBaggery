@@ -29,3 +29,4 @@ open import Quotient
 open import Reasoning
 open import Representables
 open import RepresentablesWeLike
+open import UniversalAlgebra
