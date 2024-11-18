@@ -94,6 +94,15 @@ module Signature (Sort : Set) where
         Vars : Sort -> Set
         lhs rhs : FreeOprModel Vars s
 
+    -- HERE!
+    {- make Vars give a List Sort, not a Set, so that lhs and rhs can be
+       derivable operations;
+       consider something less flat than List Sort
+       indeed, build equations as a signature of derived operations with
+         left and right models in FreeOprModel for the signature the
+         equations are about
+    -}
+
     record Theory : Set1 where
       field
         Eqns : Sort -> Set
