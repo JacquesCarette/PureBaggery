@@ -5,6 +5,9 @@ open import ExtUni
 open import Reasoning
 open import Iso
 
+open import UniversalAlgebra
+open import UniversalAlgebraExtUni
+
 -- defines various bits of Algebra over a carrier G in U,
 -- up to group. Intermediate steps give good places to put
 -- oft used combinators and some lemmas. The homomorphisms
@@ -31,12 +34,40 @@ module _ (G : U) where
 
   open EQPRF G
 
+  module SEMIGROUP where
+    open Signature One
+    data Opr (_ : One) : Set where
+      mul : Opr <>
+    sig : Sig
+    Sig.Opr   sig = Opr
+    Sig.arity sig <> mul = <> ,- <> ,- []
+    open FreeOper sig
+    data Eqns (_ : One) : Set where
+      mulmul- : Eqns <>
+    thy : Theory sig
+    Theory.Eqns thy = Eqns
+    Equation.Vars (Theory.eqn thy _ mulmul-) <> = El (Fin 3)
+    Equation.lhs (Theory.eqn thy _ mulmul-) =
+      (mul !) ((mul !) (# 0) (# 1)) (# 2) where
+        open HASH (kon 3)
+    Equation.rhs (Theory.eqn thy _ mulmul-) =
+      (mul !) (# 0) ((mul !) (# 1) (# 2)) where
+        open HASH (kon 3)
+
+    UMod : Set
+    UMod = UModel thy
+
   record SemiGroup : Set where
     field  
       mul : El (G `> G `> G)
 
       mulmul- : Pr (ALL 3 G \ x y z ->
                   mul (mul x y) z ~ mul x (mul y z))
+
+    universally : SEMIGROUP.UMod
+    UModel.Carrier universally <> = G
+    UModel.operations universally SEMIGROUP.mul = mul
+    UModel.equations universally <> SEMIGROUP.mulmul- ga = mulmul- _ _ _
 
     middle4 : Pr (ALL 4 G \ w x y z ->
       mul (mul w x) (mul y z) ~ mul w (mul (mul x y) z))
@@ -57,7 +88,7 @@ module _ (G : U) where
                    
     mul-mul : Pr (ALL 3 G \ x y z ->
                  mul x (mul y z) ~ mul (mul x y) z)
-    mul-mul x y z = ! mulmul- x y z
+    mul-mul x y z = sym (mulmul- x y z)
                   
     semiGroup : SemiGroup
     semiGroup = record { mul = mul ; mulmul- = mulmul- }
@@ -70,14 +101,14 @@ module _ (G : U) where
 
     intro> x y p = 
       y         < mul-neu y ]-
-      mul y neu -[ cong G (mul y) (! p) >
+      mul y neu -[ cong G (mul y) (sym p) >
       mul y x    [QED]
     intro< x y p = 
       y         < mulneu- y ]-
-      mul neu y -[ cong G (flip mul _) (! p) >
+      mul neu y -[ cong G (flip mul _) (sym p) >
       mul x y   [QED]
-    elim> x y p = ! intro> x y p
-    elim< x y p = ! intro< x y p
+    elim> x y p = sym (intro> x y p)
+    elim< x y p = sym (intro< x y p)
     
   module _ (X : SemiGroup) where
   

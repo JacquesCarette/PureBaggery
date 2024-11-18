@@ -34,8 +34,8 @@ module EQPRF (X : U) where
   _[QED] x = refl X x
   infixr 3 _[QED]
   -- sometimes it's simpler to just flip a proof around
-  !_ : {x y : El X} -> Pr (Oq X x y) -> Pr (Oq X y x)
-  ! p = _ < p ]- _ [QED]
+  sym : {x y : El X} -> Pr (Oq X x y) -> Pr (Oq X y x)
+  sym p = _ < p ]- _ [QED]
 
   -- frequent pattern; unfortunately the Y can rarely be inferred, so explicit
   cong : (Y : U){x y : El Y} (f : El (Y `> X)) -> Pr (Oq Y x y) -> Pr (Oq X (f x) (f y))

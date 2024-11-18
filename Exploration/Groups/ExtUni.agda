@@ -256,3 +256,14 @@ elElim (`Quotient T R Q) `[ x ] P (p , _) = p x
       -> El T -> El (`Quotient T R Q)
 [ x ] = `[ x ]
 --------------------------------------------------------------
+
+-- Fin
+
+_<_ : Nat -> Nat -> P
+x < ze = `Zero
+ze < su y = `One
+su x < su y = x < y
+
+Fin : Nat -> U
+Fin n = `Nat `>< \ i -> `Pr (i < n)
+

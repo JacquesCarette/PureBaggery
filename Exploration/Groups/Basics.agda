@@ -43,15 +43,13 @@ _+_ _*_ : Set -> Set -> Set
 S + T = Two >< \ { `0 -> S ; `1 -> T }
 S * T = S >< \ _ -> T
 
-{- -- if only this worked for U and P as nicely as it does for Set
 module _ {I : Set} where
   _*:_ _-:>_ : (I -> Set) -> (I -> Set) -> (I -> Set)
   (P *: Q) i = P i * Q i
   (P -:> Q) i = P i -> Q i
-  [_] <_> : (I -> Set) -> Set
-  [ P ] = forall {i} -> P i
-  < P > = _ >< P
--}
+  [:_:] <:_:> : (I -> Set) -> Set
+  [: P :] = forall {i} -> P i
+  <: P :> = _ >< P
 
 -- uncurry
 /\_ : {S : Set}{T : S -> Set}{P : S >< T -> Set}
@@ -73,6 +71,7 @@ _-_ : forall {i j k}{A : Set i}{B : A -> Set j}{C : (a : A) -> B a -> Set k}
   (a : A)
   -> C a (f a)
 (f - g) a = g (f a)
+infixl 15 _-_
 
 flip : forall {i j k}{A : Set i}{B : Set j}{C : A -> B -> Set k}
   (f : (a : A)(b : B) -> C a b)

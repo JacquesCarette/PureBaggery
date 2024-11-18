@@ -8,6 +8,7 @@ open import Algebras
 open import Iso
 open import Numbers
 
+{- -- gone to live in ExtUni.agda
 _<_ : Nat -> Nat -> P
 x < ze = `Zero
 ze < su y = `One
@@ -15,6 +16,7 @@ su x < su y = x < y
 
 Fin : Nat -> U
 Fin n = `Nat `>< \ i -> `Pr (i < n)
+-}
 
 -- Fin's relation with _+_
 finL : (n m : Nat) -> El (Fin n `> Fin (n +N m))

@@ -30,3 +30,4 @@ open import Reasoning
 open import Representables
 open import RepresentablesWeLike
 open import UniversalAlgebra
+open import UniversalAlgebraExtUni

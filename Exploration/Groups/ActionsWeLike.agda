@@ -75,7 +75,7 @@ module _ {G : U} (GG : Group G) where
       isoActionHom<= : isoAction =Action=> A
       isoActionHom<= .carrier=> = bwd f
       isoActionHom<= .group=> = idGroup
-      isoActionHom<= .act-pres y g = EQPRF.!_ X (fwd-bwd f (act A (bwd f y) g))
+      isoActionHom<= .act-pres y g = EQPRF.sym X (fwd-bwd f (act A (bwd f y) g))
 
 module _ {X Y : U}(GX : Group X)(GY : Group Y) where
 

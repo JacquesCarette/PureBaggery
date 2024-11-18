@@ -27,7 +27,7 @@ module _ where
     SelfAct = record
       { act     = mul
       ; act-neu = mul-neu
-      ; act-mul = \ a b c -> ! mulmul- a b c
+      ; act-mul = \ a b c -> sym (mulmul- a b c)
       } where
       open Algebras.Group G -- later rename the file
       open EQPRF C

@@ -24,7 +24,7 @@ module _ (x : Nat){y z : Nat} where
   _-N_>_ : x =N= y -> y =N= z -> x =N= z
   _-N_>_ (paq p) (paq q) = paq (trans x y z p q)
   _<_N-_ : y =N= x -> y =N= z -> x =N= z
-  _<_N-_ (paq p) (paq q) = paq (trans x y z (!_ {y}{x} p) q)
+  _<_N-_ (paq p) (paq q) = paq (trans x y z (sym {y}{x} p) q)
 
   infixr 2 _-N_>_ _<_N-_
   
@@ -82,7 +82,7 @@ module _ {X : U}(MX : Monoid X) where
   homFromMonoid+N : El X -> HomMonoid Monoid+N MX
   hom (homFromMonoid+N x) n = n -times x
   homneu (homFromMonoid+N x) = refl X neu
-  hommul (homFromMonoid+N x) ze b = ! mulneu- (b -times x)
+  hommul (homFromMonoid+N x) ze b = sym (mulneu- (b -times x))
   hommul (homFromMonoid+N x) (su a) b = 
     mul x ((a +N b) -times x)             -[ cong X (mul x) (hommul (homFromMonoid+N x) a b) >
     mul x (mul (a -times x) (b -times x)) < mulmul- x (a -times x) (b -times x) ]-
