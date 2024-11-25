@@ -104,15 +104,6 @@ module Signature (Sort : Set) where
     freeSubsts sg {[]} <> = <>
     freeSubsts sg {i ,- is} (t , ts) = freeSubst sg t , freeSubsts sg ts
 
-    -- HERE!
-    {- make Vars give a List Sort, not a Set, so that lhs and rhs can be
-       derivable operations;
-       consider something less flat than List Sort
-       indeed, build equations as a signature of derived operations with
-         left and right models in FreeOprModel for the signature the
-         equations are about
-    -}
-
   record Theory (sig : Sig) : Set1 where
     field
       EqnSig : Sig
