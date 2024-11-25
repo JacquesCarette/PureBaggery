@@ -30,45 +30,48 @@ open import UniversalAlgebraExtUni
 
 module _ (G : U) where
 
-  private _~_ = Oq G
+  private
+    _~_ = Oq G
+    `2 = <> ,- <> ,- []
+    `3 = <> ,- `2
 
   open EQPRF G
 
   module SEMIGROUP where
     open Signature One
+    open Theory
     data Opr (_ : One) : Set where
       mul : Opr <>
     sig : Sig
     Sig.Opr   sig = Opr
-    Sig.arity sig <> mul = <> ,- <> ,- []
+    Sig.arity sig <> mul = `2
     open FreeOper sig
     data Eqns (_ : One) : Set where
       mulmul- : Eqns <>
     thy : Theory sig
-    Theory.Eqns thy = Eqns
-    Equation.Vars (Theory.eqn thy _ mulmul-) <> = El (Fin 3)
-    Equation.lhs (Theory.eqn thy _ mulmul-) =
-      (mul !) ((mul !) (# 0) (# 1)) (# 2) where
-        open HASH (kon 3)
-    Equation.rhs (Theory.eqn thy _ mulmul-) =
-      (mul !) (# 0) ((mul !) (# 1) (# 2)) where
-        open HASH (kon 3)
-
+    thy .EqnSig .Sig.Opr = Eqns
+    thy .EqnSig .Sig.arity <> mulmul- = `3
+    thy .leftModel mulmul- a b c = (mul !) ((mul !) a b) c
+    thy .rightModel mulmul- a b c = (mul !) a ((mul !) b c)
+    
     UMod : Set
     UMod = UModel thy
 
   record SemiGroup : Set where
+    open UModel
+    private
+      module M = SEMIGROUP
     field  
       mul : El (G `> G `> G)
 
       mulmul- : Pr (ALL 3 G \ x y z ->
                   mul (mul x y) z ~ mul x (mul y z))
 
-    universally : SEMIGROUP.UMod
-    UModel.Carrier universally <> = G
-    UModel.operations universally SEMIGROUP.mul = mul
-    UModel.equations universally <> SEMIGROUP.mulmul- ga = mulmul- _ _ _
-
+    universally : M.UMod
+    universally .Carrier    _         = G
+    universally .operations M.mul     = mul
+    universally .equations  M.mulmul- = mulmul-
+    
     middle4 : Pr (ALL 4 G \ w x y z ->
       mul (mul w x) (mul y z) ~ mul w (mul (mul x y) z))
     middle4 w x y z =

@@ -13,11 +13,6 @@ open import Basics
 module Signature (Sort : Set) where
 
   module _ (R : Sort -> Set) where
-  
-    -- helper because we need Agda to see through the recursion
-    SortArity : List Sort -> Set -> Set
-    SortArity [] T        = T
-    SortArity (s ,- ss) T = R s -> SortArity ss T
 
     -- can't use 'cataList' because Agda's positivity checker will be
     -- unhappy below
@@ -25,9 +20,29 @@ module Signature (Sort : Set) where
     SortTuple []        = One
     SortTuple (t ,- ts) = R t * SortTuple ts
 
+    SortDepArity : (ss : List Sort) -> (SortTuple ss -> Set) -> Set
+    SortDepArity [] f = f <>
+    SortDepArity (x ,- ss) f = (r : R x) -> SortDepArity ss \ rs -> f (r , rs)
+    
+    -- helper because we need Agda to see through the recursion
+    SortArity : List Sort -> Set -> Set
+    SortArity ss T = SortDepArity ss (kon T)
+
+    project : {ss : List Sort} -> SortTuple ss -> [: (_-in ss) -:> R :]
+    project (r , _) ze = r
+    project (_ , ts) (su vr) = project ts vr
+
+    tabulate : {ss : List Sort} -> [: (_-in ss) -:> R :] -> SortTuple ss
+    tabulate {[]} f = <>
+    tabulate {x ,- ss} f = f ze , tabulate (su - f)
+
+    sortDepCurry : (ss : List Sort) -> (T : SortTuple ss -> Set) ->
+      ((rs : SortTuple ss) -> T rs) -> SortDepArity ss T
+    sortDepCurry []        T f = f <>
+    sortDepCurry (s ,- ss) T f = \ r -> sortDepCurry ss ((r ,_) - T) ((r ,_) - f)
+    
     sortCurry : (ss : List Sort) -> (T : Set) -> (SortTuple ss -> T) -> SortArity ss T
-    sortCurry []        T f = f <>
-    sortCurry (s ,- ss) T f = \ r -> sortCurry ss T ((r ,_) - f)
+    sortCurry ss T f = sortDepCurry ss (kon T) f
 
     sortApply : (ss : List Sort) -> (T : Set) -> SortArity ss T -> (SortTuple ss -> T)
     sortApply [] T t <> = t
@@ -61,38 +76,33 @@ module Signature (Sort : Set) where
       OprSource t o = SortTuple R (arity t o)
 
 
-    module _ (V : Sort -> Set) where
+    module _ (V : List Sort) where
       -- Free such thing over a set V of variables and a Sort
       data FreeOprModel (t : Sort) : Set where
         opr : (o : Opr t) -> OprSource FreeOprModel t o -> FreeOprModel t
-        var : (v : V t)                                 -> FreeOprModel t
+        var : (v : t -in V)                             -> FreeOprModel t
 
       eval : {R : Sort -> Set} -> Operations R
-        -> [: V -:> R :]
+        -> SortTuple  R V
         -> [: FreeOprModel -:> R :]
       evals : {R : Sort -> Set} -> Operations R
-        -> [: V -:> R :]
+        -> SortTuple R V
         -> [: SortTuple FreeOprModel -:> SortTuple R :]
       eval ops ga (opr o ts) = sortApply _ (arity _ o) _ (ops o) (evals ops ga ts)
-      eval ops ga (var v) = ga v
+      eval ops ga (var v) = project _ ga v
       evals ops ga {[]} <> = <>
       evals ops ga {i ,- is} (t , ts) = eval ops ga t , evals ops ga ts
 
-    freeSubst : {V W : Sort -> Set}
-             -> [:              V -:> FreeOprModel W :]
+    freeSubst : {V W : List Sort}
+             -> SortTuple (FreeOprModel W) V
              -> [: FreeOprModel V -:> FreeOprModel W :]
-    freeSubsts : {V W : Sort -> Set}
-             -> [:              V -:> FreeOprModel W :]
+    freeSubsts : {V W : List Sort}
+             -> SortTuple (FreeOprModel W) V
              -> [: SortTuple (FreeOprModel V) -:> SortTuple (FreeOprModel W) :]
     freeSubst sg {i} (opr o ts) = opr o (freeSubsts sg ts)
-    freeSubst sg (var v) = sg v
+    freeSubst sg (var v) = project _ sg v
     freeSubsts sg {[]} <> = <>
     freeSubsts sg {i ,- is} (t , ts) = freeSubst sg t , freeSubsts sg ts
-
-    record Equation (s : Sort) : Set1 where
-      field
-        Vars : Sort -> Set
-        lhs rhs : FreeOprModel Vars s
 
     -- HERE!
     {- make Vars give a List Sort, not a Set, so that lhs and rhs can be
@@ -103,18 +113,17 @@ module Signature (Sort : Set) where
          equations are about
     -}
 
-    record Theory : Set1 where
-      field
-        Eqns : Sort -> Set
-        eqn : (s : Sort) -> Eqns s -> Equation s
+  record Theory (sig : Sig) : Set1 where
+    field
+      EqnSig : Sig
+    open Sig EqnSig
+    field
+      leftModel  : {i : Sort} -> (o : Opr i)
+        -> OprType EqnSig (FreeOprModel sig (arity i o)) i o
+      rightModel : {i : Sort} -> (o : Opr i)
+        -> OprType EqnSig (FreeOprModel sig (arity i o)) i o
 
-      PreModel : {R : Sort -> Set}(Q : (s : Sort) -> R s -> R s -> Set)
-           -> Operations R -> Set
-      PreModel {R} Q ops = (s : Sort)(q : Eqns s) ->
-        let open Equation (eqn s q) in
-        (ga : [: Vars -:> R :]) -> Q s (eval Vars ops ga lhs) (eval Vars ops ga rhs)
-
-  module FreeOper (sig : Sig){V : Sort -> Set} where
+  module FreeOper (sig : Sig){V : List Sort} where
     open Sig sig  
     _! : Operations sig (FreeOprModel sig V)
     _! {i} o = sortCurry (FreeOprModel sig V) (arity i o) (FreeOprModel sig V i) (opr o)

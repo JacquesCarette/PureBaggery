@@ -7,25 +7,25 @@ open import ExtUni
 module _ {Sort : Set} where
   open Signature Sort
 
-  module HASH (V : Sort -> Nat) where
-    # : {sig : Sig}
-      {i : Sort}(x : Nat){r : Pr (x < V i)}
-        -> FreeOprModel sig (V - Fin - El) i
-    # {_}{i} x {r} = var (x , r)
-
   module _ {sig : Sig}(thy : Theory sig) where
 
-    open Sig sig
-    open Theory thy
-
     record UModel : Set where
+      open Theory thy
+      open Sig EqnSig
+
+      -- mnemonic: 'q' for 'equation'
       field
         Carrier : Sort -> U
         operations : Operations sig (Carrier - El)
-        equations  : PreModel (\ s l r -> Pr (Oq (Carrier s) l r)) operations
+        equations  : {i : Sort} -> (q : Opr i) ->
+          let ar = arity i q in
+          SortDepArity (Carrier - El) ar \ ss ->
+          let ev = \ m -> eval sig ar operations ss (sortApply _ ar _ m (tabulate _ var)) in
+          Pr (Oq (Carrier i) (ev (leftModel q)) (ev (rightModel q)))
 
     record _=UModel=>_ (S : UModel)(T : UModel) : Set where
       open UModel
+      open Sig sig -- this is likely the wrong to open!
       field
         carrierFun : [: (Carrier S - El) -:> (Carrier T - El) :]
         preservesOprs : (s : Sort)(o : Opr s)(ss : SortTuple (Carrier S - El) (arity s o))

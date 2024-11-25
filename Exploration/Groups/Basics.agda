@@ -101,3 +101,7 @@ list f (x ,- xs) = f x ,- list f xs
 cataList : forall {b} {A : Set} {B : Set b} -> (A -> B -> B) -> B -> List A -> B
 cataList _ b [] = b
 cataList _/_ b (x ,- xs) = x / cataList _/_ b xs
+
+data _-in_ {A : Set} (a : A) : (L : List A) -> Set where
+  ze : {as : List A} -> a -in (a ,- as)
+  su : {b : A} {as : List A} -> a -in as -> a -in (b ,- as)
