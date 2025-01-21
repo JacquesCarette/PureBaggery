@@ -32,8 +32,10 @@ module _ (G : U) where
 
   private
     _~_ = Oq G
-    `2 = <> ,- <> ,- []
-    `3 = <> ,- `2
+
+    # : Nat -> List One
+    # ze = []
+    # (su n) = <> ,- # n
 
   open EQPRF G
 
@@ -44,13 +46,13 @@ module _ (G : U) where
       mul : Opr <>
     sig : Sig
     Sig.Opr   sig = Opr
-    Sig.arity sig <> mul = `2
+    Sig.arity sig <> mul = # 2
     open FreeOper sig
     data Eqns (_ : One) : Set where
       mulmul- : Eqns <>
     thy : Theory sig
     thy .EqnSig .Sig.Opr = Eqns
-    thy .EqnSig .Sig.arity <> mulmul- = `3
+    thy .EqnSig .Sig.arity <> mulmul- = # 3
     thy .leftModel mulmul- a b c = (mul !) ((mul !) a b) c
     thy .rightModel mulmul- a b c = (mul !) a ((mul !) b c)
     
@@ -71,7 +73,8 @@ module _ (G : U) where
     universally .Carrier    _         = G
     universally .operations M.mul     = mul
     universally .equations  M.mulmul- = mulmul-
-    
+
+    -- Is there a UA story to tell about middle4?
     middle4 : Pr (ALL 4 G \ w x y z ->
       mul (mul w x) (mul y z) ~ mul w (mul (mul x y) z))
     middle4 w x y z =
@@ -79,7 +82,42 @@ module _ (G : U) where
       mul w (mul x (mul y z)) < cong G (mul _) (mulmul- _ _ _) ]-
       mul w (mul (mul x y) z) [QED]
 
+  module MONOID where
+    open Signature One
+    open Theory
+    data Opr (_ : One) : Set where
+      mul : Opr <>
+      neu : Opr <>
+    sig : Sig
+    Sig.Opr   sig = Opr
+    Sig.arity sig <> mul = # 2
+    Sig.arity sig <> neu = # 0
+    open FreeOper sig
+    data Eqns (_ : One) : Set where
+      mulmul- mulneu- mul-neu : Eqns <>
+      
+    thy : Theory sig
+    thy .EqnSig .Sig.Opr = Eqns
+    
+    thy .EqnSig .Sig.arity <> mulmul- = # 3
+    thy .leftModel  mulmul- a b c = (mul !) ((mul !) a b) c
+    thy .rightModel mulmul- a b c = (mul !) a ((mul !) b c)
+    
+    thy .EqnSig .Sig.arity <> mulneu- = # 1
+    thy .leftModel  mulneu- b = (mul !) (neu !) b
+    thy .rightModel mulneu- b = b
+    
+    thy .EqnSig .Sig.arity <> mul-neu = # 1
+    thy .leftModel  mul-neu a = (mul !) a (neu !)
+    thy .rightModel mul-neu a = a
+    
+    UMod : Set
+    UMod = UModel thy
+
   record Monoid : Set where
+    open UModel
+    private
+      module M = MONOID
     field
       neu : El G
       mul : El (G `> G `> G)
@@ -88,7 +126,15 @@ module _ (G : U) where
       mul-neu : Pr (ALL 1 G \ x -> mul x neu ~ x)
       mulmul- : Pr (ALL 3 G \ x y z ->
                    mul (mul x y) z ~ mul x (mul y z))
-                   
+
+    universally : M.UMod
+    universally .Carrier <> = G
+    universally .operations M.mul = mul
+    universally .operations M.neu = neu
+    universally .equations M.mulmul- = mulmul-
+    universally .equations M.mulneu- = mulneu-
+    universally .equations M.mul-neu = mul-neu
+
     mul-mul : Pr (ALL 3 G \ x y z ->
                  mul x (mul y z) ~ mul (mul x y) z)
     mul-mul x y z = sym (mulmul- x y z)

@@ -102,6 +102,97 @@ cataList : forall {b} {A : Set} {B : Set b} -> (A -> B -> B) -> B -> List A -> B
 cataList _ b [] = b
 cataList _/_ b (x ,- xs) = x / cataList _/_ b xs
 
+{-
 data _-in_ {A : Set} (a : A) : (L : List A) -> Set where
   ze : {as : List A} -> a -in (a ,- as)
   su : {b : A} {as : List A} -> a -in as -> a -in (b ,- as)
+-}
+
+module _ {A : Set} where
+
+  -- we plan to use lists of arities (themselves lists) as signatures
+  -- with list membership as operation selection
+
+  -- thinnings (sublist selection) then talk about theory inclusion
+
+  data _<=_ : List A -> List A -> Set where
+    -- a ^- th means "a is excluded, with th for the rest"
+    -- ^ is "caret", i.e. "it is missing"
+    _^-_ : forall {xs ys} a -> xs <= ys ->       xs  <= (a ,- ys)
+    -- a ,- th means "a is included"
+    _,-_ : forall {xs ys} a -> xs <= ys -> (a ,- xs) <= (a ,- ys)
+    [] : [] <= []
+
+  _-in_ : A -> List A -> Set
+  a -in xs = (a ,- []) <= xs
+
+  io : forall {xs} -> xs <= xs
+  io {[]} = []
+  io {x ,- xs} = x ,- io {xs}
+
+  no : forall {xs} -> [] <= xs
+  no {[]} = []
+  no {x ,- xs} = x ^- no
+
+  data [_-<_]=_ : forall {xs ys zs}
+    -> (th : xs <= ys)(ph : ys <= zs)(ps : xs <= zs) -> Set where
+
+    _^-_ : forall a {xs ys zs}
+      -> {th : xs <= ys}{ph : ys <= zs}{ps : xs <= zs}
+      -> [ th -< ph ]= ps
+      -> [ th -< (a ^- ph) ]= (a ^- ps)
+
+    _^,-_ : forall a {xs ys zs}
+      -> {th : xs <= ys}{ph : ys <= zs}{ps : xs <= zs}
+      -> [ th -< ph ]= ps
+      -> [ (a ^- th) -< (a ,- ph) ]= (a ^- ps)
+
+    _,-_ : forall a {xs ys zs}
+      -> {th : xs <= ys}{ph : ys <= zs}{ps : xs <= zs}
+      -> [ th -< ph ]= ps
+      -> [ (a ,- th) -< (a ,- ph) ]= (a ,- ps)
+
+    [] : [ [] -< [] ]= []
+
+  tri : forall {xs ys zs}(th : xs <= ys)(ph : ys <= zs) -> <: [ th -< ph ]=_ :>
+  tri th (a ^- ph) = let _ , v = tri th ph in _ , (a ^- v)
+  tri (.a ^- th) (a ,- ph) = let _ , v = tri th ph in _ , (a ^,- v)
+  tri (.a ,- th) (a ,- ph) = let _ , v = tri th ph in _ , (a ,- v)
+  tri [] [] = _ , []
+  
+  _-<_ : forall {xs ys zs}(th : xs <= ys)(ph : ys <= zs) -> xs <= zs
+  th -< ph = fst (tri th ph)
+
+  -- th /#\ ph means that th and ph *partition* their shared target
+  data _/#\_ : forall {xs us ys}(th : xs <= us) (ph : ys <= us) -> Set where
+    _,^-_ : forall a {xs us ys}{th : xs <= us}{ph : ys <= us}
+         -> th /#\ ph
+         -> (a ,- th) /#\ (a ^- ph)
+    _^,-_ : forall a {xs us ys}{th : xs <= us}{ph : ys <= us}
+         -> th /#\ ph
+         -> (a ^- th) /#\ (a ,- ph)
+    [] : [] /#\ []
+
+  _-not : forall {xs us}(th : xs <= us) -- if th selects a subset of us
+       -> <: _<= us :> >< \ (_ , ph)    -- there's another subset, ph
+       -> th /#\ ph                     -- such that th and ph partition us
+  (a ^- th) -not = let _ , w = th -not in _ , (a ^,- w)
+  (a ,- th) -not = let _ , w = th -not in _ , (a ,^- w)
+  [] -not = _ , []
+
+  _-sub_ : List A -> List A -> Set
+  xs -sub ys = forall {a} -> a -in xs -> a -in ys
+
+  atomize : forall {xs ys} -> xs <= ys -> xs -sub ys
+  atomize th i = i -< th
+
+  {- this is doomed
+  ezimota : forall {xs ys} -> xs -sub ys -> xs <= ys
+  ezimota {[]} {ys} sb = no
+  ezimota {x ,- xs} {ys} sb with sb (x ,- no)
+  ... | a ^- i = a ^- ezimota {!!}
+  ... | .x ,- i = x ,- ezimota {!!}
+  -- there is no reason why a -sub proof should preserve the order
+  -- of duplicated elements
+  -}
+
