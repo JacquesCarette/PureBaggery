@@ -11,27 +11,27 @@ module _ {Sort : Set} where
 
     record UModel : Set where
       open Theory thy
-      open Sig EqnSig
 
       -- mnemonic: 'q' for 'equation'
       field
         Carrier : Sort -> U
         operations : Operations sig (Carrier - El)
-        equations  : {i : Sort} -> (q : Opr i) ->
-          let ar = arity i q in
-          SortDepArity (Carrier - El) ar \ ss ->
-          let ev = \ m -> eval sig ar operations ss (sortApply _ ar _ m (tabulate _ var)) in
-          Pr (Oq (Carrier i) (ev (leftModel q)) (ev (rightModel q)))
+        equations : (t : Sort) ->
+          All
+          (/\ \ ga -> /\ \ l r -> SortDepArity (Carrier - El) ga \ ro ->
+           let ev = eval sig ga operations ro in
+           Pr (Oq (Carrier t) (ev l) (ev r)))
+          (zAll (EqnSig t) (equationStatements t))
 
     record _=UModel=>_ (S : UModel)(T : UModel) : Set where
       open UModel
-      open Sig sig -- this is likely the wrong to open!
       field
         carrierFun : [: (Carrier S - El) -:> (Carrier T - El) :]
-        preservesOprs : (s : Sort)(o : Opr s)(ss : SortTuple (Carrier S - El) (arity s o))
-                     -> Pr (Oq (Carrier T s)
-                         (carrierFun (sortApply (Carrier S - El) (arity s o) ((Carrier S - El) s)
-                           (operations S o) ss))
-                         (sortApply (Carrier T - El) (arity s o) ((Carrier T - El) s)
-                           (operations T o) (mapSortTuple carrierFun ss)))
-                    
+        preservesOprs : (t : Sort) -> 
+          All
+          (/\ \ ss -> /\ \ f g -> (vs : All (Carrier S - El) ss) ->
+            Pr (Oq (Carrier T t)
+                   (carrierFun (sortApply _ ss _ f vs))
+                   (sortApply _ ss _ g (mapAll carrierFun vs))))
+          (zAll (sig t) (pureAll _,_ <*All*> operations S t <*All*> operations T t))
+

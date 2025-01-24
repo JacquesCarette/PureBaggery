@@ -10,17 +10,15 @@ open import Basics
 
 -- Signature
 --   use 't' as short for 't'arget
+
 module Signature (Sort : Set) where
 
   module _ (R : Sort -> Set) where
 
     -- can't use 'cataList' because Agda's positivity checker will be
     -- unhappy below
-    SortTuple : List Sort -> Set
-    SortTuple []        = One
-    SortTuple (t ,- ts) = R t * SortTuple ts
 
-    SortDepArity : (ss : List Sort) -> (SortTuple ss -> Set) -> Set
+    SortDepArity : (ss : List Sort) -> (All R ss -> Set) -> Set
     SortDepArity [] f = f <>
     SortDepArity (x ,- ss) f = (r : R x) -> SortDepArity ss \ rs -> f (r , rs)
     
@@ -28,94 +26,70 @@ module Signature (Sort : Set) where
     SortArity : List Sort -> Set -> Set
     SortArity ss T = SortDepArity ss (kon T)
 
-    project : {ss : List Sort} -> SortTuple ss -> [: (_-in ss) -:> R :]
-    project (r , _) ze = r
-    project (_ , ts) (su vr) = project ts vr
-
-    tabulate : {ss : List Sort} -> [: (_-in ss) -:> R :] -> SortTuple ss
-    tabulate {[]} f = <>
-    tabulate {x ,- ss} f = f ze , tabulate (su - f)
-
-    sortDepCurry : (ss : List Sort) -> (T : SortTuple ss -> Set) ->
-      ((rs : SortTuple ss) -> T rs) -> SortDepArity ss T
+    sortDepCurry : (ss : List Sort) -> (T : All R ss -> Set) ->
+      ((rs : All R ss) -> T rs) -> SortDepArity ss T
     sortDepCurry []        T f = f <>
     sortDepCurry (s ,- ss) T f = \ r -> sortDepCurry ss ((r ,_) - T) ((r ,_) - f)
     
-    sortCurry : (ss : List Sort) -> (T : Set) -> (SortTuple ss -> T) -> SortArity ss T
+    sortCurry : (ss : List Sort) -> (T : Set) -> (All R ss -> T) -> SortArity ss T
     sortCurry ss T f = sortDepCurry ss (kon T) f
 
-    sortApply : (ss : List Sort) -> (T : Set) -> SortArity ss T -> (SortTuple ss -> T)
+    sortApply : (ss : List Sort) -> (T : Set) -> SortArity ss T -> (All R ss -> T)
     sortApply [] T t <> = t
     sortApply (s ,- ss) T f (t , ts) = sortApply ss T (f t) ts
 
-  mapSortTuple : {S T : Sort -> Set}
-              -> [: S -:> T :]
-              -> [: SortTuple S -:> SortTuple T :]
-  mapSortTuple f {[]} <> = <>
-  mapSortTuple f {i ,- is} (s , ss) = f s , mapSortTuple f ss
-
-  -- pow-ish in output sorts, fam-ish in input sorts
-  record Sig : Set₁ where
-    field
-      Opr : Sort -> Set
-      arity : (t : Sort) -> Opr t -> List Sort
+  Sig : Set
+  Sig = Sort  -- for each output sort
+     -> List  -- we list the operations without naming them, but rather
+          (List Sort)  -- giving their arities
 
   module _ (sig : Sig) where
-    open Sig sig
 
-    module _ (R : Sort -> Set) where
-      
-      OprType : (t : Sort) -> Opr t -> Set
-      OprType t o = SortArity R (arity t o) (R t)
+    [_]-_>>_ : (Sort -> Set) -> List Sort -> Sort -> Set
+    [ R ]- ss >> t = SortArity R ss (R t)
 
-      -- Operations (i.e. Model) for raw Signature
-      Operations : Set
-      Operations = {i : Sort} -> (o : Opr i) -> OprType i o
+    -- Operations (i.e. Model) for raw Signature
+    Operations : (Sort -> Set) -> Set
+    Operations R = (t : Sort) -> All ([ R ]-_>> t) (sig t)
 
-      OprSource : (t : Sort) -> Opr t -> Set
-      OprSource t o = SortTuple R (arity t o)
-
+    _-op_ : forall {R} -> Operations R -> forall {ss t} -> ss -in sig t -> [ R ]- ss >> t
+    ops -op o = project (ops _) o
 
     module _ (V : List Sort) where
       -- Free such thing over a set V of variables and a Sort
       data FreeOprModel (t : Sort) : Set where
-        opr : (o : Opr t) -> OprSource FreeOprModel t o -> FreeOprModel t
-        var : (v : t -in V)                             -> FreeOprModel t
+        opr : forall {ss} -> ss -in sig t -> All FreeOprModel ss -> FreeOprModel t
+        var : (v : t -in V)                                      -> FreeOprModel t
 
       eval : {R : Sort -> Set} -> Operations R
-        -> SortTuple  R V
+        -> All  R V
         -> [: FreeOprModel -:> R :]
       evals : {R : Sort -> Set} -> Operations R
-        -> SortTuple R V
-        -> [: SortTuple FreeOprModel -:> SortTuple R :]
-      eval ops ga (opr o ts) = sortApply _ (arity _ o) _ (ops o) (evals ops ga ts)
-      eval ops ga (var v) = project _ ga v
+        -> All R V
+        -> [: All FreeOprModel -:> All R :]
+      eval ops ga (opr {ss} o ms) = sortApply _ ss _ (ops -op o) (evals ops ga ms)
+      eval ops ga (var v) = project ga v
       evals ops ga {[]} <> = <>
       evals ops ga {i ,- is} (t , ts) = eval ops ga t , evals ops ga ts
 
     freeSubst : {V W : List Sort}
-             -> SortTuple (FreeOprModel W) V
+             -> All (FreeOprModel W) V
              -> [: FreeOprModel V -:> FreeOprModel W :]
     freeSubsts : {V W : List Sort}
-             -> SortTuple (FreeOprModel W) V
-             -> [: SortTuple (FreeOprModel V) -:> SortTuple (FreeOprModel W) :]
+             -> All (FreeOprModel W) V
+             -> [: All (FreeOprModel V) -:> All (FreeOprModel W) :]
     freeSubst sg {i} (opr o ts) = opr o (freeSubsts sg ts)
-    freeSubst sg (var v) = project _ sg v
+    freeSubst sg (var v) = project sg v
     freeSubsts sg {[]} <> = <>
     freeSubsts sg {i ,- is} (t , ts) = freeSubst sg t , freeSubsts sg ts
 
   record Theory (sig : Sig) : Set1 where
     field
       EqnSig : Sig
-    open Sig EqnSig
-    field
-      leftModel  : {i : Sort} -> (o : Opr i)
-        -> OprType EqnSig (FreeOprModel sig (arity i o)) i o
-      rightModel : {i : Sort} -> (o : Opr i)
-        -> OprType EqnSig (FreeOprModel sig (arity i o)) i o
 
-  module FreeOper (sig : Sig){V : List Sort} where
-    open Sig sig  
-    _! : Operations sig (FreeOprModel sig V)
-    _! {i} o = sortCurry (FreeOprModel sig V) (arity i o) (FreeOprModel sig V i) (opr o)
+      equationStatements : (t : Sort) ->
+        All
+        (\ ga -> let Term = FreeOprModel sig ga t in Term * Term)
+        (EqnSig t)
 
+-- TODO: theory inclusion, which was the whole point of switching to lists and thinnings

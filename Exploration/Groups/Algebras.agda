@@ -39,6 +39,8 @@ module _ (G : U) where
 
   open EQPRF G
 
+  -- HERE!
+  -- use new formulation of UniversalAlgebra
   module SEMIGROUP where
     open Signature One
     open Theory

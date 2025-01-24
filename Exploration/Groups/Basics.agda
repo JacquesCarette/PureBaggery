@@ -51,8 +51,11 @@ module _ {I : Set} where
   [: P :] = forall {i} -> P i
   <: P :> = _ >< P
 
+  infixr 1 _-:>_
+  infixr 10 _*:_
+
 -- uncurry
-/\_ : {S : Set}{T : S -> Set}{P : S >< T -> Set}
+/\_ : forall {l}{S : Set}{T : S -> Set}{P : S >< T -> Set l}
    -> ((s : S)(t : T s) -> P (s , t))
    -> (st : S >< T) -> P st
 (/\ k) (s , t) = k s t
@@ -180,19 +183,40 @@ module _ {A : Set} where
   (a ,- th) -not = let _ , w = th -not in _ , (a ,^- w)
   [] -not = _ , []
 
-  _-sub_ : List A -> List A -> Set
-  xs -sub ys = forall {a} -> a -in xs -> a -in ys
+  module _ (R : A -> Set) where
 
-  atomize : forall {xs ys} -> xs <= ys -> xs -sub ys
-  atomize th i = i -< th
+    All : List A -> Set
+    All []        = One
+    All (t ,- ts) = R t * All ts
 
-  {- this is doomed
-  ezimota : forall {xs ys} -> xs -sub ys -> xs <= ys
-  ezimota {[]} {ys} sb = no
-  ezimota {x ,- xs} {ys} sb with sb (x ,- no)
-  ... | a ^- i = a ^- ezimota {!!}
-  ... | .x ,- i = x ,- ezimota {!!}
-  -- there is no reason why a -sub proof should preserve the order
-  -- of duplicated elements
-  -}
+  module _ {R : A -> Set} where
+  
+    select : forall {ss ts} -> ss <= ts -> All R ts -> All R ss
+    select (a ^- th) (r , rs) = select th rs
+    select (a ,- th) (r , rs) = r , select th rs
+    select [] rs = <>
 
+    only : forall {s} -> All R (s ,- []) -> R s
+    only = fst
+
+    project : {ss : List A} -> All R ss -> [: (_-in ss) -:> R :]
+    project rs i = only (select i rs)
+
+    zAll : (ss : List A) -> All R ss -> List (A >< R)
+    zAll [] <> = []
+    zAll (s ,- ss) (r , rs) = (s , r) ,- zAll ss rs
+
+    pureAll : [: R :] -> [: All R :]
+    pureAll r {[]} = <>
+    pureAll r {s ,- ss} = r , pureAll r
+
+  infixl 11 _<*All*>_
+  _<*All*>_ :  {S T : A -> Set}
+              -> [: All (S -:> T) -:> All S -:> All T :]
+  _<*All*>_ {_} {_} {[]} <> <> = <>
+  _<*All*>_ {_} {_} {a ,- as} (f , fs) (s , ss) = f s , fs <*All*> ss
+
+  mapAll : {S T : A -> Set}
+              -> [: S -:> T :]
+              -> [: All S -:> All T :]
+  mapAll f ss = pureAll f <*All*> ss
