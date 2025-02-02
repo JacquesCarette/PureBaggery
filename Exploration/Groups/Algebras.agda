@@ -38,26 +38,22 @@ module _ (G : U) where
     # (su n) = <> ,- # n
 
   open EQPRF G
-
-  -- HERE!
-  -- use new formulation of UniversalAlgebra
   module SEMIGROUP where
     open Signature One
     open Theory
-    data Opr (_ : One) : Set where
-      mul : Opr <>
     sig : Sig
-    Sig.Opr   sig = Opr
-    Sig.arity sig <> mul = # 2
-    open FreeOper sig
-    data Eqns (_ : One) : Set where
-      mulmul- : Eqns <>
+    sig <> = # 2 ,- []
+    open TheoryKit sig
+
+    -- recall: first arg of opr is choice of eqn, 2nd is eqn
     thy : Theory sig
-    thy .EqnSig .Sig.Opr = Eqns
-    thy .EqnSig .Sig.arity <> mulmul- = # 3
-    thy .leftModel mulmul- a b c = (mul !) ((mul !) a b) c
-    thy .rightModel mulmul- a b c = (mul !) a ((mul !) b c)
-    
+    thy .EqnSig <> = # 3 ,- []
+    thy .equationStatements <> =
+       (abstr \ (a , b , c , <>) ->
+         (0 ! (0 ! a , b , <>) , c , <>) ,
+         (0 ! a , (0 ! b , c , <>) , <>))
+       , <>
+       
     UMod : Set
     UMod = UModel thy
 
@@ -72,9 +68,9 @@ module _ (G : U) where
                   mul (mul x y) z ~ mul x (mul y z))
 
     universally : M.UMod
-    universally .Carrier    _         = G
-    universally .operations M.mul     = mul
-    universally .equations  M.mulmul- = mulmul-
+    universally .Carrier    <> = G
+    universally .operations <> = mul , <>
+    universally .equations  <> = mulmul- , <>
 
     -- Is there a UA story to tell about middle4?
     middle4 : Pr (ALL 4 G \ w x y z ->
@@ -87,17 +83,26 @@ module _ (G : U) where
   module MONOID where
     open Signature One
     open Theory
-    data Opr (_ : One) : Set where
-      mul : Opr <>
-      neu : Opr <>
+    ext : ExtensionOf SEMIGROUP.sig
+    ext <> = _ , (# 0 ^- io)
+    
     sig : Sig
-    Sig.Opr   sig = Opr
-    Sig.arity sig <> mul = # 2
-    Sig.arity sig <> neu = # 0
-    open FreeOper sig
-    data Eqns (_ : One) : Set where
-      mulmul- mulneu- mul-neu : Eqns <>
-      
+    sig = extBig ext
+    open TheoryKit sig
+
+    -- HERE
+    thy : Theory sig
+    thy .EqnSig <> = # 1 ,- # 1 ,- # 3 ,- []
+    thy .equationStatements <> = {!!}
+        {-
+       (abstr \ (a , b , c , <>) ->
+         (0 ! (0 ! a , b , <>) , c , <>) ,
+         (0 ! a , (0 ! b , c , <>) , <>))
+       , <>-}
+       
+    UMod : Set
+    UMod = UModel thy
+{-    
     thy : Theory sig
     thy .EqnSig .Sig.Opr = Eqns
     
@@ -115,7 +120,8 @@ module _ (G : U) where
     
     UMod : Set
     UMod = UModel thy
-
+    -}
+{-
   record Monoid : Set where
     open UModel
     private
@@ -551,3 +557,4 @@ module _ {X Y : U} where
 
     bwdmor : S =Group=> R
     monoid=> bwdmor = _<=Monoid=>_.bwdmor xyMI
+-}

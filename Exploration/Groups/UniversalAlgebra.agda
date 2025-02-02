@@ -43,6 +43,20 @@ module Signature (Sort : Set) where
      -> List  -- we list the operations without naming them, but rather
           (List Sort)  -- giving their arities
 
+  -- signature extension, i.e. big extends wee
+  _<Sig=_ : Sig -> Sig -> Set
+  wee <Sig= big = (t : Sort) -> wee t <= big t
+
+  ExtensionOf : Sig -> Set
+  ExtensionOf wee = (t : Sort) -> <: wee t <=_ :> 
+
+  -- projecting out of extensions
+  extBig : {wee : Sig} -> ExtensionOf wee -> Sig
+  extBig = _- fst
+
+  extIsBigger : {wee : Sig} -> (ext : ExtensionOf wee) -> wee <Sig= extBig ext
+  extIsBigger = _- snd
+  
   module _ (sig : Sig) where
 
     [_]-_>>_ : (Sort -> Set) -> List Sort -> Sort -> Set
@@ -83,6 +97,35 @@ module Signature (Sort : Set) where
     freeSubsts sg {[]} <> = <>
     freeSubsts sg {i ,- is} (t , ts) = freeSubst sg t , freeSubsts sg ts
 
+  -- #$%#$ termination checker is too dumb, need to unwind mapAll
+  embed : {wee big : Sig} {V : List Sort} -> (ext : wee <Sig= big) ->
+    [: FreeOprModel wee V -:> FreeOprModel big V :]
+  embeds : {wee big : Sig} {V : List Sort} -> (ext : wee <Sig= big) ->
+    [: All (FreeOprModel wee V) -:> All (FreeOprModel big V) :]
+    
+  -- embed ext (opr c ts) = opr (c -< ext _) (mapAll (embed ext) ts)
+  embed ext (opr c ts) = opr (c -< ext _) (embeds ext ts)
+  embed ext (var v)    = var v
+
+  embeds ext {[]}      <>       = <>
+  embeds ext {s ,- ss} (t , ts) = embed ext t , embeds ext ts
+  
+  module TheoryKit (sig : Sig) where
+    -- additional kit: take number (in context) and return 'opr' constructor
+    infix 5 _!_
+    _!_ : {V : List Sort} {t : Sort} -> (i : Nat) ->
+       {ir : InRange i (sig t)} ->
+       All (FreeOprModel sig V) (findInRange i (sig t) ir) ->
+       FreeOprModel sig V t
+    i ! x = opr (sing i) x
+
+    -- sigh, can't call it 'abstract'
+    abstr : {V : List Sort} {t : Sort} ->
+       let mod = FreeOprModel sig V t in
+       (All (FreeOprModel sig V) V -> mod * mod) ->
+       mod * mod
+    abstr f = f (mapAll var coords)
+
   record Theory (sig : Sig) : Set1 where
     field
       EqnSig : Sig
@@ -92,4 +135,9 @@ module Signature (Sort : Set) where
         (\ ga -> let Term = FreeOprModel sig ga t in Term * Term)
         (EqnSig t)
 
+  -- HEREish too
+  -- Need to talk about how to do Theory Extension based on a Signature
+  -- extension. We'll also want to talk about the case where the new
+  -- thing is derivable. And the contravariant thing on models too.
+  
 -- TODO: theory inclusion, which was the whole point of switching to lists and thinnings

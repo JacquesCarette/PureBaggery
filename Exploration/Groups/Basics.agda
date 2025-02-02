@@ -129,14 +129,33 @@ module _ {A : Set} where
   _-in_ : A -> List A -> Set
   a -in xs = (a ,- []) <= xs
 
+  -- identity thinning
   io : forall {xs} -> xs <= xs
   io {[]} = []
   io {x ,- xs} = x ,- io {xs}
 
+  -- empty thinning
   no : forall {xs} -> [] <= xs
   no {[]} = []
   no {x ,- xs} = x ^- no
 
+  -- singleton thinning as a number (tryptich)
+  -- minimal evidence of being in-range
+  InRange : Nat -> List A -> Set
+  InRange _      []       = Zero
+  InRange ze     (x ,- l) = One
+  InRange (su n) (x ,- l) = InRange n l
+
+  -- given that evidence, retrieve
+  findInRange : (i : Nat) -> (l : List A) -> InRange i l -> A
+  findInRange ze     (x ,- l) ir = x
+  findInRange (su i) (x ,- l) ir = findInRange i l ir
+
+  -- and now singleton thinning at that (good) location
+  sing : (i : Nat) -> {l : List A} {ir : InRange i l} -> findInRange i l ir -in l
+  sing ze     {x ,- l} {ir} = x ,- no
+  sing (su i) {x ,- l} {ir} = x ^- sing i {l} {ir}
+  
   data [_-<_]=_ : forall {xs ys zs}
     -> (th : xs <= ys)(ph : ys <= zs)(ps : xs <= zs) -> Set where
 
@@ -202,6 +221,10 @@ module _ {A : Set} where
     project : {ss : List A} -> All R ss -> [: (_-in ss) -:> R :]
     project rs i = only (select i rs)
 
+    tabulate : {ss : List A} -> [: (_-in ss) -:> R :] -> All R ss
+    tabulate {[]}      f = <>
+    tabulate {x ,- ss} f = f (x ,- no) , tabulate {ss} ((x ^-_) - f)
+
     zAll : (ss : List A) -> All R ss -> List (A >< R)
     zAll [] <> = []
     zAll (s ,- ss) (r , rs) = (s , r) ,- zAll ss rs
@@ -209,6 +232,10 @@ module _ {A : Set} where
     pureAll : [: R :] -> [: All R :]
     pureAll r {[]} = <>
     pureAll r {s ,- ss} = r , pureAll r
+
+  coords : {ss : List A} -> All (_-in ss) ss
+  coords = tabulate id
+    
 
   infixl 11 _<*All*>_
   _<*All*>_ :  {S T : A -> Set}
