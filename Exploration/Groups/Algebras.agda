@@ -48,7 +48,7 @@ module _ (G : U) where
     -- recall: first arg of opr is choice of eqn, 2nd is eqn
     thy : Theory sig
     thy .EqnSig <> = # 3 ,- []
-    thy .equationStatements <> =
+    thy .eqns <> =
        (abstr \ (a , b , c , <>) ->
          (0 ! (0 ! a , b , <>) , c , <>) ,
          (0 ! a , (0 ! b , c , <>) , <>))
@@ -83,45 +83,27 @@ module _ (G : U) where
   module MONOID where
     open Signature One
     open Theory
-    ext : ExtensionOf SEMIGROUP.sig
+    open TheoryExtension
+    ext : SigExtension SEMIGROUP.sig
     ext <> = _ , (# 0 ^- io)
     
     sig : Sig
     sig = extBig ext
     open TheoryKit sig
 
-    -- HERE
+    thyExt : TheoryExtension SEMIGROUP.thy ext
+    thyExt .EqnSigExt <> = _ , (# 1 ^- # 1 ^- io)
+    thyExt .eqnsExt <>
+      = (abstr \ (b , <>) -> (1 ! (0 ! <>) , b , <>) , b)
+      , (abstr \ (a , <>) -> (1 ! a , (0 ! <>) , <>) , a)
+      , <>
+
     thy : Theory sig
-    thy .EqnSig <> = # 1 ,- # 1 ,- # 3 ,- []
-    thy .equationStatements <> = {!!}
-        {-
-       (abstr \ (a , b , c , <>) ->
-         (0 ! (0 ! a , b , <>) , c , <>) ,
-         (0 ! a , (0 ! b , c , <>) , <>))
-       , <>-}
-       
+    thy = extTheory thyExt  -- weird that .extTheory doesn't work
+
     UMod : Set
     UMod = UModel thy
-{-    
-    thy : Theory sig
-    thy .EqnSig .Sig.Opr = Eqns
-    
-    thy .EqnSig .Sig.arity <> mulmul- = # 3
-    thy .leftModel  mulmul- a b c = (mul !) ((mul !) a b) c
-    thy .rightModel mulmul- a b c = (mul !) a ((mul !) b c)
-    
-    thy .EqnSig .Sig.arity <> mulneu- = # 1
-    thy .leftModel  mulneu- b = (mul !) (neu !) b
-    thy .rightModel mulneu- b = b
-    
-    thy .EqnSig .Sig.arity <> mul-neu = # 1
-    thy .leftModel  mul-neu a = (mul !) a (neu !)
-    thy .rightModel mul-neu a = a
-    
-    UMod : Set
-    UMod = UModel thy
-    -}
-{-
+
   record Monoid : Set where
     open UModel
     private
@@ -137,12 +119,9 @@ module _ (G : U) where
 
     universally : M.UMod
     universally .Carrier <> = G
-    universally .operations M.mul = mul
-    universally .operations M.neu = neu
-    universally .equations M.mulmul- = mulmul-
-    universally .equations M.mulneu- = mulneu-
-    universally .equations M.mul-neu = mul-neu
-
+    universally .operations <> = neu , mul , <>
+    universally .equations <> = mulneu- , mul-neu , mulmul- , <>
+    
     mul-mul : Pr (ALL 3 G \ x y z ->
                  mul x (mul y z) ~ mul (mul x y) z)
     mul-mul x y z = sym (mulmul- x y z)
@@ -166,7 +145,8 @@ module _ (G : U) where
       mul x y   [QED]
     elim> x y p = sym (intro> x y p)
     elim< x y p = sym (intro< x y p)
-    
+
+{-
   module _ (X : SemiGroup) where
   
     open SemiGroup X

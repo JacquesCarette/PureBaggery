@@ -126,6 +126,8 @@ module _ {A : Set} where
     _,-_ : forall {xs ys} a -> xs <= ys -> (a ,- xs) <= (a ,- ys)
     [] : [] <= []
 
+  infixr 20 _^-_ _^,-_
+
   _-in_ : A -> List A -> Set
   a -in xs = (a ,- []) <= xs
 
@@ -233,10 +235,19 @@ module _ {A : Set} where
     pureAll r {[]} = <>
     pureAll r {s ,- ss} = r , pureAll r
 
+    _/<_>\_ : forall {ss us ts}{th : ss <= us}{ph : ts <= us}
+      -> All R ss
+      -> th /#\ ph
+      -> All R ts
+      -> All R us
+    xs /< a ^,- p >\ (y , ys) = y , (xs /< p >\ ys)
+    (x , xs) /< a ,^- p >\ ys = x , (xs /< p >\ ys)
+    xs /< [] >\ ys           = <>
+
+
   coords : {ss : List A} -> All (_-in ss) ss
   coords = tabulate id
     
-
   infixl 11 _<*All*>_
   _<*All*>_ :  {S T : A -> Set}
               -> [: All (S -:> T) -:> All S -:> All T :]
@@ -247,3 +258,10 @@ module _ {A : Set} where
               -> [: S -:> T :]
               -> [: All S -:> All T :]
   mapAll f ss = pureAll f <*All*> ss
+
+zAllSelect : {A : Set}{R : A -> Set}{ss ts : List A}(th : ss <= ts)(rs : All R ts)
+  -> zAll ss (select th rs) <= zAll ts rs
+zAllSelect (a ^- th) (r , rs) = (a , r) ^- zAllSelect th rs
+zAllSelect (a ,- th) (r , rs) = (a , r) ,- zAllSelect th rs
+zAllSelect [] rs = []
+

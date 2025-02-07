@@ -47,14 +47,14 @@ module Signature (Sort : Set) where
   _<Sig=_ : Sig -> Sig -> Set
   wee <Sig= big = (t : Sort) -> wee t <= big t
 
-  ExtensionOf : Sig -> Set
-  ExtensionOf wee = (t : Sort) -> <: wee t <=_ :> 
+  SigExtension : Sig -> Set
+  SigExtension wee = (t : Sort) -> <: wee t <=_ :> 
 
   -- projecting out of extensions
-  extBig : {wee : Sig} -> ExtensionOf wee -> Sig
+  extBig : {wee : Sig} -> SigExtension wee -> Sig
   extBig = _- fst
 
-  extIsBigger : {wee : Sig} -> (ext : ExtensionOf wee) -> wee <Sig= extBig ext
+  extIsBigger : {wee : Sig} -> (ext : SigExtension wee) -> wee <Sig= extBig ext
   extIsBigger = _- snd
   
   module _ (sig : Sig) where
@@ -126,18 +126,27 @@ module Signature (Sort : Set) where
        mod * mod
     abstr f = f (mapAll var coords)
 
+  Eqns : (sig : Sig)(ES : List (List Sort)) -> Sort -> Set
+  Eqns sig ES t =
+    All
+    (\ ga -> let Term = FreeOprModel sig ga t in Term * Term)
+    ES
+
   record Theory (sig : Sig) : Set1 where
     field
       EqnSig : Sig
 
-      equationStatements : (t : Sort) ->
-        All
-        (\ ga -> let Term = FreeOprModel sig ga t in Term * Term)
-        (EqnSig t)
+      eqns : forall t -> Eqns sig (EqnSig t) t
 
-  -- HEREish too
-  -- Need to talk about how to do Theory Extension based on a Signature
-  -- extension. We'll also want to talk about the case where the new
-  -- thing is derivable. And the contravariant thing on models too.
-  
--- TODO: theory inclusion, which was the whole point of switching to lists and thinnings
+  record TheoryExtension {sig : Sig}(thy : Theory sig)(ext : SigExtension sig) : Set where
+    open Theory
+    field
+      EqnSigExt : SigExtension (thy .EqnSig)
+      eqnsExt   : forall t -> Eqns (extBig ext) ((extIsBigger EqnSigExt t -not) .fst .fst) t
+
+    extTheory : Theory (extBig ext)
+    extTheory .EqnSig = extBig EqnSigExt
+    extTheory .eqns t =
+      mapAll (embed (extIsBigger ext) >><< embed (extIsBigger ext)) (thy .eqns t)
+      /< (extIsBigger EqnSigExt t -not) .snd >\
+      eqnsExt t
