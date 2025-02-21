@@ -8,10 +8,16 @@ open import Reasoning
 module _ {Sort : Set} where
   open Signature Sort
 
+  -- HERE; THOUGHT REQUIRED, THEREFORE ALSO FRESH HORSES
+  -- Our uni. alg. setup is not internal to U.
+  -- Our models have carriers in U.
+  -- We are struggling with the interface between external All and this:
+
   UAll : (Sort -> U) -> List Sort -> U
   UAll R [] = `One
   UAll R (s ,- ss) = R s `* UAll R ss
 
+  -- obfuscated identity function!
   uAll : (R : Sort -> U)(ss : List Sort) -> All (R - El) ss -> El (UAll R ss)
   uAll R [] <> = <>
   uAll R (s ,- ss) (r , rs) = r , uAll R ss rs
@@ -25,7 +31,13 @@ module _ {Sort : Set} where
     (rs : All (R - El) ss)
     -> Pr (Oq (R t) (sortApply (R - El) ss (El (R t)) f rs) (uop R ss t f (uAll R ss rs)))
   uopLemma R [] t f rs = refl (R t) f
-  uopLemma R (s ,- ss) t f (r , rs) = {!uopLemma R ss t (f r) rs!}
+  uopLemma R (s ,- ss) t f (r , rs) = uopLemma R ss t (f r) rs
+
+  -- We may also have a problem *stating* functorialty of *external* All
+  -- with respect to selection.
+
+  -- How are we going to Jagger/Richards our way out of this one?
+  -- Do we move operations, etc into U?
 
   module _ {sig : Sig}(thy : Theory sig) where
   
