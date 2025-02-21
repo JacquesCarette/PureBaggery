@@ -58,6 +58,7 @@ module _ (G : U) where
     UMod = UModel thy
 
   record SemiGroup : Set where
+    open Signature One
     open UModel
     private
       module M = SEMIGROUP
@@ -70,7 +71,7 @@ module _ (G : U) where
     universally : M.UMod
     universally .Carrier    <> = G
     universally .operations <> = mul , <>
-    universally .equations  <> = mulmul- , <>
+    universally .equations  <> = unc mulmul- , <>
 
     -- Is there a UA story to tell about middle4?
     middle4 : Pr (ALL 4 G \ w x y z ->
@@ -105,6 +106,7 @@ module _ (G : U) where
     UMod = UModel thy
 
   record Monoid : Set where
+    open Signature One
     open UModel
     private
       module M = MONOID
@@ -120,7 +122,7 @@ module _ (G : U) where
     universally : M.UMod
     universally .Carrier <> = G
     universally .operations <> = neu , mul , <>
-    universally .equations <> = mulneu- , mul-neu , mulmul- , <>
+    universally .equations <> = unc mulneu- , unc mul-neu , unc mulmul- , <>
     
     mul-mul : Pr (ALL 3 G \ x y z ->
                  mul x (mul y z) ~ mul (mul x y) z)

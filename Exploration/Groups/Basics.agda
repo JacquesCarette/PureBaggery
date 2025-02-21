@@ -47,8 +47,9 @@ module _ {I : Set} where
   _*:_ _-:>_ : (I -> Set) -> (I -> Set) -> (I -> Set)
   (P *: Q) i = P i * Q i
   (P -:> Q) i = P i -> Q i
-  [:_:] <:_:> : (I -> Set) -> Set
-  [: P :] = forall {i} -> P i
+  [!_!] [:_:] <:_:> : (I -> Set) -> Set
+  [! P !] = forall {i} -> P i
+  [: P :] = forall i -> P i
   <: P :> = _ >< P
 
   infixr 1 _-:>_
@@ -220,10 +221,10 @@ module _ {A : Set} where
     only : forall {s} -> All R (s ,- []) -> R s
     only = fst
 
-    project : {ss : List A} -> All R ss -> [: (_-in ss) -:> R :]
+    project : {ss : List A} -> All R ss -> [! (_-in ss) -:> R !]
     project rs i = only (select i rs)
 
-    tabulate : {ss : List A} -> [: (_-in ss) -:> R :] -> All R ss
+    tabulate : {ss : List A} -> [! (_-in ss) -:> R !] -> All R ss
     tabulate {[]}      f = <>
     tabulate {x ,- ss} f = f (x ,- no) , tabulate {ss} ((x ^-_) - f)
 
@@ -231,7 +232,7 @@ module _ {A : Set} where
     zAll [] <> = []
     zAll (s ,- ss) (r , rs) = (s , r) ,- zAll ss rs
 
-    pureAll : [: R :] -> [: All R :]
+    pureAll : [! R !] -> [! All R !]
     pureAll r {[]} = <>
     pureAll r {s ,- ss} = r , pureAll r
 
@@ -250,13 +251,13 @@ module _ {A : Set} where
     
   infixl 11 _<*All*>_
   _<*All*>_ :  {S T : A -> Set}
-              -> [: All (S -:> T) -:> All S -:> All T :]
+              -> [! All (S -:> T) -:> All S -:> All T !]
   _<*All*>_ {_} {_} {[]} <> <> = <>
   _<*All*>_ {_} {_} {a ,- as} (f , fs) (s , ss) = f s , fs <*All*> ss
 
   mapAll : {S T : A -> Set}
-              -> [: S -:> T :]
-              -> [: All S -:> All T :]
+              -> [! S -:> T !]
+              -> [! All S -:> All T !]
   mapAll f ss = pureAll f <*All*> ss
 
 zAllSelect : {A : Set}{R : A -> Set}{ss ts : List A}(th : ss <= ts)(rs : All R ts)

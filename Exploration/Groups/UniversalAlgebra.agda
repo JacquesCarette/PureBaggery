@@ -25,9 +25,10 @@ module Signature (Sort : Set) where
     -- helper because we need Agda to see through the recursion
     SortArity : List Sort -> Set -> Set
     SortArity ss T = SortDepArity ss (kon T)
+    
 
-    sortDepCurry : (ss : List Sort) -> (T : All R ss -> Set) ->
-      ((rs : All R ss) -> T rs) -> SortDepArity ss T
+    sortDepCurry : (ss : List Sort) -> (T : All R ss -> Set)
+      -> [: T :] -> SortDepArity ss T
     sortDepCurry []        T f = f <>
     sortDepCurry (s ,- ss) T f = \ r -> sortDepCurry ss ((r ,_) - T) ((r ,_) - f)
     
@@ -37,6 +38,15 @@ module Signature (Sort : Set) where
     sortApply : (ss : List Sort) -> (T : Set) -> SortArity ss T -> (All R ss -> T)
     sortApply [] T t <> = t
     sortApply (s ,- ss) T f (t , ts) = sortApply ss T (f t) ts
+
+  [_]-_>>_ : (Sort -> Set) -> List Sort -> Sort -> Set
+  [ R ]- ss >> t = SortArity R ss (R t)
+
+  module _ {R : Sort -> Set} where
+    unc : forall {ss : List Sort}{T : All R ss -> Set}
+      -> SortDepArity R ss T -> [: T :]
+    unc {[]} t <> = t
+    unc {s ,- ss} f (r , rs) = unc {ss} (f r) rs
 
   Sig : Set
   Sig = Sort  -- for each output sort
@@ -59,9 +69,6 @@ module Signature (Sort : Set) where
   
   module _ (sig : Sig) where
 
-    [_]-_>>_ : (Sort -> Set) -> List Sort -> Sort -> Set
-    [ R ]- ss >> t = SortArity R ss (R t)
-
     -- Operations (i.e. Model) for raw Signature
     Operations : (Sort -> Set) -> Set
     Operations R = (t : Sort) -> All ([ R ]-_>> t) (sig t)
@@ -77,10 +84,10 @@ module Signature (Sort : Set) where
 
       eval : {R : Sort -> Set} -> Operations R
         -> All  R V
-        -> [: FreeOprModel -:> R :]
+        -> [! FreeOprModel -:> R !]
       evals : {R : Sort -> Set} -> Operations R
         -> All R V
-        -> [: All FreeOprModel -:> All R :]
+        -> [! All FreeOprModel -:> All R !]
       eval ops ga (opr {ss} o ms) = sortApply _ ss _ (ops -op o) (evals ops ga ms)
       eval ops ga (var v) = project ga v
       evals ops ga {[]} <> = <>
@@ -88,10 +95,10 @@ module Signature (Sort : Set) where
 
     freeSubst : {V W : List Sort}
              -> All (FreeOprModel W) V
-             -> [: FreeOprModel V -:> FreeOprModel W :]
+             -> [! FreeOprModel V -:> FreeOprModel W !]
     freeSubsts : {V W : List Sort}
              -> All (FreeOprModel W) V
-             -> [: All (FreeOprModel V) -:> All (FreeOprModel W) :]
+             -> [! All (FreeOprModel V) -:> All (FreeOprModel W) !]
     freeSubst sg {i} (opr o ts) = opr o (freeSubsts sg ts)
     freeSubst sg (var v) = project sg v
     freeSubsts sg {[]} <> = <>
@@ -99,9 +106,9 @@ module Signature (Sort : Set) where
 
   -- #$%#$ termination checker is too dumb, need to unwind mapAll
   embed : {wee big : Sig} {V : List Sort} -> (ext : wee <Sig= big) ->
-    [: FreeOprModel wee V -:> FreeOprModel big V :]
+    [! FreeOprModel wee V -:> FreeOprModel big V !]
   embeds : {wee big : Sig} {V : List Sort} -> (ext : wee <Sig= big) ->
-    [: All (FreeOprModel wee V) -:> All (FreeOprModel big V) :]
+    [! All (FreeOprModel wee V) -:> All (FreeOprModel big V) !]
     
   -- embed ext (opr c ts) = opr (c -< ext _) (mapAll (embed ext) ts)
   embed ext (opr c ts) = opr (c -< ext _) (embeds ext ts)
@@ -109,7 +116,7 @@ module Signature (Sort : Set) where
 
   embeds ext {[]}      <>       = <>
   embeds ext {s ,- ss} (t , ts) = embed ext t , embeds ext ts
-  
+
   module TheoryKit (sig : Sig) where
     -- additional kit: take number (in context) and return 'opr' constructor
     infix 5 _!_
