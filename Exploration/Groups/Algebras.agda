@@ -5,6 +5,7 @@ open import ExtUni
 open import Reasoning
 open import Iso
 
+open import Thinnings
 open import UniversalAlgebra
 open import UniversalAlgebraExtUni
 

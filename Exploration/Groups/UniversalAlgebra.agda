@@ -1,6 +1,7 @@
 module UniversalAlgebra where
 
 open import Basics
+open import Thinnings
 
 -- the usual: signatures, terms, equations, algebras, etc
 -- we're guessing we'll need multi-sorted sufficiently soon to go right ahead

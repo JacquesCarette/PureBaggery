@@ -4,6 +4,7 @@ open import Basics
 open import UniversalAlgebra
 open import ExtUni
 open import Reasoning
+open import Thinnings
 
 module _ {Sort : Set} where
 
