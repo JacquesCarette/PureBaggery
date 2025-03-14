@@ -39,9 +39,6 @@ module Signature (Sort : Set) where
     sortApply [] T t <> = t
     sortApply (s ,- ss) T f (t , ts) = sortApply ss T (f t) ts
 
-  [_]-_>>_ : (Sort -> Set) -> List Sort -> Sort -> Set
-  [ R ]- ss >> t = SortArity R ss (R t)
-
   module _ {R : Sort -> Set} where
     unc : forall {ss : List Sort}{T : All R ss -> Set}
       -> SortDepArity R ss T -> [: T :]
@@ -69,30 +66,12 @@ module Signature (Sort : Set) where
   
   module _ (sig : Sig) where
 
-    -- Operations (i.e. Model) for raw Signature
-    Operations : (Sort -> Set) -> Set
-    Operations R = (t : Sort) -> All ([ R ]-_>> t) (sig t)
-
-    _-op_ : forall {R} -> Operations R -> forall {ss t} -> ss -in sig t -> [ R ]- ss >> t
-    ops -op o = project (ops _) o
-
     module _ (V : List Sort) where
       -- Free such thing over a set V of variables and a Sort
       data FreeOprModel (t : Sort) : Set where
         opr : forall {ss} -> ss -in sig t -> All FreeOprModel ss -> FreeOprModel t
         var : (v : t -in V)                                      -> FreeOprModel t
-
-      eval : {R : Sort -> Set} -> Operations R
-        -> All  R V
-        -> [! FreeOprModel -:> R !]
-      evals : {R : Sort -> Set} -> Operations R
-        -> All R V
-        -> [! All FreeOprModel -:> All R !]
-      eval ops ga (opr {ss} o ms) = sortApply _ ss _ (ops -op o) (evals ops ga ms)
-      eval ops ga (var v) = project ga v
-      evals ops ga {[]} <> = <>
-      evals ops ga {i ,- is} (t , ts) = eval ops ga t , evals ops ga ts
-
+        
     freeSubst : {V W : List Sort}
              -> All (FreeOprModel W) V
              -> [! FreeOprModel V -:> FreeOprModel W !]

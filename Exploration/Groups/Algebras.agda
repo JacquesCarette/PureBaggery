@@ -70,7 +70,7 @@ module _ (G : U) where
 
     universally : M.UMod
     universally .Carrier    <> = G
-    universally .operations <> = mul , <>
+    universally .operations <> = unc mul , <>
     universally .equations  <> = unc mulmul- , <>
 
     -- Is there a UA story to tell about middle4?
@@ -121,7 +121,7 @@ module _ (G : U) where
 
     universally : M.UMod
     universally .Carrier <> = G
-    universally .operations <> = neu , mul , <>
+    universally .operations <> = kon neu , unc mul , <>
     universally .equations <> = unc mulneu- , unc mul-neu , unc mulmul- , <>
     
     mul-mul : Pr (ALL 3 G \ x y z ->
@@ -132,6 +132,9 @@ module _ (G : U) where
     semiGroup = record { mul = mul ; mulmul- = mulmul- }
     open SemiGroup semiGroup using (middle4) public
 
+    semiGroupModel : SEMIGROUP.UMod
+    semiGroupModel = UForget M.thyExt universally
+    
     intro> : Pr (ALL 2 G \ x y -> x ~ neu `=> y ~ mul y x)
     intro< : Pr (ALL 2 G \ x y -> x ~ neu `=> y ~ mul x y)
     elim> : Pr (ALL 2 G \ x y -> x ~ neu `=> mul y x ~ y)
@@ -148,7 +151,6 @@ module _ (G : U) where
     elim> x y p = sym (intro> x y p)
     elim< x y p = sym (intro< x y p)
 
-{-
   module _ (X : SemiGroup) where
   
     open SemiGroup X
@@ -539,4 +541,3 @@ module _ {X Y : U} where
 
     bwdmor : S =Group=> R
     monoid=> bwdmor = _<=Monoid=>_.bwdmor xyMI
--}
