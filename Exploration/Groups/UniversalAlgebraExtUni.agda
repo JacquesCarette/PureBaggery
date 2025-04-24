@@ -63,11 +63,11 @@ module _ {Sort : Set} where
     Equations : (ops : Operations sig)(t : Sort)
                 (ES : List (List Sort))(QS : Eqns sig ES t) -> Set
     Equations ops t ES QS =
-      All -- maybe we'll need a UAll here, but let's see?
-        (/\ \ ga -> /\ \ l r -> [:( \ ro ->
+      Alll -- maybe we'll need a UAll here, but let's see?
+        (\ ga -> /\ \ l r -> [:( \ ro ->
          let ev = eval sig ga ops ro in
          Pr (Oq (R t) (ev l) (ev r)) ):])
-        (zAll ES QS)
+        ES QS
 
 module _ {Sort : Set} where
   open Signature Sort
@@ -96,6 +96,7 @@ module _ {Sort : Set} where
           (/\ \ ss -> /\ \ f g ->
           Pr (UAll (Carrier S) ss `-> \ vs ->
               Oq (Carrier T t) (carrierFun (f vs)) (g (mapUAll ss (Carrier S) (Carrier T) carrierFun vs))))
+          -- in principle, this zAll should go away, with Alll above
           (zAll (sig t) (pureAll _,_ <*All*> operations S t <*All*> operations T t))
 
 
@@ -127,6 +128,7 @@ module _ {Sort : Set} where
     open TheoryExtension thyExt
     open UModel
 
+    -- This is essentially a Family of 'UModel thy'.
     UForget : UModel extTheory -> UModel thy
     Carrier (UForget m) = Carrier m
     operations (UForget m) t = select (extIsBigger ext t) (operations m t)
@@ -153,3 +155,43 @@ module _ {Sort : Set} where
         , help th oqs nqs mqs
       help [] <> <> <> = <>
 
+
+    module _ (umod : UModel thy) where
+      -- What is the data of a UModel extension?
+      record UExtend : Set where
+        field
+          extra-ops : Operations (Carrier umod) (extCompSig ext)
+
+        combined-ops : Operations (Carrier umod) (extBig ext)
+        combined-ops s = operations umod s /< extPart ext s >\ extra-ops s
+
+        field
+          extra-eqs : (t : Sort) -> Equations (Carrier umod) extTheory combined-ops t
+                      (extCompSig EqnSigExt t)
+                      (eqnsExt t)
+
+        combined-eqs : (t : Sort) -> Equations (Carrier umod) extTheory combined-ops t
+                      (EqnSig extTheory t) (eqns extTheory t)
+        combined-eqs t = help t (EqnSig thy t) (eqns thy t) (equations umod t)
+                         /<< extPart EqnSigExt t >>\
+                         extra-eqs t
+           where
+             help : (t : Sort) (EqEs : List (List Sort)) (EqQs : Eqns sig EqEs t)
+                    -> Equations (umod .Carrier) thy (umod .operations) t EqEs EqQs
+                    -> Equations (Carrier umod) extTheory combined-ops t EqEs
+                       (mapAll (embed (extIsBigger ext) >><< embed (extIsBigger ext)) EqQs)
+             help t [] <> <> = <>
+             help t (EqE ,- EqEs) ((eql , eqr) , EqQs) (eqn , eqns) =
+               (\ vs -> let open EQPRF (Carrier umod t) in
+                vert ((
+                eval (Carrier umod) (extBig ext) EqE combined-ops vs (embed (extIsBigger ext) eql)
+                  -- HERE: we should use a generalized 'evalEmbed' here that abstracts over the
+                  -- exact means of selection.
+                  ==[ {!!} >
+                eval (Carrier umod) sig EqE (operations umod) vs eql
+                  ==[ bleu (eqn vs) >
+                eval (Carrier umod) sig EqE (operations umod) vs eqr
+                  ==[ {!!} >
+                eval (Carrier umod) (extBig ext) EqE combined-ops vs (embed (extIsBigger ext) eqr)
+                  [==])))
+               , help t EqEs EqQs eqns

@@ -101,6 +101,12 @@ module _ {A : Set} where
     All []        = One
     All (t ,- ts) = R t * All ts
 
+  module _ {R : A -> Set} (S : (a : A) -> R a -> Set) where
+
+    Alll : (as : List A) -> (rs : All R as) -> Set
+    Alll [] _ = One
+    Alll (a ,- as) (r , rs) = S a r * Alll as rs
+
   module _ {R : A -> Set} where
   
     select : forall {ss ts} -> ss <= ts -> All R ts -> All R ss
@@ -126,6 +132,7 @@ module _ {A : Set} where
     pureAll r {[]} = <>
     pureAll r {s ,- ss} = r , pureAll r
 
+    -- pronounced 'riffle'
     _/<_>\_ : forall {ss us ts}{th : ss <= us}{ph : ts <= us}
       -> All R ss
       -> th /#\ ph
@@ -135,6 +142,17 @@ module _ {A : Set} where
     (x , xs) /< a ,^- p >\ ys = x , (xs /< p >\ ys)
     xs /< [] >\ ys           = <>
 
+  module _ {R : A -> Set} {S : (a : A) -> R a -> Set} where
+
+    -- pronounced 'rifffle'
+    _/<<_>>\_ : forall {ss us ts}{th : ss <= us}{ph : ts <= us}
+      {Rss : All R ss} -> Alll S ss Rss -> (part : th /#\ ph)
+      -> {Rts : All R ts} -> Alll S ts Rts
+      -> Alll S us (Rss /< part >\ Rts)
+    asss        /<< a ^,- part >>\ (as , asts) = as , (asss /<< part >>\ asts)
+    (as , asss) /<< a ,^- part >>\ asts        = as , (asss /<< part >>\ asts)
+    _           /<< []         >>\ _           = <>
+    
 
   coords : {ss : List A} -> All (_-in ss) ss
   coords = tabulate id

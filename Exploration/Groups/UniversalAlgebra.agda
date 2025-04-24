@@ -64,6 +64,19 @@ module Signature (Sort : Set) where
 
   extIsBigger : {wee : Sig} -> (ext : SigExtension wee) -> wee <Sig= extBig ext
   extIsBigger = _- snd
+
+  extComp : {wee : Sig} -> (ext : SigExtension wee) -> (s : Sort)
+    -> <: _<= _ :> >< \ ( _ , ph) -> snd (ext s) /#\ ph
+  extComp ext s = snd (ext s) -not
+  
+  extCompSig : {wee : Sig} -> SigExtension wee -> Sig
+  extCompSig ext s = fst (fst (extComp ext s))
+
+  extCompSmall : {wee : Sig} -> (ext : SigExtension wee) -> extCompSig ext <Sig= extBig ext
+  extCompSmall ext s = snd (fst (extComp ext s))
+  
+  extPart : {wee : Sig} -> (ext : SigExtension wee) -> (s : Sort) -> extIsBigger ext s /#\ extCompSmall ext s
+  extPart ext s = snd (extComp ext s)
   
   module _ (sig : Sig) where
 
@@ -131,6 +144,7 @@ module Signature (Sort : Set) where
       EqnSigExt : SigExtension (thy .EqnSig)
       eqnsExt   : forall t -> Eqns (extBig ext) ((extIsBigger EqnSigExt t -not) .fst .fst) t
 
+    -- ``flatten'' the extension of thy into a Theory
     extTheory : Theory (extBig ext)
     extTheory .EqnSig = extBig EqnSigExt
     extTheory .eqns t =
