@@ -29,34 +29,62 @@ open import UniversalAlgebraExtUni
 -- Note that we're not building a lattice of theories, nor
 -- are we systematic, so no Magma nor LeftUnitalSemigroup.
 
+# : Nat -> List One
+# ze = []
+# (su n) = <> ,- # n
+
+module SEMIGROUP where
+  open Signature One
+  open Theory
+  sig : Sig
+  sig <> = # 2 ,- []
+  open TheoryKit sig
+
+  -- recall: first arg of opr is choice of eqn, 2nd is eqn
+  thy : Theory sig
+  thy .EqnSig <> = # 3 ,- []
+  thy .eqns <> =
+     (abstr \ (a , b , c , <>) ->
+       (0 ! (0 ! a , b , <>) , c , <>) ,
+       (0 ! a , (0 ! b , c , <>) , <>))
+     , <>
+
+  UMod : Set
+  UMod = UModel thy
+
+module MONOID where
+  open Signature One
+  open Theory
+  open TheoryExtension
+  ext : SigExtension SEMIGROUP.sig
+  ext <> = _ , (# 0 ^- io)
+
+  sig : Sig
+  sig = extBig ext
+  open TheoryKit sig
+
+  thyExt : TheoryExtension SEMIGROUP.thy ext
+  thyExt .EqnSigExt <> = _ , (# 1 ^- # 1 ^- io)
+  thyExt .eqnsExt <>
+    = (abstr \ (b , <>) -> (1 ! (0 ! <>) , b , <>) , b)
+    , (abstr \ (a , <>) -> (1 ! a , (0 ! <>) , <>) , a)
+    , <>
+
+  thy : Theory sig
+  thy = extTheory thyExt  -- weird that .extTheory doesn't work
+
+  UMod : Set
+  UMod = UModel thy
+
+
+
 module _ (G : U) where
 
   private
     _~_ = Oq G
 
-    # : Nat -> List One
-    # ze = []
-    # (su n) = <> ,- # n
 
   open EQPRF G
-  module SEMIGROUP where
-    open Signature One
-    open Theory
-    sig : Sig
-    sig <> = # 2 ,- []
-    open TheoryKit sig
-
-    -- recall: first arg of opr is choice of eqn, 2nd is eqn
-    thy : Theory sig
-    thy .EqnSig <> = # 3 ,- []
-    thy .eqns <> =
-       (abstr \ (a , b , c , <>) ->
-         (0 ! (0 ! a , b , <>) , c , <>) ,
-         (0 ! a , (0 ! b , c , <>) , <>))
-       , <>
-       
-    UMod : Set
-    UMod = UModel thy
 
   record SemiGroup : Set where
     open Signature One
@@ -81,30 +109,6 @@ module _ (G : U) where
       mul (mul w x) (mul y z) -[ mulmul- _ _ _ >
       mul w (mul x (mul y z)) < cong G (mul _) (mulmul- _ _ _) ]-
       mul w (mul (mul x y) z) [QED]
-
-  module MONOID where
-    open Signature One
-    open Theory
-    open TheoryExtension
-    ext : SigExtension SEMIGROUP.sig
-    ext <> = _ , (# 0 ^- io)
-    
-    sig : Sig
-    sig = extBig ext
-    open TheoryKit sig
-
-    thyExt : TheoryExtension SEMIGROUP.thy ext
-    thyExt .EqnSigExt <> = _ , (# 1 ^- # 1 ^- io)
-    thyExt .eqnsExt <>
-      = (abstr \ (b , <>) -> (1 ! (0 ! <>) , b , <>) , b)
-      , (abstr \ (a , <>) -> (1 ! a , (0 ! <>) , <>) , a)
-      , <>
-
-    thy : Theory sig
-    thy = extTheory thyExt  -- weird that .extTheory doesn't work
-
-    UMod : Set
-    UMod = UModel thy
 
   record Monoid : Set where
     open Signature One
@@ -542,3 +546,22 @@ module _ {X Y : U} where
 
     bwdmor : S =Group=> R
     monoid=> bwdmor = _<=Monoid=>_.bwdmor xyMI
+
+
+uSemigroup : (umod : SEMIGROUP.UMod) -> SemiGroup (UModel.Carrier umod <>)
+uSemigroup record { Carrier = Carrier ; operations = operations ; equations = equations } =
+  let mu , <> = operations <> in
+  let mm- , <> = equations <> in
+  record { mul = \ a b -> mu (a , b , <>) ; mulmul- = \ a b c -> mm- (a , b , c , <>) }
+
+uMonoid : (umod : MONOID.UMod) -> Monoid (UModel.Carrier umod <>)
+uMonoid record { Carrier = Carrier ; operations = operations ; equations = equations } =
+  let ne , mu , <> = operations <> in
+  let mn- , m-n , mm- , <> = equations <> in
+  record
+   { neu = ne <>
+   ; mul = \ a b -> mu (a , b , <>)
+   ; mulneu- = \ a -> mn- (a , <>)
+   ; mul-neu = \ b -> m-n (b , <>)
+   ; mulmul- = \ a b c -> mm- (a , b , c , <>)
+   }
