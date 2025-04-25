@@ -15,14 +15,40 @@ module _ {Sort : Set} where
  [_]-_>>_ : (Sort -> U) -> List Sort -> Sort -> U
  [ R ]- ss >> t = UAll R ss `> R t
 
- module _ (R : Sort -> U) where
+ module SELECTION (R : Sort -> U) where
+  -- selection as a relation
+  _<?_]_ : {as bs : List Sort}(xs : All (R - El) as)(th : as <= bs)(ys : All (R - El) bs)
+     -> P
+  xs       <? a ^- th ] (y , ys) =                   xs <? th ] ys
+  (x , xs) <? a ,- th ] (y , ys) = Oq (R a) x y `/\ (xs <? th ] ys)
+  <>       <? []      ] <>       = `One
+
+  -- select selects
+  select-selects :  {as bs : List Sort}(th : as <= bs)(ys : All (R - El) bs)
+    -> Pr (select th ys <? th ] ys)
+  select-selects (a ^- th) (y , ys) = select-selects th ys
+  select-selects (a ,- th) (y , ys) = refl (R a) y , select-selects th ys
+  select-selects []        <>       = <>
+
+  riffle-thins : {as bs cs : List Sort}{th : as <= bs}{ph : cs <= bs}
+    (xs : All (R - El) as)(p : th /#\ ph)(ys : All (R - El) cs)
+    -> Pr ((xs <? th ] (xs /< p >\ ys)) `/\ (ys <? ph ] (xs /< p >\ ys)))
+  riffle-thins xs (a ^,- p) (y , ys) =
+    let s , t = riffle-thins xs p ys in s , (refl (R a) y , t)
+  riffle-thins (x , xs) (a ,^- p) ys =
+    let s , t = riffle-thins xs p ys in (refl (R a) x , s) , t
+  riffle-thins <> [] <>              = <> , <>
+
   -- general fact about thinnings
   project-select : {r : Sort} {ss ts : List Sort} {i : r -in ss}{j : r -in ts}{th : ss <= ts}
-    -> [ i -< th ]= j -> (xs : All (R - El) ts)
-    -> Pr (Oq (R r) (project xs j) (project (select th xs) i))
-  project-select (a ^- v)  (x , xs) = project-select v xs
-  project-select (a ^,- v) (x , xs) = project-select v xs
-  project-select (_ ,- v)  (x , xs) = refl (R _) x
+    -> [ i -< th ]= j -> (ys : All (R - El) ss)(xs : All (R - El) ts)
+    -> Pr ((ys <? th ] xs)
+       `=> Oq (R r) (project xs j) (project ys i))
+  project-select (_ ^- v) xs (y , ys) sel = project-select v xs ys sel
+  project-select (_ ^,- v) (x , xs) (y , ys) (_ , sel) = project-select v xs ys sel
+  project-select (a ,- _) (_ , _) (_ , _) (q , _) = EQPRF.sym (R a) q
+
+ module _ (R : Sort -> U) where
 
   -- and now back to our regularly scheduled program
   open Signature Sort
@@ -100,26 +126,31 @@ module _ {Sort : Set} where
           (zAll (sig t) (pureAll _,_ <*All*> operations S t <*All*> operations T t))
 
 
-  module _ {wee big : Sig}(ext : wee <Sig= big) {V : List Sort}
-    (Crr : Sort -> U)(ops : Operations Crr big) (ga : All (Crr - El) V)
+  module _ {wee big : Sig}(ext : wee <Sig= big)
+    (Crr : Sort -> U)(wops : Operations Crr wee)(bops : Operations Crr big)
+    (sel : (t : Sort) -> let open SELECTION ([ Crr ]-_>> t) in
+           Pr (wops t <? ext t ] bops t))
+    (V : List Sort)
+    (ga : All (Crr - El) V)
     where
 
     evalEmbed : {t : Sort}(e : FreeOprModel wee V t)
       -> Pr (Oq (Crr t)
-          (eval Crr big V ops ga (embed ext e))
-          (eval Crr wee V (\ s -> select (ext s) (ops s)) ga e))
+          (eval Crr big V bops ga (embed ext e))
+          (eval Crr wee V wops ga e))
     evalsEmbeds : {ss : List Sort}(es : All (FreeOprModel wee V) ss)
-      -> Pr (Oq (UAll Crr ss) (evals Crr big V ops ga (embeds ext es))
-                             (evals Crr wee V (\ s -> select (ext s) (ops s)) ga es))
+      -> Pr (Oq (UAll Crr ss) (evals Crr big V bops ga (embeds ext es))
+                             (evals Crr wee V wops ga es))
 
-    evalEmbed {t} (Signature.opr c es) = project-select ([ Crr ]-_>> t) (snd (tri c (ext t))) (ops t)
-      (evals Crr big V ops ga (embeds ext es))
-      (evals Crr wee V (λ s → select (ext s) (ops s)) ga es) (evalsEmbeds es)
+    evalEmbed {t} (Signature.opr c es) =
+      let open SELECTION ([ Crr ]-_>> t) in
+      project-select (snd (tri c (ext t))) (wops t) (bops t) (sel t)
+        (evals Crr big V bops ga (embeds ext es))
+        (evals Crr wee V wops ga es) (evalsEmbeds es)
     evalEmbed {t} (Signature.var v) = refl (Crr t) _
 
     evalsEmbeds {[]}       <>      = <>
     evalsEmbeds {s ,- ss} (x , xs) = (evalEmbed {s} x) , (evalsEmbeds {ss} xs)
-
 
   module _ {sig : Sig}{thy : Theory sig}{ext : SigExtension sig}
            (thyExt : TheoryExtension thy ext)
@@ -136,6 +167,11 @@ module _ {Sort : Set} where
       help {EqnSig thy t} {fst (EqnSigExt t)}
            (snd (EqnSigExt t)) (eqns thy t) (eqnsExt t) (equations m t)
       where
+      eE = evalEmbed (ext - snd) (Carrier m)
+             (\ t -> select (extIsBigger ext t) (operations m t))
+             (operations m)
+             (\ t -> let open SELECTION ([ Carrier m ]-_>> t) in
+                  select-selects (snd (ext t)) (operations m t))
       help : forall {wee big} (th : wee <= big) -> let (comp , opth) , apart = th -not in
              (oqs : Eqns sig wee t)(nqs : Eqns (ext - fst) comp t)
          ->  Equations (Carrier m) extTheory (operations m) t big
@@ -146,11 +182,11 @@ module _ {Sort : Set} where
         = (\ vs -> let open EQPRF (Carrier m t) in
            vert (
            (eval (Carrier m) sig a (\ t -> select (snd (ext t)) (operations m t)) vs oql)
-             < bleu (evalEmbed (ext - snd) (Carrier m) (operations m) vs oql) ]==
+             < bleu (eE _ vs oql) ]==
            (eval (Carrier m) (ext - fst) a (operations m) vs (embed (ext - snd) oql))
              ==[ bleu (mq vs) >
            (eval (Carrier m) (ext - fst) a (operations m) vs (embed (ext - snd) oqr))
-             ==[ bleu (evalEmbed (ext - snd) (Carrier m) (operations m) vs oqr) >
+             ==[ bleu (eE _ vs oqr) >
            (eval (Carrier m) sig a (\ t -> select (snd (ext t)) (operations m t)) vs oqr) [==]))
         , help th oqs nqs mqs
       help [] <> <> <> = <>
@@ -165,6 +201,8 @@ module _ {Sort : Set} where
         combined-ops : Operations (Carrier umod) (extBig ext)
         combined-ops s = operations umod s /< extPart ext s >\ extra-ops s
 
+        
+
         field
           extra-eqs : (t : Sort) -> Equations (Carrier umod) extTheory combined-ops t
                       (extCompSig EqnSigExt t)
@@ -176,6 +214,10 @@ module _ {Sort : Set} where
                          /<< extPart EqnSigExt t >>\
                          extra-eqs t
            where
+             eE = evalEmbed (ext - snd) (Carrier umod) (operations umod) combined-ops
+                    (\ t -> let open SELECTION ([ Carrier umod ]-_>> t) in
+                      fst (riffle-thins (operations umod t) (extPart ext t) (extra-ops t)))
+
              help : (t : Sort) (EqEs : List (List Sort)) (EqQs : Eqns sig EqEs t)
                     -> Equations (umod .Carrier) thy (umod .operations) t EqEs EqQs
                     -> Equations (Carrier umod) extTheory combined-ops t EqEs
@@ -185,13 +227,17 @@ module _ {Sort : Set} where
                (\ vs -> let open EQPRF (Carrier umod t) in
                 vert ((
                 eval (Carrier umod) (extBig ext) EqE combined-ops vs (embed (extIsBigger ext) eql)
-                  -- HERE: we should use a generalized 'evalEmbed' here that abstracts over the
-                  -- exact means of selection.
-                  ==[ {!!} >
+                  ==[ bleu (eE _ vs eql) >
                 eval (Carrier umod) sig EqE (operations umod) vs eql
                   ==[ bleu (eqn vs) >
                 eval (Carrier umod) sig EqE (operations umod) vs eqr
-                  ==[ {!!} >
+                  < bleu (eE _ vs eqr) ]==
                 eval (Carrier umod) (extBig ext) EqE combined-ops vs (embed (extIsBigger ext) eqr)
                   [==])))
                , help t EqEs EqQs eqns
+
+        -- now, the model of the extended theory
+        uExtended : UModel extTheory
+        Carrier uExtended = Carrier umod
+        operations uExtended = combined-ops
+        equations uExtended = combined-eqs
