@@ -52,6 +52,47 @@ module SEMIGROUP where
   UMod : Set
   UMod = UModel thy
 
+  -- here we do a conservative extension, but the right way
+  open TheoryExtension
+
+  ext-middle4 : SigExtension sig
+  ext-middle4 <> = _ , io
+
+  -- what we 'really' want to say:
+  -- middle4 : Pr (ALL 4 G \ a b c d ->
+  --    mul (mul a b) (mul c d) ~ mul a (mul (mul b c) d))
+  thyExt-middle4 : TheoryExtension thy ext-middle4
+  thyExt-middle4 .EqnSigExt <> = _ , (# 4 ^- io)
+  thyExt-middle4 .eqnsExt   <>
+    = (abstr \ (a , b , c , d , <>) ->
+         (0 ! (0 ! a , b , <>) , (0 ! c , d , <> ) , <> )
+       , (0 ! a , (0 ! (0 ! b , c , <>) , d , <>) , <>))
+    , <>
+
+  open UExtend
+
+{- We're aiming for something that looks spookily like
+      mul (mul w x) (mul y z) -[ mulmul- _ _ _ >
+      mul w (mul x (mul y z)) < cong G (mul _) (mulmul- _ _ _) ]-
+      mul w (mul (mul x y) z) [QED]
+-}
+  extend-middle4 : [: UExtend thyExt-middle4 :]
+  extend-middle4 M .extra-ops <> = <>
+  extend-middle4 M .extra-eqs <>
+    = (\ (a , b , c , d , <>) ->
+         op (op (a , b , <>) , op (c , d , <> ) , <> ) -[ mulmul- _ >
+         op (a , op ( b , op (c , d , <>) , <>) , <>)  < cong G (\ z -> op (a , z , <>)) (mulmul- _) ]-
+         op (a , op (op (b , c , <>) , d , <>) , <>)   [QED])
+    , <>
+    where
+      open UModel
+      G = Carrier M <>
+      open EQPRF G
+      op = fst (operations M <>)
+      mulmul- = fst (equations M <>)
+
+  -- TODO: we need to abstract out the above concrete construction
+  
 module MONOID where
   open Signature One
   open Theory
@@ -76,7 +117,8 @@ module MONOID where
   UMod : Set
   UMod = UModel thy
 
-
+-- TODO: when we get to COMMUTATIVEMONOID, that we don't need both
+-- left and right unit laws anymore. Abstract and package up.
 
 module _ (G : U) where
 

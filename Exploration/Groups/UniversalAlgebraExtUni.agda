@@ -53,17 +53,6 @@ module _ {Sort : Set} where
   -- and now back to our regularly scheduled program
   open Signature Sort
 
-  -- HERE; THOUGHT REQUIRED, THEREFORE ALSO FRESH HORSES
-  -- Our uni. alg. setup is not internal to U.
-  -- Our models have carriers in U.
-  -- We are struggling with the interface between external All and this:
-
- -- We may also have a problem *stating* functorialty of *external* All
- -- with respect to selection.
-
- -- How are we going to Jagger/Richards our way out of this one?
- -- Do we move operations, etc into U?
-
   module _ (sig : Sig) where
     -- Operations (i.e. Model) for raw Signature
     Operations : Set
@@ -125,6 +114,8 @@ module _ {Sort : Set} where
           -- in principle, this zAll should go away, with Alll above
           (zAll (sig t) (pureAll _,_ <*All*> operations S t <*All*> operations T t))
 
+     -- TODO: We're going to want some kit that gives us the equivalent of 0 !
+     -- but gets fed a model and produces it.
 
   module _ {wee big : Sig}(ext : wee <Sig= big)
     (Crr : Sort -> U)(wops : Operations Crr wee)(bops : Operations Crr big)
@@ -241,3 +232,6 @@ module _ {Sort : Set} where
         Carrier uExtended = Carrier umod
         operations uExtended = combined-ops
         equations uExtended = combined-eqs
+
+-- TODO? We're expecting coherence requirements to arise, i.e. if you extend Semigroup to Monoid,
+-- then get the inner Semigroup, you expect to get something very-equivalent to the orignal Semigroup.
