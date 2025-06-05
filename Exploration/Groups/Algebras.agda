@@ -1,3 +1,4 @@
+
 module Algebras where
 
 open import Basics
@@ -33,6 +34,9 @@ open import UniversalAlgebraExtUni
 # ze = []
 # (su n) = <> ,- # n
 
+-- TODO: end the outrageous coincidence between the names of the definitions
+-- in the following module by introducing a suitable record type.
+
 module SEMIGROUP where
   open Signature One
   open Theory
@@ -45,58 +49,48 @@ module SEMIGROUP where
   thy .EqnSig <> = # 3 ,- []
   thy .eqns <> =
      (abstr \ (a , b , c , <>) ->
-       (0 ! (0 ! a , b , <>) , c , <>) ,
-       (0 ! a , (0 ! b , c , <>) , <>))
+       (a ** b) ** c  ,  a ** (b ** c))
      , <>
+     where
+       _**_ : [! Tm -:> Tm -:> Tm !]
+       _**_ = \ x y -> opr (sing 0) (x , y , <>)
 
   UMod : Set
   UMod = UModel thy
 
   -- here we do a conservative extension, but the right way
-  open TheoryExtension
+  module _ where
+    open DerivableExtension
+    open TheoryExtension
+    open UExtend
 
-  ext-middle4 : SigExtension sig
-  ext-middle4 <> = _ , io
+    middle4 : DerivableExtension thy
+    middle4 .derSigExt <> = _ , io
+    middle4 .derThyExt .EqnSigExt <> = _ , (# 4 ^- io)
+    middle4 .derThyExt .eqnsExt <>
+      = (abstr \ (a , b , c , d , <>) ->
+          (a ** b) ** (c ** d)  ,  a ** ((b ** c) ** d))
+      , <>
+      where _**_ = \ x y -> opr (sing 0) (x , y , <>)
+    middle4 .derivable M .extra-ops = _
+    middle4 .derivable M .extra-eqs <> = (\ (a , b , c , d , <>) ->
+        (a ** b) ** (c ** d) -[ mulmul- _ >
+        a ** (b ** (c ** d)) < cong G (a **_) (mulmul- _) ]-
+        a ** ((b ** c) ** d) [QED])
+      , <>
+      where
+        open UModel
+        G = Carrier M <>
+        open EQPRF G
+        _**_ = \ x y -> fst (operations M <>) (x , y , <>)
+        mulmul- = fst (equations M <>)
 
-  -- what we 'really' want to say:
-  -- middle4 : Pr (ALL 4 G \ a b c d ->
-  --    mul (mul a b) (mul c d) ~ mul a (mul (mul b c) d))
-  thyExt-middle4 : TheoryExtension thy ext-middle4
-  thyExt-middle4 .EqnSigExt <> = _ , (# 4 ^- io)
-  thyExt-middle4 .eqnsExt   <>
-    = (abstr \ (a , b , c , d , <>) ->
-         (0 ! (0 ! a , b , <>) , (0 ! c , d , <> ) , <> )
-       , (0 ! a , (0 ! (0 ! b , c , <>) , d , <>) , <>))
-    , <>
-
-  open UExtend
-
-{- We're aiming for something that looks spookily like
-      mul (mul w x) (mul y z) -[ mulmul- _ _ _ >
-      mul w (mul x (mul y z)) < cong G (mul _) (mulmul- _ _ _) ]-
-      mul w (mul (mul x y) z) [QED]
--}
-  extend-middle4 : [: UExtend thyExt-middle4 :]
-  extend-middle4 M .extra-ops <> = <>
-  extend-middle4 M .extra-eqs <>
-    = (\ (a , b , c , d , <>) ->
-         op (op (a , b , <>) , op (c , d , <> ) , <> ) -[ mulmul- _ >
-         op (a , op ( b , op (c , d , <>) , <>) , <>)  < cong G (\ z -> op (a , z , <>)) (mulmul- _) ]-
-         op (a , op (op (b , c , <>) , d , <>) , <>)   [QED])
-    , <>
-    where
-      open UModel
-      G = Carrier M <>
-      open EQPRF G
-      op = fst (operations M <>)
-      mulmul- = fst (equations M <>)
-
-  -- TODO: we need to abstract out the above concrete construction
   
 module MONOID where
   open Signature One
   open Theory
   open TheoryExtension
+  
   ext : SigExtension SEMIGROUP.sig
   ext <> = _ , (# 0 ^- io)
 
@@ -107,15 +101,42 @@ module MONOID where
   thyExt : TheoryExtension SEMIGROUP.thy ext
   thyExt .EqnSigExt <> = _ , (# 1 ^- # 1 ^- io)
   thyExt .eqnsExt <>
-    = (abstr \ (b , <>) -> (1 ! (0 ! <>) , b , <>) , b)
-    , (abstr \ (a , <>) -> (1 ! a , (0 ! <>) , <>) , a)
+    = (abstr \ (b , <>) -> un ** b  ,  b)
+    , (abstr \ (a , <>) -> a ** un  ,  a)
     , <>
+    where
+      un : [! Tm !]
+      un = opr (sing 0) <>
+      _**_ : [! Tm -:> Tm -:> Tm !]
+      _**_ = \ x y -> opr (sing 1) (x , y , <>)
 
   thy : Theory sig
   thy = extTheory thyExt  -- weird that .extTheory doesn't work
 
   UMod : Set
   UMod = UModel thy
+
+module COMMUTATIVE-MONOID where
+  open Signature One
+  open Theory
+  open TheoryExtension
+  
+  ext : SigExtension MONOID.sig
+  ext <> = _ , io
+
+  sig : Sig
+  sig = extBig ext
+  open TheoryKit sig
+
+  thyExt : TheoryExtension MONOID.thy ext
+  thyExt .EqnSigExt <> = _ , (_ ,- _ ,- _ ,- # 2 ^- [])
+  thyExt .eqnsExt <>
+    = (abstr \ (a , b , <>) -> a ** b  ,  b ** a)
+    , <>
+    where
+      _**_ : [! Tm -:> Tm -:> Tm !]
+      _**_ = \ x y -> opr (sing 1) (x , y , <>)
+
 
 -- TODO: when we get to COMMUTATIVEMONOID, that we don't need both
 -- left and right unit laws anymore. Abstract and package up.

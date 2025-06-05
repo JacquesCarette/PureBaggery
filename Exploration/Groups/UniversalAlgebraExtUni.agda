@@ -233,5 +233,34 @@ module _ {Sort : Set} where
         operations uExtended = combined-ops
         equations uExtended = combined-eqs
 
+  module _ {sig : Sig}(thy : Theory sig) where
+
+    open TheoryExtension
+    open UExtend
+    
+    record DerivableExtension : Set where
+      field
+        derSigExt : SigExtension sig
+        derThyExt : TheoryExtension thy derSigExt
+        derivable : [: UExtend derThyExt :]
+      derivedModel : UModel thy -> UModel (extTheory derThyExt)
+      derivedModel M = uExtended (derivable M)
+
+  module _ {sig : Sig}(thy : Theory sig) where
+
+    record RedundantEquations : Set where
+      field
+        redThyCnt : TheoryFewerEquations thy
+      open TheoryFewerEquations redThyCnt
+      open UModel
+
+      uReprove : UModel cntTheory -> UModel thy
+      uReprove M .Carrier = M .Carrier
+      uReprove M .operations = M .operations
+      uReprove M .equations t = {!!}
+
+      -- HERE: we need more algebra on riffles
+
+
 -- TODO? We're expecting coherence requirements to arise, i.e. if you extend Semigroup to Monoid,
 -- then get the inner Semigroup, you expect to get something very-equivalent to the orignal Semigroup.

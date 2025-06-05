@@ -111,6 +111,10 @@ module Signature (Sort : Set) where
   embeds ext {s ,- ss} (t , ts) = embed ext t , embeds ext ts
 
   module TheoryKit (sig : Sig) where
+
+    Tm : {_ : Sort} -> List Sort -> Set
+    Tm {t} V = FreeOprModel sig V t
+
     -- additional kit: take number (in context) and return 'opr' constructor
     infix 5 _!_
     _!_ : {V : List Sort} {t : Sort} -> (i : Nat) ->
@@ -132,7 +136,7 @@ module Signature (Sort : Set) where
     (\ ga -> let Term = FreeOprModel sig ga t in Term * Term)
     ES
 
-  record Theory (sig : Sig) : Set1 where
+  record Theory (sig : Sig) : Set where
     field
       EqnSig : Sig
 
@@ -151,3 +155,12 @@ module Signature (Sort : Set) where
       mapAll (embed (extIsBigger ext) >><< embed (extIsBigger ext)) (thy .eqns t)
       /< (extIsBigger EqnSigExt t -not) .snd >\
       eqnsExt t
+
+  record TheoryFewerEquations {sig : Sig}(big : Theory sig) : Set where
+    open Theory
+    field
+      EqnSigCnt : (t : Sort) -> <: _<= EqnSig big t :> 
+    cntTheory : Theory sig
+    cntTheory .EqnSig t = fst (EqnSigCnt t)
+    cntTheory .eqns t = select (snd (EqnSigCnt t)) (eqns big t)
+
