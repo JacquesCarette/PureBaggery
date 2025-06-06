@@ -53,7 +53,7 @@ module SEMIGROUP where
      , <>
      where
        _**_ : [! Tm -:> Tm -:> Tm !]
-       _**_ = \ x y -> opr (sing 0) (x , y , <>)
+       x ** y = opr (sing 0) (x , y , <>)
 
   UMod : Set
   UMod = UModel thy
@@ -82,7 +82,8 @@ module SEMIGROUP where
         open UModel
         G = Carrier M <>
         open EQPRF G
-        _**_ = \ x y -> fst (operations M <>) (x , y , <>)
+        _**_ : El (G `> G `> G)
+        x ** y = fst (operations M <>) (x , y , <>)
         mulmul- = fst (equations M <>)
 
   
@@ -108,7 +109,7 @@ module MONOID where
       un : [! Tm !]
       un = opr (sing 0) <>
       _**_ : [! Tm -:> Tm -:> Tm !]
-      _**_ = \ x y -> opr (sing 1) (x , y , <>)
+      x ** y = opr (sing 1) (x , y , <>)
 
   thy : Theory sig
   thy = extTheory thyExt  -- weird that .extTheory doesn't work
@@ -120,6 +121,8 @@ module COMMUTATIVE-MONOID where
   open Signature One
   open Theory
   open TheoryExtension
+  open TheoryFewerEquations
+  open RedundantEquations
   
   ext : SigExtension MONOID.sig
   ext <> = _ , io
@@ -135,12 +138,122 @@ module COMMUTATIVE-MONOID where
     , <>
     where
       _**_ : [! Tm -:> Tm -:> Tm !]
-      _**_ = \ x y -> opr (sing 1) (x , y , <>)
+      x ** y = opr (sing 1) (x , y , <>)
 
+  thy : Theory sig
+  thy = extTheory thyExt
 
--- TODO: when we get to COMMUTATIVEMONOID, that we don't need both
--- left and right unit laws anymore. Abstract and package up.
+  UMod : Set
+  UMod = UModel thy
+  
+  noRightUnitLaw : RedundantEquations thy
+  noRightUnitLaw .redThyCnt .EqnSigCnt <> = _ , _ ,- _ ^- io
+  noRightUnitLaw .proofsOfDropped M <>
+    = (\ (a , <>) ->
+      a ** un -[ comm _ _ >
+      un ** a -[ un** a >
+      a        [QED])
+    , <>
+    where
+      open UModel
+      G = Carrier M <>
+      open EQPRF G
+      un = fst (operations M <>) <>
+      _**_ : El (G `> G `> G)
+      x ** y = fst (snd (operations M <>)) (x , y , <>)
+      un** = \ b -> equations M <> .fst (b , <>)
+      comm = \ a b -> equations M <> .snd .snd .fst (a , b , <>)
 
+module GROUP where
+  open Signature One
+  open Theory
+  open TheoryExtension
+  open TheoryFewerEquations
+  open RedundantEquations
+  open DerivableExtension
+  open UExtend
+  
+  ext : SigExtension MONOID.sig
+  ext <> = _ , _ ,- # 1 ^- io
+
+  sig : Sig
+  sig = extBig ext
+  open TheoryKit sig
+
+  thyExt : TheoryExtension MONOID.thy ext
+  thyExt .EqnSigExt <> = _ , (_ ,- _ ,- _ ,- # 1 ^- [])
+  thyExt .eqnsExt   <>
+    = (abstr \ (a , <>) -> inv a ** a  ,  un)
+    , <>
+    where
+      un : [! Tm !]
+      un = opr (sing 0) <>
+      inv : [! Tm -:> Tm !]
+      inv x = opr (sing 1) (x , <>)
+      _**_ : [! Tm -:> Tm -:> Tm !]
+      x ** y = opr (sing 2) (x , y , <>)
+
+  thy : Theory sig
+  thy = extTheory thyExt 
+
+  UMod : Set
+  UMod = UModel thy
+
+  -- first contract, i.e. one of the laws is not needed to prove mul-inv
+  noRightUnitLawThy : TheoryFewerEquations thy
+  noRightUnitLawThy .EqnSigCnt <> = _ , _ ,- _ ^- io
+  
+  mul-inv : DerivableExtension (cntTheory noRightUnitLawThy)
+  mul-inv .derSigExt <> = _ , io
+  mul-inv .derThyExt .EqnSigExt <> = _ , (_ ,- _ ,- _ ,- # 1 ^- [])
+  mul-inv .derThyExt .eqnsExt  <>
+    = ((abstr \ (a , <>) -> a ** inv a  ,  un))
+    , <>
+    where
+      un : [! Tm !]
+      un = opr (sing 0) <>
+      inv : [! Tm -:> Tm !]
+      inv x = opr (sing 1) (x , <>)
+      _**_ : [! Tm -:> Tm -:> Tm !]
+      x ** y = opr (sing 2) (x , y , <>)
+  mul-inv .derivable M .extra-ops = _
+  mul-inv .derivable M .extra-eqs <>
+    = ((\ (a , <>) ->
+       a ** inv a                             < un** _ ]-
+       un ** (a ** inv a)                     < cong G (_** (a ** inv a)) (inv** _) ]-
+       (inv (inv a) ** inv a) ** (a ** inv a) -[ {!!} >
+       
+       un          [QED]))
+    , <>
+    where
+      open UModel
+      G = Carrier M <>
+      open EQPRF G
+      un = operations M <> .fst <>
+      inv : El (G `> G)
+      inv x = operations M <> .snd .fst (x , <>)
+      _**_ : El (G `> G `> G)
+      x ** y = operations M <> .snd .snd .fst (x , y , <>)
+      un** = \ b -> equations M <> .fst (b , <>)
+      inv** = \ a -> equations M <> .snd .snd .fst (a , <>)
+
+  noRightUnitLaw : RedundantEquations thy
+  noRightUnitLaw .redThyCnt = noRightUnitLawThy
+  noRightUnitLaw .proofsOfDropped M <>
+    = (\ ( a , <>) ->
+       a ** un -[ {!!} >
+       a        [QED])
+    , <>
+    where
+      open UModel
+      G = Carrier M <>
+      open EQPRF G
+      un = operations M <> .fst <>
+      inv : El (G `> G)
+      inv x = operations M <> .snd .fst (x , <>)
+      _**_ : El (G `> G `> G)
+      x ** y = operations M <> .snd .snd .fst (x , y , <>)
+      
 module _ (G : U) where
 
   private

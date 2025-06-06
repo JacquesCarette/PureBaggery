@@ -154,6 +154,15 @@ module _ {A : Set} where
     _           /<< []         >>\ _           = <>
     
 
+    filll-from-complement : forall {ss us} (th : ss <= us) ->
+      let ((ts , ph) , part) = th -not in
+      (Rus : All R us) -> Alll S ss (select th Rus)
+      -> Alll S ts (select ph Rus)
+      -> Alll S us Rus
+    filll-from-complement (a ^- th) (Ra , Rus) asss (as , asts) = as , filll-from-complement th Rus asss asts
+    filll-from-complement (a ,- th) (Ra , Rus) (as , asss) asts = as , filll-from-complement th Rus asss asts
+    filll-from-complement []        <>  <>   <>   = <>
+    
   coords : {ss : List A} -> All (_-in ss) ss
   coords = tabulate id
     

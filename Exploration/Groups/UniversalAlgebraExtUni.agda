@@ -251,13 +251,20 @@ module _ {Sort : Set} where
     record RedundantEquations : Set where
       field
         redThyCnt : TheoryFewerEquations thy
+
       open TheoryFewerEquations redThyCnt
       open UModel
+      open Theory
 
+      field
+        proofsOfDropped : (M : UModel cntTheory) -> (t : Sort) ->
+          Equations (M .Carrier) cmpTheory (M .operations) t (dropped t) (cmpTheory .eqns t)
+          
       uReprove : UModel cntTheory -> UModel thy
       uReprove M .Carrier = M .Carrier
       uReprove M .operations = M .operations
-      uReprove M .equations t = {!!}
+      uReprove M .equations t =
+        filll-from-complement (EqnSigCnt t .snd) (eqns thy t) (M .equations t) (proofsOfDropped M t)
 
       -- HERE: we need more algebra on riffles
 

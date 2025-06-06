@@ -142,6 +142,8 @@ module Signature (Sort : Set) where
 
       eqns : forall t -> Eqns sig (EqnSig t) t
 
+  -- HERE
+  -- We need to redo this to relate two theories rather than being biased in this way
   record TheoryExtension {sig : Sig}(thy : Theory sig)(ext : SigExtension sig) : Set where
     open Theory
     field
@@ -159,8 +161,20 @@ module Signature (Sort : Set) where
   record TheoryFewerEquations {sig : Sig}(big : Theory sig) : Set where
     open Theory
     field
-      EqnSigCnt : (t : Sort) -> <: _<= EqnSig big t :> 
+      EqnSigCnt : (t : Sort) -> <: _<= EqnSig big t :>
+
+    -- cnt ~ contracted
     cntTheory : Theory sig
     cntTheory .EqnSig t = fst (EqnSigCnt t)
     cntTheory .eqns t = select (snd (EqnSigCnt t)) (eqns big t)
 
+    dropped : Sort -> List (List Sort)
+    dropped t = (EqnSigCnt t .snd -not) .fst .fst
+
+    dropper : (t : Sort) -> dropped t <= big .EqnSig t
+    dropper t = (EqnSigCnt t .snd -not) .fst .snd
+    
+    -- cmp ~ complement
+    cmpTheory : Theory sig
+    cmpTheory .EqnSig t = dropped t
+    cmpTheory .eqns   t = select (dropper t) (big .eqns t)
