@@ -3,6 +3,14 @@ module Basics where
 --------------------------------------------------------------------
 -- First, a lot of kit to get started
 
+
+-- BOO?
+data _~_ {X : Set}(x : X) : X -> Set where
+  r~ : x ~ x
+
+
+
+
 -- Using proof irrelevance keeps us from using details that we
 -- should not care about. [Also brings in complications.]
 record Hide (X : Set) : Set where
