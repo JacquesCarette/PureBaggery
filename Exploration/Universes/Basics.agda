@@ -120,3 +120,20 @@ data _-in_ {A : Set} (a : A) : (L : List A) -> Set where
   ze : {as : List A} -> a -in (a ,- as)
   su : {b : A} {as : List A} -> a -in as -> a -in (b ,- as)
 -}
+
+record Fam (X : Set1) : Set1 where
+  constructor fam
+  field
+    Ix : Set
+    el : Ix -> X
+
+record Decision (U : Fam Set) : Set1 where
+  open Fam U
+  field
+    Naw : Ix
+    Aye : Ix
+    decide : el Naw + el Aye
+    exclude : el Naw -> el Aye -> Zero
+open Decision public
+
+open Fam public
