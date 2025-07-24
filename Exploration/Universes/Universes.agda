@@ -332,6 +332,13 @@ Eq (`Mu I0 Sh0 Pos0 posix0 i0) (con s0 f0) (`Mu I1 Sh1 Pos1 posix1 i1) (con s1 f
 -- Eq (`Prf T0) t0 (`Prf T1) t1 
 Eq _ _ _ _ = `1
 
+
+-- HERE!
+-- Should this be indexed over a position set and pack functions from positions *inside*?
+data PoStack (Ix : U Extensional) : Set where
+  poNil : El Ix -> PoStack Ix
+  poCons : (S : UF)(T : ElF S -> PoStack Ix) -> PoStack Ix
+
 EqDec : (T0 : U Data)(t0 : El T0)(T1 : U Data)(t1 : El T1) -> Decision UPROPS
 EnumDec : (xs ys : List String)(D : <: _-in xs :> -> <: _-in ys :> -> Decision UPROPS) -> Decision UPROPS
 TabDec : (S0 : UF)(S1 : UF) -> (ElF S0 -> ElF S1 -> Decision UPROPS) -> Decision UPROPS
@@ -385,14 +392,124 @@ TabDec (R0 `>< S0) T0 f0 (R1 `>< S1) T1 f1 .decide = {!!}
 
 EqDec T0 t0 T1 t1 .Naw = Eq T0 t0 T1 t1 `=> `0
 EqDec T0 t0 T1 t1 .Aye = Eq T0 t0 T1 t1
+
+-- signals on the diagonal
 EqDec (S0 `>< T0) (s0 , t0) (S1 `>< T1) (s1 , t1) .decide with EqDec S0 s0 S1 s1 .decide
 ... | `0 , r = `0 , fst - r
 ... | `1 , q with EqDec (T0 s0) t0 (T1 s1) t1 .decide
 ... | `0 , r = `0 , snd - r
 ... | `1 , r = `1 , q , r
+
 EqDec `1 <> `1 <> .decide = `1 , _
+
 EqDec (S0 `#>> T0) f0 (S1 `#>> T1) f1 .decide =
   (TabDec S0 S1 \ s0 s1 -> EqDec (T0 s0) (ffapp S0 f0 s0) (T1 s1) (ffapp S1 f1 s1)) .decide
+
+EqDec (`E xs) xi (`E ys) yj .decide = Enum-EqDec xs xi ys yj .decide
+
+EqDec (`List T0) t0s (`List T1) t1s .decide = listEq? t0s t1s where
+  listEq? : (t0s : El (`List T0))(t1s : El (`List T1)) ->
+    el UPROPS (EqDec (`List T0) t0s (`List T1) t1s .Naw) +
+    el UPROPS (EqDec (`List T0) t0s (`List T1) t1s .Aye)
+  listEq? [] [] = `1 , _
+  listEq? [] (t1 ,- t1s) = `0 , id
+  listEq? (t0 ,- t0s) [] = `0 , id
+  listEq? (t0 ,- t0s) (t1 ,- t1s) with EqDec T0 t0 T1 t1 .decide | listEq? t0s t1s
+  ... | `0 , p | b , q = `0 , \ (x , _) -> p x
+  ... | `1 , p | `0 , q = `0 , \ (_ , x) -> q x
+  ... | `1 , p | `1 , q = `1 , p , q
+
+EqDec (`Mu Ix0 Sh0 Pos0 posix0 i0) t0 (`Mu Ix1 Sh1 Pos1 posix1 i1) t1 .decide
+  = poStkEq? (poNil i0) t0 (poNil i1) t1 where
+  {-
+  muEq? : (i0 : El Ix0) (t0 : El (`Mu Ix0 Sh0 Pos0 posix0 i0))
+          (i1 : El Ix1) (t1 : El (`Mu Ix1 Sh1 Pos1 posix1 i1))
+       ->
+        el UPROPS
+        (EqDec (`Mu Ix0 Sh0 Pos0 posix0 i0) t0 (`Mu Ix1 Sh1 Pos1 posix1 i1)
+         t1 .Naw)
+        +
+        el UPROPS
+        (EqDec (`Mu Ix0 Sh0 Pos0 posix0 i0) t0 (`Mu Ix1 Sh1 Pos1 posix1 i1)
+         t1 .Aye)
+  -}
+
+  elPoS0 : PoStack Ix0 -> U Data
+  elPoS0 (poNil i0) = `Mu Ix0 Sh0 Pos0 posix0 i0
+  elPoS0 (poCons S T) = S `#>> \ s -> elPoS0 (T s)
+
+  elPoS1 : PoStack Ix1 -> U Data
+  elPoS1 (poNil i1) = `Mu Ix1 Sh1 Pos1 posix1 i1
+  elPoS1 (poCons S T) = S `#>> \ s -> elPoS1 (T s)
+
+  poStkEq? : (p0 : PoStack Ix0) (t0 : El (elPoS0 p0))(p1 : PoStack Ix1) (t1 : El (elPoS1 p1))
+          ->  El (Eq (elPoS0 p0) t0 (elPoS1 p1) t1 `=> `0)
+           +  El (Eq (elPoS0 p0) t0 (elPoS1 p1) t1)
+  
+  kEq? : (P0 : UF)(pstk0 : ElF P0 -> PoStack Ix0) -- can we hide this function inside PoStack?
+         (k0 : P0 #> (pstk0 - elPoS0 - El))
+         (P1 : UF)(pstk1 : ElF P1 -> PoStack Ix1)
+         (k1 : P1 #> (pstk1 - elPoS1 - El))
+    -> el UPROPS (ElF-Rel P0 P1 (\ p0 p1 -> EqDec
+          (elPoS0 (pstk0 p0)) (ffapp P0 k0 p0)
+          (elPoS1 (pstk1 p1)) (ffapp P1 k1 p1)
+        .Aye) `=> `0)
+     + el UPROPS (ElF-Rel P0 P1 \ p0 p1 -> EqDec
+          (elPoS0 (pstk0 p0)) (ffapp P0 k0 p0)
+          (elPoS1 (pstk1 p1)) (ffapp P1 k1 p1)
+        .Aye)
+
+  poStkEq? (poNil _) _ (poCons _ _) _ = `1 , _
+  poStkEq? (poCons _ _) _ (poNil _) _ = `1 , _
+  
+  poStkEq? (poCons S0 T0) k0 (poCons S1 T1) k1 =
+    kEq? S0 T0 k0 S1 T1 k1
+
+  poStkEq? (poNil i0) (con s0 k0) (poNil i1) (con s1 k1) with EqDec (Sh0 i0) s0 (Sh1 i1) s1 .decide
+  ... | `0 , p = `0 , \ (x , _) -> p x
+  ... | `1 , p
+    with kEq? (Pos0 i0 s0) (posix0 i0 s0 - poNil) k0 (Pos1 i1 s1) (posix1 i1 s1 - poNil) k1
+  ... | `0 , q = `0 , \ (_ , x) -> q x
+  ... | `1 , q = `1 , p , q
+
+
+{-
+  muEq? i0 (con s0 k0) i1 (con s1 k1) with EqDec (Sh0 i0) s0 (Sh1 i1) s1 .decide
+  ... | `0 , p = `0 , \ (x , _) -> p x
+  ... | `1 , p
+    with kEq? (Pos0 i0 s0) (posix0 i0 s0 - poNil) k0 (Pos1 i1 s1) (posix1 i1 s1 - poNil) k1
+  ... | `0 , q = `0 , \ (_ , x) -> q x
+  ... | `1 , q = `1 , p , q
+-}
+  -- here is the same problem as with TabDec Mk I
+  -- k0 has an S0 outer layer whose children are not Mus, but rather T0s of Mus
+  kEq? (S0 `>< T0) pstk0 k0 (S1 `>< T1) pstk1 k1 = 
+    kEq? S0 (\ s0 -> poCons (T0 s0) \ t0 -> pstk0 (s0 , t0)) k0
+         S1 (\ s1 -> poCons (T1 s1) \ t1 -> pstk1 (s1 , t1)) k1
+  
+  kEq? `0 pstk0 k0 `0 pstk1 k1 = `1 , _
+  
+  kEq? `1 pstk0 t0 `1 pstk1 t1 = poStkEq? (pstk0 <>) t0 (pstk1 <>) t1
+  
+  kEq? (`E xs0) pstk0 k0 (`E xs1) pstk1 k1 = {!!}
+
+  kEq? (S0 `>< T0) pstk0 k0 `0 pstk1 k1 = {!!}
+  kEq? (S0 `>< T0) pstk0 k0 `1 pstk1 k1 = {!!}
+  kEq? (S0 `>< T0) pstk0 k0 (`E x) pstk1 k1 = {!!}
+  kEq? `0 pstk0 k0 (P1 `>< T) pstk1 k1 = {!!}
+  kEq? `0 pstk0 k0 `1 pstk1 k1 = {!!}
+  kEq? `0 pstk0 k0 (`E x) pstk1 k1 = {!!}
+  kEq? `1 pstk0 k0 (P1 `>< T) pstk1 k1 = {!!}
+  kEq? `1 pstk0 k0 `0 pstk1 k1 = {!!}
+  kEq? `1 pstk0 k0 (`E x) pstk1 k1 = {!!}
+  kEq? (`E x) pstk0 k0 (P1 `>< T) pstk1 k1 = {!!}
+  kEq? (`E x) pstk0 k0 `0 pstk1 k1 = {!!}
+  kEq? (`E x) pstk0 k0 `1 pstk1 k1 = {!!}
+
+
+EqDec (`Prf _) _ (`Prf _) _ .decide = `1 , _
+
+-- noises off
 EqDec (_ `>< _) _ `1 _ .decide = `1 , _
 EqDec (_ `>< _) _ (_ `#>> _) _ .decide = `1 , _
 EqDec (_ `>< _) _ (`E _) _ .decide = `1 , _
@@ -414,15 +531,13 @@ EqDec (_ `#>> _) _ (`Prf _) _ .decide = `1 , _
 EqDec (`E _) _ (_ `>< _) _ .decide = `1 , _
 EqDec (`E _) _ `1 _ .decide = `1 , _
 EqDec (`E _) _ (_ `#>> _) _ .decide = `1 , _
-EqDec (`E xs) xi (`E ys) yj .decide = Enum-EqDec xs xi ys yj .decide
 EqDec (`E _) _ (`List _) _ .decide = `1 , _
 EqDec (`E _) _ (`Mu _ _ _ _ _₁) _ .decide = `1 , _
 EqDec (`E _) _ (`Prf _) _ .decide = `1 , _
 EqDec (`List _) _ (_ `>< _) _ .decide = `1 , _
 EqDec (`List _) _ `1 _ .decide = `1 , _
-EqDec (`List T0) _ (_ `#>> _) _ .decide = `1 , _
+EqDec (`List _) _ (_ `#>> _) _ .decide = `1 , _
 EqDec (`List _) _ (`E _) _ .decide = `1 , _
-EqDec (`List T0) t0 (`List T1) t1 .decide = {!!}
 EqDec (`List _) _ (`Mu _ _ _ _ _) _ .decide = `1 , _
 EqDec (`List _) _ (`Prf _) _ .decide = `1 , _
 EqDec (`Mu _ _ _ _ _) _ (_ `>< _) _ .decide = `1 , _
@@ -430,7 +545,6 @@ EqDec (`Mu _ _ _ _ _) _ `1 _ .decide = `1 , _
 EqDec (`Mu _ _ _ _ _) _ (_ `#>> _) _ .decide = `1 , _
 EqDec (`Mu _ _ _ _ _) _ (`E _) _ .decide = `1 , _
 EqDec (`Mu _ _ _ _ _) _ (`List _) _ .decide = `1 , _
-EqDec (`Mu T0 Sh Pos posix x) t0 (`Mu T1 Sh₁ Pos₁ posix₁ x₁) t1 .decide = {!!}
 EqDec (`Mu _ _ _ _ _) _ (`Prf _) _ .decide = `1 , _
 EqDec (`Prf _) _ (_ `>< _) _ .decide = `1 , _
 EqDec (`Prf _) _ `1 _ .decide = `1 , _
@@ -438,5 +552,5 @@ EqDec (`Prf _) _ (_ `#>> _) _ .decide = `1 , _
 EqDec (`Prf _) _ (`E _) _ .decide = `1 , _
 EqDec (`Prf _) _ (`List _) _ .decide = `1 , _
 EqDec (`Prf _) _ (`Mu _ _ _ _ _) _ .decide = `1 , _
-EqDec (`Prf _) _ (`Prf _) _ .decide = `1 , _
+
 EqDec T0 t0 T1 t1 .exclude naw aye = naw aye
