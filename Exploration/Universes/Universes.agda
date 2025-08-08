@@ -332,7 +332,30 @@ Eq (`Mu I0 Sh0 Pos0 posix0 i0) (con s0 f0) (`Mu I1 Sh1 Pos1 posix1 i1) (con s1 f
 -- Eq (`Prf T0) t0 (`Prf T1) t1 
 Eq _ _ _ _ = `1
 
+-- A view that makes certain recursion patterns (more) obviously terminating
+-- i.e. a view of things that live in "blue" Mu
+module BlueMu (Ix : Set) (Sh : Ix -> Set) (Pos : (i : Ix) -> Sh i -> UF)
+  (posix : (i : Ix) (s : Sh i) (p : ElF (Pos i s)) -> Ix) where
 
+  data MuView {i : Ix} : (P : Mu Ix Sh Pos posix i) -> Set where
+    con : (s : Sh i) -> (tabu : Pos i s #> \ p -> Mu Ix Sh Pos posix (posix i s p)) ->
+          (ih : (p : ElF (Pos i s)) -> MuView (ffapp (Pos i s) tabu p)) -> MuView (con s tabu)
+
+  -- a decomposition of positions
+
+  -- constructor
+  muview : {i : Ix} (mv : Mu Ix Sh Pos posix i) -> MuView mv
+  muview {i} (con s tabu) = con s tabu \ p -> helper (Pos i s) (\ _ -> `1) (\ p _ -> posix i s p) tabu p <>
+    where
+      -- OP = outer position, IP = inner position, ap = abstract posix
+      helper : (OP : UF) (IP : ElF OP -> UF) (ap : (op : ElF OP) (ip : ElF (IP op)) -> Ix)
+               (f : OP #> \ op -> IP op #> \ ip -> Mu Ix Sh Pos posix (ap op ip)) (op : ElF OP) (ip : ElF (IP op)) -> MuView (ffapp (IP op) (ffapp OP f op) ip)
+      helper (S `>< T) IP ap f (os , ot) ip = {!!}
+        -- helper S (\ s -> T s `>< \ t -> IP (s , t)) (\ s (t , ip) → ap (s , t) ip) f os (ot , ip)
+      helper `1 IP ap f <> ip = {!!} -- helper (IP <>) (kon `1) {!!} {!!} {!!} {!!} -- Agda predictably does not like this
+      helper (`E x) IP ap f op ip = {!!}
+
+{-
 -- HERE!
 -- Should this be indexed over a position set and pack functions from positions *inside*?
 data PoStack (Ix : U Extensional) : Set where
@@ -630,3 +653,4 @@ EqDec (`Prf _) _ (`List _) _ .decide = `1 , _
 EqDec (`Prf _) _ (`Mu _ _ _ _ _) _ .decide = `1 , _
 
 EqDec T0 t0 T1 t1 .exclude naw aye = naw aye
+-}
