@@ -88,25 +88,22 @@ proj : (xs : List String) {T : <: _-in xs :> -> Set} -> Tuple xs T -> [: T :]
 proj (x ,- xs) < t , ts > (_ , ze) = t
 proj (x ,- xs) < t , ts > (_ , su i) = proj xs ts (_ , i)
 
-data _#>_ (S : UF)(R : ElF S -> Set) : Set
-_#>'_ : (S : UF) -> (R : ElF S -> Set) -> Set
-data _#>_ S R where
-  <_> : S #>' R -> S #> R
-(xs `$< T) #>' R = Tuple xs \ x -> T x #> \ t -> R (x , t)
-`1 #>' R = R <>
+_#>_ : (S : UF) -> (R : ElF S -> Set) -> Set
+(xs `$< T) #> R = Tuple xs \ x -> T x #> \ t -> R (x , t)
+`1 #> R = R <>
 
 -- Some External kit for tabulated functions
 
 
 -- tabulation for finite functions
 fflam : (S : UF) {R : ElF S -> Set} -> (f : [: R :]) -> (S #> R)
-fflam (xs `$< T) f = <( tab xs \ x -> fflam (T x) \ t -> f (x , t) )>
-fflam `1 f = < f <> >
+fflam (xs `$< T) f = tab xs \ x -> fflam (T x) \ t -> f (x , t)
+fflam `1 f = f <>
 
 -- using such tabulated functions
 ffapp : (S : UF) {R : ElF S -> Set} -> (S #> R) -> [: R :]
-ffapp (xs `$< T) < rs > (x , t) = ffapp (T x) (proj xs rs x) t
-ffapp `1 < r > <> = r
+ffapp (xs `$< T) rs (x , t) = ffapp (T x) (proj xs rs x) t
+ffapp `1 r <> = r
 
 _`>F<_ : (S : UF)(T : ElF S -> UF) -> UF
 (xs `$< S) `>F< T = xs `$< \ x -> S x `>F< \ s -> T (x , s)
@@ -401,16 +398,16 @@ EqDec (`Mu Ix0 Sh0 Pos0 posix0 i0) t0 (`Mu Ix1 Sh1 Pos1 posix1 i1) t1 .decide
       in el UPROPS (P `=> `0)
        + el UPROPS P
   kEq? : (P0 : UF)(pi0 : ElF P0 -> El Ix0)
-         (k0 : P0 #>' \ p -> El (Mu0 (pi0 p)))
+         (k0 : P0 #> \ p -> El (Mu0 (pi0 p)))
          (P1 : UF)(pi1 : ElF P1 -> El Ix1)
-         (k1 : P1 #>' \ p -> El (Mu1 (pi1 p)))
+         (k1 : P1 #> \ p -> El (Mu1 (pi1 p)))
       -> let P = ElF-Rel P0 P1 \ p0 p1 ->
-                  EqDec (Mu0 (pi0 p0)) (ffapp P0 < k0 > p0)
-                        (Mu1 (pi1 p1)) (ffapp P1 < k1 > p1) .Aye
+                  EqDec (Mu0 (pi0 p0)) (ffapp P0 k0 p0)
+                        (Mu1 (pi1 p1)) (ffapp P1 k1 p1) .Aye
       in el UPROPS (P `=> `0)
        + el UPROPS P
 
-  muEq? i0 (con s0 < k0 >) i1 (con s1 < k1 >) with EqDec (Sh0 i0) s0 (Sh1 i1) s1 .decide
+  muEq? i0 (con s0 k0) i1 (con s1 k1) with EqDec (Sh0 i0) s0 (Sh1 i1) s1 .decide
   ... | `0 , q = `0 , fst - q
   ... | `1 , q with kEq? (Pos0 i0 s0) (posix0 i0 s0) k0 (Pos1 i1 s1) (posix1 i1 s1) k1
   ... | `0 , r = `0 , snd - r
@@ -421,7 +418,7 @@ EqDec (`Mu Ix0 Sh0 Pos0 posix0 i0) t0 (`Mu Ix1 Sh1 Pos1 posix1 i1) t1 .decide
   kEq? ([] `$< T0) pi0 k0 ([] `$< T1) pi1 k1 = `1 , _
   kEq? ([] `$< T0) pi0 k0 ((x ,- xs1) `$< T1) pi1 k1 = `1 , _
   kEq? ((x ,- xs0) `$< T0) pi0 k0 ([] `$< T1) pi1 k1 = `1 , _
-  kEq? ((x0 ,- xs0) `$< T0) pi0 < < t0 > , k0 > ((x1 ,- xs1) `$< T1) pi1 < < t1 > , k1 >
+  kEq? ((x0 ,- xs0) `$< T0) pi0 < t0 , k0 > ((x1 ,- xs1) `$< T1) pi1 < t1 , k1 >
     with kEq? (T0 (_ , ze)) (((_ , ze) ,_) - pi0) t0 (T1 (_ , ze)) (((_ , ze) ,_) - pi1) t1
   ... | `0 , q = `0 , fst - q
   ... | `1 , q with kEq? (xs0 `$< \ (_ , i) -> T0 (_ , su i)) (\ ((_ , i) , t) -> pi0 ((_ , su i) , t)) k0
