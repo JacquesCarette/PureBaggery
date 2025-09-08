@@ -3,6 +3,7 @@ module Universes where
 open import String
 
 open import Basics
+open import Thinnings
 
 data Kind : Set where
   Data Extensional Props : Kind
@@ -37,12 +38,21 @@ a -In (x ,- l) with primStringEquality a x
 ... | `0 = a -In l
 ... | `1 = One
 
+-- LATER: use these even more pervasively down below
+-- mapping down an -in
+zee : {x : String} {xs : List String} -> <: _-in (x ,- xs) :>
+zee = _ , ze
+
+-- could be golfed to _ >><< su
+suu : {x : String} {xs : List String} -> <: _-in xs :> ->  <: _-in (x ,- xs) :>
+suu (_ , i) = (_ , su i)
+
 -- when we know a is in l, we can (fairly silently) get to know where something is
 --  (which, magically, is going to be a, but we don't / can't promise that)
 $ : (a : String) -> {l : List String} -> {_ : a -In l} -> <: _-in l :>
 $ a {x ,- l} {p} with primStringEquality a x
-... | `0 = (_ >><< su) ($ a {l} {p})
-... | `1 = _ , ze
+... | `0 = suu ($ a {l} {p})
+... | `1 = zee
 
 -- Introduce the Finite universe on its own
 data UF : Set
@@ -67,14 +77,16 @@ ElF (`E l) =  <: _-in l :>
 -- TODO? could re-jig this to use the String interface instead of the positional one
 Tuple : (xs : List String) (T : <: _-in xs :> -> Set) -> Set
 Tuple [] T = One
-Tuple (x ,- xs) T = T (_ , ze) * Tuple xs \ (_ , i) -> T (_ , su i)
+Tuple (x ,- xs) T = T zee * Tuple xs (suu - T)
 
 mapTuple : (xs : List String) {T0 T1 : <: _-in xs :> -> Set} (f : [: T0 -:> T1 :] ) ->
   Tuple xs T0 -> Tuple xs T1
 mapTuple [] f <> = <>
-mapTuple (x ,- xs) f (t , ts) = f _ t , mapTuple xs (\ (_ , i) -> f (_ , su i)) ts
+mapTuple (x ,- xs) f (t , ts) = f _ t , mapTuple xs (suu - f) ts
 
 -- Some External kit for tabulated functions
+-- While this wrapping-unwrapping seems pointless, later on it helps us
+-- point Agda to "look here" to see something that is indeed getting smaller.
 data _#>_  (S : UF)(T : ElF S -> Set) : Set
 _#>'_ : (S : UF) -> (T : ElF S -> Set) -> Set
 data _#>_ S T where
@@ -87,7 +99,7 @@ data _#>_ S T where
 -- tabulation for enumeration
 tab : (xs : List String) {T : <: _-in xs :> -> Set} -> [: T :] -> Tuple xs T
 tab [] f = <>
-tab (x ,- xs) f = (f (_ , ze)) , (tab xs (\ (_ , i) -> f (_ , su i)))
+tab (x ,- xs) f = f zee , tab xs (suu - f)
 
 -- projection for inverting tab
 proj : (xs : List String) {T : <: _-in xs :> -> Set} -> Tuple xs T -> [: T :]
@@ -336,12 +348,14 @@ Eq (`Mu I0 Sh0 Pos0 posix0 i0) (con s0 f0) (`Mu I1 Sh1 Pos1 posix1 i1) (con s1 f
 Eq _ _ _ _ = `1
 
 
--- HERE!
 -- Should this be indexed over a position set and pack functions from positions *inside*?
 data PoStack (Ix : U Extensional) : Set where
   poNil : El Ix -> PoStack Ix
   poCons : (S : UF)(T : ElF S -> PoStack Ix) -> PoStack Ix
 
+-----------------------------------------------------------------------------------
+-- The next gazillions of lines help us show that we have decidable equality for the universe
+-- of Data.
 EqDec : (T0 : U Data)(t0 : El T0)(T1 : U Data)(t1 : El T1) -> Decision UPROPS
 EnumDec : (xs ys : List String)(D : <: _-in xs :> -> <: _-in ys :> -> Decision UPROPS) -> Decision UPROPS
 TabDec : (S0 : UF)(S1 : UF) -> (ElF S0 -> ElF S1 -> Decision UPROPS) -> Decision UPROPS
@@ -424,7 +438,9 @@ EqDec (`List T0) t0s (`List T1) t1s .decide = listEq? t0s t1s where
 
 EqDec (`Mu Ix0 Sh0 Pos0 posix0 i0) t0 (`Mu Ix1 Sh1 Pos1 posix1 i1) t1 .decide
   = poStkEq? (poNil i0) t0 (poNil i1) t1 where
-  {-
+  {- Seems like what we want, but we generalize it (below)
+     and make more of it transparently (to Agda) first-order while
+     at it.
   muEq? : (i0 : El Ix0) (t0 : El (`Mu Ix0 Sh0 Pos0 posix0 i0))
           (i1 : El Ix1) (t1 : El (`Mu Ix1 Sh1 Pos1 posix1 i1))
        ->
@@ -574,3 +590,35 @@ EqDec (`Prf _) _ (`List _) _ .decide = `1 , _
 EqDec (`Prf _) _ (`Mu _ _ _ _ _) _ .decide = `1 , _
 
 EqDec T0 t0 T1 t1 .exclude naw aye = naw aye
+
+-- End gazillion
+-------------------------------------------------------------------------------
+
+-- Baby steps towards differential structure
+
+-- Enumerating (elements of) UF
+enum-Enum-work : (xs ys : List String) -> (<: _-in xs :> -> <: _-in ys :>) -> List <: _-in ys :>
+enum-Enum-work []        ys shuffle = []
+enum-Enum-work (x ,- xs) ys shuffle = shuffle zee ,- enum-Enum-work xs ys (suu - shuffle)
+
+enum-Enum : (xs : List String) -> List <: _-in xs :>
+enum-Enum xs = enum-Enum-work xs xs id
+
+enum-UF : (T : UF) -> List (ElF T)
+enum-UF (S `>< T) = enum-UF S >>L= \s -> enum-UF (T s) >>L= \ t -> (s , t) ,- []
+enum-UF `0 = []
+enum-UF `1 = <> ,- []
+enum-UF (`E x) = enum-Enum x
+
+-- Later: elements of (enum-UF) are distinct, findable and ordered
+--  and every selection of 2 elements has those elements in order.
+
+{- HERE
+-- every element of (ElF T) for (T : UF) is somewhere in its enumeration
+-- (but is it useful?)
+findit : (T : UF) (t : ElF T) -> (t ,- []) <= enum-UF T
+findit (S `>< T) (s , t) with enum-UF S | findit S s
+... | e | i = thin-bind i (\s -> {!(s , t) ,- []!}) _ {!!}
+findit `1 <> = <> ,- []
+findit (`E x) t = {!!}
+-}

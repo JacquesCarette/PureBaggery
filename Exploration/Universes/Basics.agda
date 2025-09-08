@@ -105,7 +105,7 @@ data Nat : Set where ze : Nat ; su : Nat -> Nat
 data List (A : Set) : Set where
   [] : List A
   _,-_ : A -> List A -> List A
-infixr 20 _,-_
+infixr 20 _,-_ _++_
 
 list : {A B : Set} -> (A -> B) -> List A -> List B
 list f [] = []
@@ -115,6 +115,27 @@ cataList : forall {b} {A : Set} {B : Set b} -> (A -> B -> B) -> B -> List A -> B
 cataList _ b [] = b
 cataList _/_ b (x ,- xs) = x / cataList _/_ b xs
 
+-- define _++_ graph-style
+data [_++_]=_ {A : Set} : List A -> List A -> List A -> Set where
+  [] : forall {ys : List A} -> [ [] ++ ys ]= ys
+  _,-_ : forall {xs ys zs : List A} x -> [ xs ++ ys ]= zs -> [ (x ,- xs) ++ ys ]= x ,- zs
+
+-- it is functional
+append : {A : Set} (xs ys : List A) -> <: [ xs ++ ys ]=_ :>
+append [] ys = ys , []
+append (x ,- xs) ys = let _ , p = append xs ys in _ , (x ,- p)
+
+_++_ : {A : Set} -> List A -> List A -> List A
+xs ++ ys = fst (append xs ys)
+
+-- bind for the List Monad
+infixr 30 _>>L=_
+_>>L=_ : forall {A B : Set} -> List A -> (A -> List B) -> List B
+[] >>L= f = []
+(x ,- xs) >>L= f = f x ++ xs >>L= f
+
+-- HERE first: probably a good idea to first define "located bind" where
+-- the continuation also gets the location of its input
 {-
 data _-in_ {A : Set} (a : A) : (L : List A) -> Set where
   ze : {as : List A} -> a -in (a ,- as)
