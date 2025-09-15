@@ -160,6 +160,17 @@ _`#>_ : (S : UF) -> (T : ElF S -> UF) -> UF
 `ffapp `1        t  <>      = t
 `ffapp (`E xs)   ts i       = `proj xs ts i
 
+-- a handy helper for tagged types
+`ctors : List (String * UF) -> UF
+`ctors cTs = `E (list fst cTs) `>< fetch cTs where
+  -- move this out ?
+  fetch : (cTs : List (String * UF))
+          (i : <: _-in list fst cTs :>)
+       -> UF
+  fetch ((c , T) ,- _) (_ , ze) = T
+  fetch (_ ,- cTs) (_ , su i) = fetch cTs (_ , i)
+
+
 -- TODO at some point, we'll need to know the above are all compatible
 
 data Mu (Ix : Set) (Sh : Ix -> Set) (Pos : (i : Ix) -> Sh i -> UF)
@@ -637,3 +648,85 @@ findit (S `>< T) (s , t) with enum-UF S | findit S s
         \ { t {.t ,- []} {j} v -> io }}
 findit `1 <> = <> ,- []
 findit (`E x) (_ , i) = enum-Enum-enums x i
+
+-- remove the enum element being pointed at
+_-bar_ : (xs : List String) -> <: _-in xs :>
+  -> List String
+(x ,- xs) -bar (_ , ze) = xs
+(x ,- xs) -bar (_ , su i) = x ,- (xs -bar (_ , i))
+
+-- show what remains was there in the first place
+bar-subset : (xs : List String)(i : <: _-in xs :>)
+  -> (xs -bar i) <= xs
+bar-subset (x ,- xs) (_ , ze) = x ^- io
+bar-subset (x ,- xs) (_ , su i) = x ,- bar-subset xs (_ , i)
+
+thin-in : forall {x xs ys} -> x -in xs -> xs <= ys -> x -in ys
+thin-in i (a ^- th) = su (thin-in i th)
+thin-in ze (a ,- th) = ze
+thin-in (su i) (a ,- th) = su (thin-in i th)
+
+bar-diff : (xs : List String)(i : <: _-in xs :>)
+  -> (j : <: _-in (xs -bar i) :>)
+  -> El (Enum-Eq xs i xs (_ , thin-in (snd j) (bar-subset xs i)))
+  -> Zero
+bar-diff (x ,- xs) (_ , su i) (_ , su j) q = 
+  bar-diff xs (_ , i) (_ , j) q
+
+-- for UF, we need the embedding defined mutually
+-- with the removal, to make Sigma work properly
+_-sans_ : (T : UF)(t : ElF T) -> UF
+sans-embed : (T : UF)(t : ElF T) -> ElF (T -sans t) -> ElF T
+(S `>< T) -sans (s , t) = `ctors (
+  ("diffLeft"  , ((S -sans s) `>< \ s' -> T (sans-embed S s s'))) ,-
+  ("diffRight" , (T s -sans t)) ,- [])
+`1 -sans <> = `0
+`E xs -sans i = `E (xs -bar i)
+sans-embed (S `>< T) (s , t) ((_ , ze) , s' , t') =
+  sans-embed S s s' , t'
+sans-embed (S `>< T) (s , t) ((_ , su ze) , t') =
+  s , sans-embed (T s) t t'
+sans-embed (`E xs) i (_ , j) = _ , thin-in j (bar-subset xs i)
+
+{-
+-- aha we may struggle to push this through for Sigma
+me-or-not : (T : UF)(me : ElF T)(x : ElF T)
+  -> ElF (`ctors (("self" , `1) ,- ("other" , T -sans me) ,- []))
+me-or-not (S `>< T) (sme , tme) (sx , tx)
+  with me-or-not S sme sx
+... | (."self" , ze) , <> = {!!}
+  -- want to call me-or-not (T sme) tme tx
+  -- but need sme = sx
+... | (."other" , su ze) , s'
+  = $ "other" , $ "diffLeft" , s' , {!!} -- want tx but need coherence
+me-or-not `1 <> <> = $ "self" , <>
+me-or-not (`E xs) i j = {!!}
+-}
+
+-- we may have more luck showing
+-- T -sans t  iso  to  T `>< \ t' -> t' /= t
+
+sans-diff : (T : UF)(t : ElF T)(t' : ElF (T -sans t))
+  -> El (EqF T t T (sans-embed T t t')) -> Zero
+sans-diff (S `>< T) (s , t) ((."diffLeft" , ze) , s' , t') (q , _)
+  = sans-diff S s s' q
+sans-diff (S `>< T) (s , t) ((."diffRight" , su ze) , t') (_ , q)
+  = sans-diff (T s) t t' q
+sans-diff (`E xs) t t' q = bar-diff xs t t' q
+
+-- the other direction is tricky
+
+-- HERE, or rather not, we need transport and J to finish the job
+
+diff-sans : (T : UF)(t t' : ElF T)
+  -> (El (EqF T t T t') -> Zero)
+  -> ElF (T -sans t) >< \ t^ ->
+     El (EqF T t' T (sans-embed T t t^))
+diff-sans (S `>< T) (s , t) (s' , t') n
+  with EqFDec S s S s' .decide
+... | `0 , n' =
+  let s^ , q = diff-sans S s s' n' in
+  ($ "diffLeft" , s^ , {!!}) , {!!}
+... | `1 , z = {!!}
+diff-sans `1 t t' n with () <- n <>
+diff-sans (`E x) t t' n = {!!}
