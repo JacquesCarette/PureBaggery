@@ -128,11 +128,13 @@ append (x ,- xs) ys = let _ , p = append xs ys in _ , (x ,- p)
 _++_ : {A : Set} -> List A -> List A -> List A
 xs ++ ys = fst (append xs ys)
 
+{-
 -- bind for the List Monad
 infixr 30 _>>L=_
 _>>L=_ : forall {A B : Set} -> List A -> (A -> List B) -> List B
 [] >>L= f = []
 (x ,- xs) >>L= f = f x ++ xs >>L= f
+-}
 
 -- HERE first: probably a good idea to first define "located bind" where
 -- the continuation also gets the location of its input

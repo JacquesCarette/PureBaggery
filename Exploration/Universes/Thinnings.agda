@@ -58,6 +58,21 @@ module _ {A : Set} where
   _-<_ : forall {xs ys zs}(th : xs <= ys)(ph : ys <= zs) -> xs <= zs
   th -< ph = fst (tri th ph)
 
+  io-< : forall {xs ys}(th : xs <= ys) -> [ io -< th ]= th
+  io-< (a ^- th) = a ^- io-< th
+  io-< (a ,- th) = a ,- io-< th
+  io-< [] = []
+
+  no-< : forall {xs ys}(th : xs <= ys) -> [ no -< th ]= no
+  no-< (a ^- th) = a ^- no-< th
+  no-< (a ,- th) = a ^,- no-< th
+  no-< [] = []
+
+  _-<io : forall {xs ys}(th : xs <= ys) -> [ th -< io ]= th
+  (a ^- th) -<io = a ^,- (th -<io)
+  (a ,- th) -<io = a ,- (th -<io)
+  [] -<io = []
+
   -- th /#\ ph means that th and ph *partition* their shared target
   data _/#\_ : forall {xs us ys}(th : xs <= us) (ph : ys <= us) -> Set where
     _,^-_ : forall a {xs us ys}{th : xs <= us}{ph : ys <= us}
@@ -206,10 +221,33 @@ zAllSelect [] rs = []
 -- Thin-bind lemma(s)
 
 module _ {A B : Set} where
+
+  _>>!=_ : (xs : List A)(f : (x : A) -> (x ,- []) <= xs -> List B) -> List B
+  [] >>!= f = []
+  (x ,- xs) >>!= f = f x (x ,- no) ++ (xs >>!= \ y i -> f y (x ^- i))
+
+  thin-loc-bind : {xs ys : List A} (th : xs <= ys)
+    (f : (x : A) -> (x ,- []) <= xs -> List B)
+    (g : (y : A) -> (y ,- []) <= ys -> List B)
+    (ph : (a : A){i : (a ,- []) <= xs}{j : (a ,- []) <= ys} ->
+          [ i -< th ]= j -> f a i <= g a j) ->
+    (xs >>!= f) <= (ys >>!= g)
+  thin-loc-bind (x ^- th) f g ph
+    =   no {xs = g x (x ,- no)}
+    +<+ thin-loc-bind th f (\ y j -> g y (x ^- j)) (\ a v -> ph a (x ^- v))
+  thin-loc-bind (x ,- th) f g ph
+    = ph x (x ,- no-< th)
+    +<+ thin-loc-bind th (\ y i -> f y (x ^- i)) (\ y j -> g y (x ^- j))
+          (\ a v -> ph a (x ^,- v))
+  thin-loc-bind [] f g ph = []
+
+  infixr 30 _>>L=_
+
+  _>>L=_ : List A -> (A -> List B) -> List B
+  xs >>L= k = xs >>!= \ x _ -> k x
+
   -- if you put in a subset, you get out a subset
-  thin-bind : {xs ys : List A} (th : xs <= ys) (f g : A -> List B) (ph : (a : A) -> f a <= g a) ->
+  thin-bind : {xs ys : List A} (th : xs <= ys)
+    (f g : A -> List B) (ph : (a : A) -> f a <= g a) ->
     (xs >>L= f) <= (ys >>L= g)
-  thin-bind (a ^- th) f g ph = no {xs = g a} +<+ thin-bind th f g ph
-  thin-bind (a ,- th) f g ph = ph a +<+ thin-bind th f g ph
-  thin-bind [] f g ph = []
-  
+  thin-bind th f g ph = thin-loc-bind th (\ x _ -> f x) (\ y _ -> g y) \ a _ -> ph a

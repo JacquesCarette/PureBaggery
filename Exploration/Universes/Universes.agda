@@ -601,8 +601,19 @@ enum-Enum-work : (xs ys : List String) -> (<: _-in xs :> -> <: _-in ys :>) -> Li
 enum-Enum-work []        ys shuffle = []
 enum-Enum-work (x ,- xs) ys shuffle = shuffle zee ,- enum-Enum-work xs ys (suu - shuffle)
 
+enum-Enum-work-works : (xs ys : List String)
+  -> (f : <: _-in xs :> -> <: _-in ys :>)
+  -> {x : String}(i : x -in xs)
+  -> (f (x , i) ,- []) <= enum-Enum-work xs ys f
+enum-Enum-work-works xs ys f ze = f zee ,- no
+enum-Enum-work-works xs ys f (su i) = f zee ^- enum-Enum-work-works _ ys (suu - f) i
+
 enum-Enum : (xs : List String) -> List <: _-in xs :>
 enum-Enum xs = enum-Enum-work xs xs id
+
+enum-Enum-enums : (xs : List String){x : String}(i : x -in xs)
+  -> ((x , i) ,- []) <= enum-Enum xs
+enum-Enum-enums xs i = enum-Enum-work-works xs xs id i
 
 enum-UF : (T : UF) -> List (ElF T)
 enum-UF (S `>< T) = enum-UF S >>L= \s -> enum-UF (T s) >>L= \ t -> (s , t) ,- []
@@ -613,12 +624,16 @@ enum-UF (`E x) = enum-Enum x
 -- Later: elements of (enum-UF) are distinct, findable and ordered
 --  and every selection of 2 elements has those elements in order.
 
-{- HERE
--- every element of (ElF T) for (T : UF) is somewhere in its enumeration
--- (but is it useful?)
 findit : (T : UF) (t : ElF T) -> (t ,- []) <= enum-UF T
 findit (S `>< T) (s , t) with enum-UF S | findit S s
-... | e | i = thin-bind i (\s -> {!(s , t) ,- []!}) _ {!!}
+... | e | i =
+  thin-loc-bind i
+    (\ { s (.s ,- []) -> (s , t) ,- [] })
+    (\ s _ -> enum-UF (T s) >>!= (\ t _ -> (s , t) ,- []))
+    \ { s {.s ,- []} {j} v -> let i' = findit (T s) t in
+      thin-loc-bind i'
+        (\ { t (.t ,- []) -> (s , t) ,- [] })
+        (\ t' _ -> (s , t') ,- [])
+        \ { t {.t ,- []} {j} v -> io }}
 findit `1 <> = <> ,- []
-findit (`E x) t = {!!}
--}
+findit (`E x) (_ , i) = enum-Enum-enums x i
