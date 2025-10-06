@@ -6,4 +6,4 @@ postulate String : Set
 {-# BUILTIN STRING String #-}
 
 primitive
-  primStringEquality : String → String → Two
+  primStringEquality : String -> String -> Two

@@ -49,7 +49,7 @@ sans-diff (`E xs) t t' q = bar-diff xs t t' q
 
 -- the other direction is tricky
 
--- HERE, or rather not, we need transport and J to finish the job
+-- HEREAFTER, or rather not, we need transport and J to finish the job
 {-
 diff-sans : (T : UF)(t t' : ElF T)
   -> (El (EqF T t T t') -> Zero)

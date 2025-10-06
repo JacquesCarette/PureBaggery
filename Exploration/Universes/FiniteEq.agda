@@ -134,17 +134,40 @@ reflF (S `>< T) (s , t) = reflF S s , reflF (T s) t
 reflF `1 <> = <>
 reflF (`E xs) x = reflE xs x
 
+postulate
+  primStringRefl : (x : String) -> So (primStringEquality x x)
+
 -- HERE
 -- we might just be able to not postulate respRF, but it sure has to be
 -- mutual with ReflF.
 ReflE : (xs : List String) -> El (EqListStrings xs xs)
-ReflE xs = {!!}
+ReflE [] = <>
+ReflE (x ,- xs) with primStringEquality x x | primStringRefl x
+... | `1 | q = ReflE xs
 
 ReflF : (S : UF) -> El (S =F= S)
-ReflF (S `>< T) = ReflF S , fflam S \ s0 -> fflam S \ s1 q -> {!!}
+
+postulate
+  respRF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1)) (T : ElF S -> UF) ->
+    El (T s0 =F= T s1)
+
+ReflF (S `>< T) = ReflF S , fflam S \ s0 -> fflam S \ s1 q -> respRF S s0 s1 q T
 ReflF `0 = <>
 ReflF `1 = <>
 ReflF (`E xs) = ReflE xs
+
+
+{- -- nice try, but termination checker unhappy
+respRF (R `>< S) (r0 , s0) (r1 , s1) (rq , sq) T = {!!}
+respRF `1 <> <> <> T = ReflF (T <>)
+respRF (`E xs) s0 s1 q T = help xs s0 s1 q T where
+  help : forall xs (s0 s1 : ElF (`E xs))
+         (q : El (EqF (`E xs) s0 (`E xs) s1)) (T : ElF (`E xs) -> UF) ->
+       El (T s0 =F= T s1)
+  help [] (_ , ()) (_ , j) q T
+  help (x ,- xs) (_ , ze) (_ , ze) q T = ReflF (T zee)
+  help (x ,- xs) (_ , su i) (_ , su j) q T = help xs (_ , i) (_ , j) q \ x -> T (suu x)
+-}
 
 -- time for J
 {-
@@ -152,8 +175,3 @@ postulate
   respRF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1)) (T : ElF S -> UF) ->
     El (T s0 =F= T s1)
 -}
-respRF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1)) (T : ElF S -> UF) ->
-    El (T s0 =F= T s1)
-respRF (R `>< S) (r0 , s0) (r1 , s1) (rq , sq) T = {!!}
-respRF `1 s0 s1 q T = {!!}
-respRF (`E x) s0 s1 q T = {!!}

@@ -400,7 +400,6 @@ EqDec (`Mu Ix0 Sh0 Pos0 posix0 i0) t0 (`Mu Ix1 Sh1 Pos1 posix1 i1) t1 .decide
                         (Mu1 (pi1 p1)) (ffapp P1 k1 p1) .Aye
       in el UPROPS (P `=> `0)
        + el UPROPS P
-  -- HERE!
   -- WTAF? See the terms get smaller before your very eyes?
   kEq? (xs `$< T) pi0 k0 `1 pi1 k1 = `1 , _
   kEq? `1 pi0 k0 (xs `$< T) pi1 k1 = `1 , _
