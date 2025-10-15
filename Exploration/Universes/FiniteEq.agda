@@ -137,21 +137,21 @@ reflF (`E xs) x = reflE xs x
 postulate
   primStringRefl : (x : String) -> So (primStringEquality x x)
 
--- HERE
--- we might just be able to not postulate respRF, but it sure has to be
--- mutual with ReflF.
 ReflE : (xs : List String) -> El (EqListStrings xs xs)
 ReflE [] = <>
 ReflE (x ,- xs) with primStringEquality x x | primStringRefl x
 ... | `1 | q = ReflE xs
 
-ReflF : (S : UF) -> El (S =F= S)
-
+-- TODO? we might just be able to not postulate respRF, but it sure has to be
+-- mutual with ReflF.
 postulate
-  respRF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1)) (T : ElF S -> UF) ->
-    El (T s0 =F= T s1)
+  -- make the statement anticipate J below
+  respRF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1))
+    (T : (s1 : ElF S) (q : El (EqF S s0 S s1)) -> UF) ->
+    El (T s0 (reflF S s0) =F= T s1 q)
 
-ReflF (S `>< T) = ReflF S , fflam S \ s0 -> fflam S \ s1 q -> respRF S s0 s1 q T
+ReflF : (S : UF) -> El (S =F= S)
+ReflF (S `>< T) = ReflF S , fflam S \ s0 -> fflam S \ s1 q -> respRF S s0 s1 q \ s2 _ -> T s2
 ReflF `0 = <>
 ReflF `1 = <>
 ReflF (`E xs) = ReflE xs
@@ -169,9 +169,11 @@ respRF (`E xs) s0 s1 q T = help xs s0 s1 q T where
   help (x ,- xs) (_ , su i) (_ , su j) q T = help xs (_ , i) (_ , j) q \ x -> T (suu x)
 -}
 
--- time for J
-{-
-postulate
-  respRF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1)) (T : ElF S -> UF) ->
-    El (T s0 =F= T s1)
--}
+-- time for J -- but there are choices!
+
+-- first one: types over UF, motive over UF
+J-UF-over-UF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1))
+  -- deliberate shadow
+  (T : (s1 : ElF S) (q : El (EqF S s0 S s1)) -> UF) ->
+  (t0 : ElF (T s0 (reflF S s0))) -> ElF (T s1 q)
+J-UF-over-UF S s0 s1 q T t0 = coeF (T s0 (reflF S s0)) (T s1 q) (respRF S s0 s1 q T) t0

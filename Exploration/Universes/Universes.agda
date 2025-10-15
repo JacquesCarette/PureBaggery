@@ -105,8 +105,8 @@ data U k where
   -- only some universes have Zero and One
   `0 `1 : U k
 
-  -- Higher-order functions
-  _`->_ : {_ : canHazPi k} -> (S : U Extensional) -> (T : El S -> U k) -> U k
+  -- Higher-order functions.
+  _`->_ : {j : Kind} {_ : canHazPi k} -> (S : U j) -> (T : El S -> U k) -> U k
 
   -- Tabulated functions
   _`#>>_ : (S : UF) -> (T : ElF S -> U k) -> U k
@@ -137,11 +137,18 @@ El (`Mu Ix Sh Pos posix i) = Mu (El Ix) (\ i -> El (Sh i)) Pos posix i
 El (`Prf p) = El p
 
 -- Some useful kit for (at least) proofs
+infixr 20 _`/\_
 _`/\_ : U Props -> U Props -> U Props
 P0 `/\ P1 = P0 `>< (kon P1)
 
 _`=>_ : U Props -> U Props -> U Props
-P0 `=> P1 = `Prf P0 `-> (kon P1)
+P0 `=> P1 = P0 `-> (kon P1)
+
+-- could be made a constructor of U k, but is it worth the extra verbosity?
+-- likewise, could generalize to any Universe, but we're unlikely to use that generality
+`So : Two -> U Props
+`So `0 = `0
+`So `1 = `1
 
 UFINITE UPROPS UDATA UEXTENSIONAL : Fam Set
 UFINITE = fam UF ElF
