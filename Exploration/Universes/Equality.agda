@@ -26,6 +26,7 @@ Eq : {k0 k1 : Kind} (T0 : U k0) -> El T0 -> (T1 : U k1) -> El T1 -> U Props
 -- forcing Agda to match on the types first to be lazier in the values;
 -- otherwise EqDec chokes
 Eq _ _ `0 _ = `1
+-- but this causes trouble in coqU? refactor?
 Eq {Props} {Props} T0 t0 T1 t1 = `1 -- proofs are all equal, by fiat
 Eq (S0 `>< T0) (s0 , t0) (S1 `>< T1) (s1 , t1) =
   Eq S0 s0 S1 s1 `/\ Eq (T0 s0) t0 (T1 s1) t1
@@ -46,92 +47,114 @@ Eq (`Mu I0 Sh0 Pos0 posix0 i0) (con s0 f0) (`Mu I1 Sh1 Pos1 posix1 i1) (con s1 f
 Eq _ _ _ _ = `1
 
 
--- HERELESSAFTER: use T2E, we hope
--- helper for List String equality
-Strings-Eq : List String -> List String -> U Props
-Strings-Eq [] [] = `1
-Strings-Eq [] (_ ,- _) = `0
-Strings-Eq (_ ,- _) [] = `0
-Strings-Eq (x ,- xs) (y ,- ys) = `So (primStringEquality x y) `/\ Strings-Eq xs ys
-
+-- OFFICIAL TYPE EQUALITY (EXTENSIONAL FOR PROPOSITIONS)
 _<=>_ :  {k0 k1 : Kind} (T0 : U k0) (T1 : U k1) -> U Props
+
+-- STRUCTURAL TYPE COERCIBILITY
+_<==>_ :  {k0 k1 : Kind} (T0 : U k0) (T1 : U k1) -> U Props
+
+
 _<=>_ {Props} {Props} P0 P1 = (P0 `=> P1) `/\ (P1 `=> P0)
-_<=>_ {_} (S0 `>< T0) (S1 `>< T1)
-  =   (S0 <=> S1)
+T0 <=> T1 = T0 <==> T1
+
+(S0 `>< T0) <==> (S1 `>< T1)
+  =   (S0 <==> S1)
   `/\ (S0 `-> \ s0 -> S1 `-> \ s1 ->
-  Eq S0 s0 S1 s1 `=> (T0 s0 <=> T1 s1))
-_<=>_ {_} `0 `0 = `1
-_<=>_ {_} `1 `1 = `1
-_<=>_ {_} (S0 `-> T0) (S1 `-> T1)
-  = (S1 <=> S0)
+         Eq S0 s0 S1 s1 `=> (T0 s0 <==> T1 s1))
+`0 <==> `0 = `1
+`1 <==> `1 = `1
+(S0 `-> T0) <==> (S1 `-> T1)
+  =   (S1 <=> S0)
   `/\ (S1 `-> \ s1 -> S0 `-> \ s0 ->
-  Eq S1 s1 S0 s0 `=> (T0 s0 <=> T1 s1))
-_<=>_ {_} (S0 `#>> T0) (S1 `#>> T1)
+         Eq S1 s1 S0 s0 `=> (T0 s0 <==> T1 s1))
+(S0 `#>> T0) <==> (S1 `#>> T1)
   = (S1 =F= S0)
-  `/\ (S1 `#>> \s1 -> S0 `#>> \ s0 -> EqF S1 s1 S0 s0 `=> (T0 s0 <=> T1 s1))
-_<=>_ {_} (`E xs) (`E ys) = Strings-Eq xs ys
-_<=>_ {_} (`List T0) (`List T1) = T0 <=> T1
-_<=>_ {_} (`Mu I0 Sh0 Pos0 posix0 i0) (`Mu I1 Sh1 Pos1 posix1 i1)
-  = (I0 <=> I1)
+  `/\ (S1 `#>> \s1 -> S0 `#>> \ s0 ->
+        EqF S1 s1 S0 s0 `=> (T0 s0 <==> T1 s1))
+`E xs <==> `E ys = EqListStrings xs ys
+`List T0 <==> `List T1 = T0 <==> T1
+`Mu  I0 Sh0 Pos0 posix0 i0 <==> `Mu I1 Sh1 Pos1 posix1 i1
+  = (I0 <==> I1)
   `/\ (I0 `-> \ i0 -> I1 `-> \ i1 ->
       Eq I0 i0 I1 i1 `=>
-          ((Sh0 i0 <=> Sh1 i1)
+          ((Sh0 i0 <==> Sh1 i1)
           `/\ (Sh0 i0 `-> \ sh0 -> Sh1 i1 `-> \ sh1 ->
               Eq (Sh0 i0) sh0 (Sh1 i1) sh1 `=>
                 ((Pos1 i1 sh1 =F= Pos0 i0 sh0)
                 `/\ ((Pos1 i1 sh1) `#>> \ p1 -> (Pos0 i0 sh0) `#>> \ p0 ->
                      EqF (Pos1 i1 sh1) p1 (Pos0 i0 sh0) p0 `=> Eq I0 (posix0 i0 sh0 p0) I1 (posix1 i1 sh1 p1))))))
   `/\ Eq I0 i0 I1 i1 
-_<=>_ {_} (`Prf T0) (`Prf T1) = (T0 `=> T1) `/\ (T1 `=> T0)
-_ <=> _ = `0
+`Prf P0 <==> `Prf P1 = P0 <=> P1
+_ <==> _ = `0
 
--- HERE
 coeU :  {k0 k1 : Kind} (S : U k0) (T : U k1) -> El (S <=> T) -> El S -> El T
+cowU :  {k0 k1 : Kind} (S : U k0) (T : U k1) -> El (S <==> T) -> El S -> El T
 
 postulate
-  cohU : {k0 k1 : Kind} (S : U k0) (T : U k1) -> (Q : El (S <=> T)) -> (s : El S) ->
-      El (Eq S s T (coeU S T Q s))
-      
-coeU {Props} {Props} P0 P1 (f , _) p0 = f p0
-coeU {Props} {Data} (P0 `>< T) (T₁ `>< T₂) Q s = {!!}
-coeU {Props} {Data} `0 _ Q ()
-coeU {Props} {Data} `1 `1 Q s = {!!}
-coeU {Props} {Data} (S `#>> T) (S₁ `#>> T₁) Q s = {!!}
-coeU {Props} {Data} (`Mu P0 Sh Pos posix x) (`Mu T Sh₁ Pos₁ posix₁ x₁) Q s = {!!}
-coeU {Props} {Data} (`Prf P0) (`Prf T) Q s = {!!}
-coeU {Props} {Extensional} S T Q s = {!!}
-coeU {Data} {_} (S `>< T) (T₁ `>< T₂) Q s = {!!}
-coeU {Data} {_} `1 `1 Q s = {!!}
-coeU {Data} {_} (S `#>> T) (S₁ `#>> T₁) Q s = {!!}
-coeU {Data} {_} (`E x) (`E x₁) Q s = {!!}
-coeU {Data} {_} (`List S) (`List T) Q s = {!!}
-coeU {Data} {_} (`Mu S Sh Pos posix x) (`Mu T Sh₁ Pos₁ posix₁ x₁) Q s = {!!}
-coeU {Data} {_} (`Prf S) (`Prf T) Q s = {!!}
-coeU {Extensional} {_} S T Q s = {!!}
+  cohU : {k0 k1 : Kind} (S : U k0) (T : U k1) -> (Q : El (S <==> T)) -> (s : El S) ->
+      El (Eq S s T (cowU S T Q s))
 
-{-
-coeU {Props} {Props} P0 P1 (f , _) p0 = f p0
--- sadly, we will need to repeat ourselves, but at least off-diagonal computes away
-coeU {Data} (S0 `>< T0) (S1 `>< T1) (P , f) (s0 , t0) =
-  let s1 = coeU S0 S1 P s0 in
-  s1 , {!!}
-coeU {Data} `1 `1 Q s = <>
-coeU {Data} (S0 `#>> T0) (S1 `#>> T1) (P , f) g = fflam S1 \ s1 ->
-  let s0 = coeF S1 S0 P s1 in
-  let t0 = ffapp S0 g s0 in
-  let Q = ffapp S0 (ffapp S1 f s1) s0 (cohF S1 S0 P s1) in  
-  coeU (T0 s0) (T1 s1) Q t0
-coeU {Data} (`E xs) (`E ys) Q s = {!!}
-coeU {Data} (`List S) (`List T) Q s = {!!}
-coeU {Data} (`Mu I0 Sh0 Pos0 posix0 i0) (`Mu I1 Sh1 Pos1 posix1 i1) Q s = {!!}
-coeU {Data} (`Prf S) (`Prf T) Q s = {!!}
-coeU {Data} {Extensional} S T Q s = ?
-coeU {Extensional} (S `>< T) (T₁ `>< T₂) Q s = {!!}
-coeU {Extensional} `1 `1 Q s = <>
-coeU {Extensional} (S0 `-> T0) (S1 `-> T1) (P , Q) f s1 = {!!}
-coeU {Extensional} (S `#>> T) (S₁ `#>> T₁) Q s = {!!}
-coeU {Extensional} (`E x) (`E x₁) Q s = {!!}
-coeU {Extensional} (`List S) (`List T) Q s = {!!}
-coeU {Extensional} (`Mu S Sh Pos posix x) (`Mu T Sh₁ Pos₁ posix₁ x₁) Q s = {!!}
-coeU {Extensional} (`Prf S) (`Prf T) Q s = {!!}
--}
+-- fix this name
+  coqU : {k0 k1 : Kind} (S : U k0) (T : U k1) -> (Q : El (S <=> T)) -> (s : El S) ->
+      El (Eq S s T (coeU S T Q s))
+
+cowhU :  {k0 k1 : Kind} (S : U k0) (T : U k1)(Q : El (S <==> T))(s : El S)
+     -> <: Eq S s T - El :>
+cowhU S T Q s = cowU S T Q s , cohU S T Q s
+
+coeqU : {k0 k1 : Kind} (S : U k0) (T : U k1) -> (Q : El (S <=> T)) -> (s : El S)
+     -> <: Eq S s T - El :>
+coeqU S T Q s = coeU S T Q s , coqU S T Q s
+
+coeU {Props}       {Props}       P R (pr , _) p = pr p
+coeU {Props}       {Data}        S T Q s = cowU S T Q s
+coeU {Props}       {Extensional} S T Q s = cowU S T Q s
+coeU {Data}        {_}           S T Q s = cowU S T Q s
+coeU {Extensional} {_}           S T Q s = cowU S T Q s
+
+cowU (S0 `>< T0) (S1 `>< T1) (QS , QT) (s0 , t0) =
+  let s1 , sq = cowhU S0 S1 QS s0 in
+  let t1 = cowU (T0 s0) (T1 s1) (QT s0 s1 sq) t0 in
+  s1 , t1
+cowU `1 `1 Q <> = <>
+cowU (S0 `-> T0) (S1 `-> T1) (QS , QT) f0 s1 = 
+  let s0 , sq = coeqU S1 S0 QS s1 in
+  let t0 = f0 s0 in
+  let t1 = cowU (T0 s0) (T1 s1) (QT s1 s0 sq) t0
+  in t1
+cowU (S0 `#>> T0) (S1 `#>> T1) (QS , QT) f0 = fflam S1 \ s1 ->
+  let s0 , sq = coehF S1 S0 QS s1 in
+  let t0 = ffapp S0 f0 s0 in
+  let t1 = cowU (T0 s0) (T1 s1) (ffapp S0 (ffapp S1 QT s1) s0 sq) t0
+  in t1
+cowU (`E xs) (`E ys) Q x = coeE xs ys Q x
+cowU (`List S) (`List T) Q = list (cowU S T Q)
+cowU (`Mu I0 Sh0 Pos0 posix0 i0) (`Mu I1 Sh1 Pos1 posix1 i1) (QI , K0 , iq) t0 =
+  help (muRec _ _ _ _ t0) iq
+  where
+  help : {i0 : El I0}{t0 : El (`Mu I0 Sh0 Pos0 posix0 i0)} ->
+       MuRec (El I0) (Sh0 - El) Pos0 posix0 t0 ->
+       {i1 : El (I1)}(iq : El (Eq I0 i0 I1 i1)) ->
+       Mu (El I1) (Sh1 - El) Pos1 posix1 i1
+  help (con s0 k0) iq = 
+    let QSh , K1 = K0 _ _ iq in
+    let s1 , sq = cowhU (Sh0 _) (Sh1 _) QSh s0 in
+    let QPos , K2 = K1 s0 s1 sq in
+    con s1 (fflam (Pos1 _ s1) \ p1 ->
+      let p0 , pq = coehF (Pos1 _ s1) (Pos0 _ s0) QPos p1 in
+      help (k0 p0) (ffapp (Pos0 _ s0) (ffapp (Pos1 _ s1) K2 p1) p0 pq)
+    )
+cowU (`Prf P) (`Prf R) (pr , _) p = pr p
+
+
+postulate
+  reflU : {k : Kind}(T : U k)(t : El T) -> El (Eq T t T t)
+  RespUU : {k0 k1 : Kind}(S : U k0)(s0 s1 : El S)(q : El (Eq S s0 S s1))
+    -> (T : (s1 : El S)(q : El (Eq S s0 S s1)) -> U k1)
+    -> El (T s0 (reflU S s0) <=> T s1 q)
+
+J-UU : {k0 k1 : Kind}(S : U k0)(s0 s1 : El S)(q : El (Eq S s0 S s1))
+    -> (T : (s1 : El S)(q : El (Eq S s0 S s1)) -> U k1)
+    -> El (T s0 (reflU S s0))
+    -> El (T s1 q)
+J-UU S s0 s1 q T = coeU (T s0 (reflU S s0)) (T s1 q) (RespUU S s0 s1 q T)

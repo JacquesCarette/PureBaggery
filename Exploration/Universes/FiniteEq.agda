@@ -109,17 +109,18 @@ cohE (x ,- xs) (y ,- ys) q (_ , su i) | `1 = cohE xs ys q (_ , i)
 
 coeF : (S T : UF) -> El (S =F= T) -> ElF S -> ElF T
 cohF : (S T : UF) (q : El (S =F= T)) (s : ElF S) -> El (EqF S s T (coeF S T q s))
+coehF : (S T : UF) (q : El (S =F= T)) (s : ElF S)
+  -> <: EqF S s T - El :>
+coehF S T q s = coeF S T q s , cohF S T q s
 
 coeF (S0 `>< T0) (S1 `>< T1) (qS , qT) (s0 , t0) =
-  let s1 = coeF S0 S1 qS s0 in
-  let sq = cohF S0 S1 qS s0 in
+  let s1 , sq = coehF S0 S1 qS s0 in
   s1 , coeF (T0 s0) (T1 s1) (ffapp S1 (ffapp S0 qT s0) s1 sq) t0
 coeF `1 `1 <> <> = <>
 coeF (`E xs) (`E ys) q s = coeE xs ys q s
 
 cohF (S0 `>< T0) (S1 `>< T1) (qS , qT) (s0 , t0) =
-  let s1 = coeF S0 S1 qS s0 in
-  let sq = cohF S0 S1 qS s0 in
+  let s1 , sq = coehF S0 S1 qS s0 in
   sq , cohF (T0 s0) (T1 s1) (ffapp S1 (ffapp S0 qT s0) s1 sq) t0
 cohF `1 `1 <> <> = <>
 cohF (`E xs) (`E ys) q s = cohE xs ys q s
@@ -146,12 +147,12 @@ ReflE (x ,- xs) with primStringEquality x x | primStringRefl x
 -- mutual with ReflF.
 postulate
   -- make the statement anticipate J below
-  respRF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1))
+  RespFF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1))
     (T : (s1 : ElF S) (q : El (EqF S s0 S s1)) -> UF) ->
     El (T s0 (reflF S s0) =F= T s1 q)
 
 ReflF : (S : UF) -> El (S =F= S)
-ReflF (S `>< T) = ReflF S , fflam S \ s0 -> fflam S \ s1 q -> respRF S s0 s1 q \ s2 _ -> T s2
+ReflF (S `>< T) = ReflF S , fflam S \ s0 -> fflam S \ s1 q -> RespFF S s0 s1 q \ s2 _ -> T s2
 ReflF `0 = <>
 ReflF `1 = <>
 ReflF (`E xs) = ReflE xs
@@ -176,4 +177,4 @@ J-UF-over-UF : (S : UF) (s0 s1 : ElF S) (q : El (EqF S s0 S s1))
   -- deliberate shadow
   (T : (s1 : ElF S) (q : El (EqF S s0 S s1)) -> UF) ->
   (t0 : ElF (T s0 (reflF S s0))) -> ElF (T s1 q)
-J-UF-over-UF S s0 s1 q T t0 = coeF (T s0 (reflF S s0)) (T s1 q) (respRF S s0 s1 q T) t0
+J-UF-over-UF S s0 s1 q T t0 = coeF (T s0 (reflF S s0)) (T s1 q) (RespFF S s0 s1 q T) t0
