@@ -18,9 +18,9 @@ canHazPi Props       = One
 canHazPi _           = Zero
 
 -- only some places have enumerations (Listable, really), namely not Props
-canHazEnum : Kind -> Set
-canHazEnum Props = Zero
-canHazEnum _     = One
+canHazF : Kind -> Set
+canHazF Props = Zero
+canHazF _     = One
 
 -- a couple of universes have (internal!!) lists
 canHazList : Kind -> Set
@@ -112,7 +112,7 @@ data U k where
   _`#>>_ : (S : UF) -> (T : ElF S -> U k) -> U k
 
   -- enumerations
-  `E : {_ : canHazEnum k} -> List String -> U k
+  `F : {_ : canHazF k} -> UF -> U k
 
   -- lists
   `List : {_ : canHazList k} -> U k -> U k
@@ -131,7 +131,7 @@ El `0 = Zero
 El `1 = One
 El (S `-> T) = (s : El S) -> El (T s)
 El (S `#>> T) = S #> \ s -> El (T s)
-El (`E l) = <: _-in l :>
+El (`F E) = ElF E
 El (`List S) = List (El S)
 El (`Mu Ix Sh Pos posix i) = Mu (El Ix) (\ i -> El (Sh i)) Pos posix i
 El (`Prf p) = El p
@@ -143,6 +143,10 @@ P0 `/\ P1 = P0 `>< (kon P1)
 
 _`=>_ : U Props -> U Props -> U Props
 P0 `=> P1 = P0 `-> (kon P1)
+
+_`->>_ : forall {k}{_ : canHazPi k} -> (S : U Extensional)(T : El S -> U k) -> U k
+_`->>_ {k}{p} S T = _`->_ {k} {Extensional} {p} S T
+
 
 -- could be made a constructor of U k, but is it worth the extra verbosity?
 -- likewise, could generalize to any Universe, but we're unlikely to use that generality
@@ -156,6 +160,7 @@ UPROPS = fam (U Props) El
 UDATA = fam (U Data) El
 UEXTENSIONAL = fam (U Extensional) El
 
+{-
 -- We can embed UF types into U Data, but we need a backwards map
 -- to cope with the dependency inherent in `><
 F2D : (S : UF) -> U Data >< \ T -> El T -> ElF S
@@ -166,7 +171,7 @@ F2D (S `>< T) =
 F2D `0 = `0 , \ ()
 F2D `1 = `1 , _
 F2D (`E xs) = `E xs , id
-
+-}
 {-
 -- transport is tricky
 f2d : (S : UF) -> let S' , f = F2D S
@@ -193,7 +198,7 @@ T2E `0 = `0 , id
 T2E `1 = `1 , id
 T2E (S `-> T) = (S `-> \ s -> T s ^E) , \ f s -> T s -E f s
 T2E (S `#>> T) = (S `#>> \ s -> T s ^E) , \ f -> fflam S \ s -> T s -E ffapp S f s
-T2E (`E xs) = `E xs , id
+T2E (`F E) = `F E , id
 T2E (`List S) = (`List >><< list) (T2E S)
 T2E (`Mu Ix Sh Pos posix i)
   = `Mu Ix (\ i -> Sh i ^E) (\ i s' -> Pos i (Sh i -E s')) (\ i s' p -> posix i (Sh i -E s') p) i

@@ -21,10 +21,45 @@ bar-diff (x ,- xs) (_ , su i) (_ , su j) q =
   bar-diff xs (_ , i) (_ , j) q
 
 
-{-
 -- aha we may struggle to push this through for Sigma
-me-or-not : (T : UF)(me : ElF T)(x : ElF T)
-  -> ElF (`ctors (("self" , `1) ,- ("other" , T -sans me) ,- []))
+module _ (T : UF)(me : ElF T) where
+
+  Me-or-not-data : UF
+  Me-or-not-data = `ctors (("self" , `1) ,- ("other" , T -sans me) ,- [])
+
+  Me-or-not-good : ElF T -> ElF Me-or-not-data -> U Props
+  Me-or-not-good x ((."self" , ze) , <>) = EqF T me T x
+  Me-or-not-good x ((."other" , su ze) , t') = EqF T me T (sans-embed T me t') `=> `0
+
+  Me-or-not : U Extensional
+  Me-or-not = `F T `->> \ x -> `F Me-or-not-data `>< \ d -> `Prf (Me-or-not-good x d) 
+
+me-or-not : (T : UF)(me : ElF T) -> El (Me-or-not T me)
+me-or-not (S `>< T) (sme , tme) (sx , tx)
+  with me-or-not S sme sx
+... | ((."self" , ze) , <>) , p = J-UU {Extensional} {Extensional} (`F S) sme sx p
+    (\ sx _ -> `F (T sx) `->> \ tx -> `F (Me-or-not-data (S `>< T) (sme , tme)) `>< \ d ->
+      `Prf (Me-or-not-good (S `>< T) (sme , tme) (sx , tx) d))
+    (\ tx -> help tx (me-or-not (T sme) tme tx)
+     )
+    tx
+    where
+      help : El {Extensional} (`F (T sme) `->> \ tx ->
+               (`F (Me-or-not-data (T sme) tme) `>< \ d ->
+              `Prf (Me-or-not-good (T sme) tme tx d))
+              `->> \ _ ->
+               (`F (Me-or-not-data (S `>< T) (sme , tme)) `>< \ d ->
+              `Prf (Me-or-not-good (S `>< T) (sme , tme) (sme , tx) d)))
+      help tx (((."self" , ze) , <>) , g) = (("self" , ze) , <>) , reflF S sme , g
+      help tx (((."other" , su ze) , r) , g)
+        = (("other" , su ze) , ("diffRight" , su ze) , r) , \ (_ , b) -> g b
+... | ((."other" , su ze) , s') , p
+        = (("other" , su ze) , (("diffLeft" , ze) , s' , {!!})) , {!!}
+        -- HERE: need more positive info relating s' and sx
+me-or-not `1 <> <> = (("self" , ze) , <>) , <>
+me-or-not (`E x₁) me x = {!!}
+
+{-
 me-or-not (S `>< T) (sme , tme) (sx , tx)
   with me-or-not S sme sx
 ... | (."self" , ze) , <> = {!!}

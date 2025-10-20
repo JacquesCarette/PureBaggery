@@ -35,7 +35,7 @@ Eq (S0 `-> T0) f0 (S1 `-> T1) f1 =
   S0 `-> \ s0 -> S1 `-> \ s1 -> Eq S0 s0 S1 s1 `=> Eq (T0 s0) (f0 s0) (T1 s1) (f1 s1) 
 Eq (S0 `#>> T0) f0 (S1 `#>> T1) f1 =
   ElF-Rel S0 S1 \ s0 s1 -> Eq (T0 s0) (ffapp S0 f0 s0) (T1 s1) (ffapp S1 f1 s1)
-Eq (`E xs) t0 (`E ys) t1 = Enum-Eq xs t0 ys t1
+Eq (`F E0) e0 (`F E1) e1 = EqF E0 e0 E1 e1
 Eq (`List T0) ts0 (`List T1) ts1 = List-Rel T0 T1 (\ t0 t1 -> Eq T0 t0 T1 t1) ts0 ts1
 -- in particular, strictness on (con s0 f0) must not stop the second Mu being found
 Eq (`Mu I0 Sh0 Pos0 posix0 i0) (con s0 f0) (`Mu I1 Sh1 Pos1 posix1 i1) (con s1 f1) =
@@ -71,7 +71,7 @@ T0 <=> T1 = T0 <==> T1
   = (S1 =F= S0)
   `/\ (S1 `#>> \s1 -> S0 `#>> \ s0 ->
         EqF S1 s1 S0 s0 `=> (T0 s0 <==> T1 s1))
-`E xs <==> `E ys = EqListStrings xs ys
+`F E0 <==> `F E1 = E0 =F= E1
 `List T0 <==> `List T1 = T0 <==> T1
 `Mu  I0 Sh0 Pos0 posix0 i0 <==> `Mu I1 Sh1 Pos1 posix1 i1
   = (I0 <==> I1)
@@ -127,7 +127,7 @@ cowU (S0 `#>> T0) (S1 `#>> T1) (QS , QT) f0 = fflam S1 \ s1 ->
   let t0 = ffapp S0 f0 s0 in
   let t1 = cowU (T0 s0) (T1 s1) (ffapp S0 (ffapp S1 QT s1) s0 sq) t0
   in t1
-cowU (`E xs) (`E ys) Q x = coeE xs ys Q x
+cowU (`F E0) (`F E1) Q x = coeF E0 E1 Q x
 cowU (`List S) (`List T) Q = list (cowU S T Q)
 cowU (`Mu I0 Sh0 Pos0 posix0 i0) (`Mu I1 Sh1 Pos1 posix1 i1) (QI , K0 , iq) t0 =
   help (muRec _ _ _ _ t0) iq
@@ -158,3 +158,4 @@ J-UU : {k0 k1 : Kind}(S : U k0)(s0 s1 : El S)(q : El (Eq S s0 S s1))
     -> El (T s0 (reflU S s0))
     -> El (T s1 q)
 J-UU S s0 s1 q T = coeU (T s0 (reflU S s0)) (T s1 q) (RespUU S s0 s1 q T)
+
