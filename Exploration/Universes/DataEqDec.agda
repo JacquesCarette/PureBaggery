@@ -63,10 +63,11 @@ TabDec S0 S1 D .exclude naw aye = naw aye
 Dec : U Props -> Set
 Dec P = El (P `=> `0) + El P
 
-TabRel : (S0 : UF)(T0 : ElF S0 -> U Data)(f0 : S0 #> (T0 - El))
-         (S1 : UF)(T1 : ElF S1 -> U Data)(f1 : S1 #> (T1 - El))
-         -> U Props
-TabRel S0 T0 f0 S1 T1 f1 = S0 `#>> \ s0 -> S1 `#>> \ s1 -> EqF S0 s0 S1 s1 `=> Eq (T0 s0) (ffapp S0 f0 s0) (T1 s1) (ffapp S1 f1 s1)
+TabRel : (S0 : UF)(T0 : ElF S0 -> U Data)
+         (S1 : UF)(T1 : ElF S1 -> U Data)
+         -> (R : (s0 : ElF S0) -> El (T0 s0) -> (s1 : ElF S1) -> El (T1 s1) -> U Props)
+         -> (f0 : S0 #> (T0 - El)) -> (f1 : S1 #> (T1 - El)) -> U Props
+TabRel S0 T0  S1 T1 R f0 f1 = S0 `#>> \ s0 -> S1 `#>> \ s1 -> EqF S0 s0 S1 s1 `=> R s0 (ffapp S0 f0 s0) s1 (ffapp S1 f1 s1)
 
 -- HERE : finish up this mess. But it'll hopefully improve our life!
 -- outstanding Q: what will the off-diagonal look like?
@@ -74,27 +75,30 @@ TabDec : (S0 : UF)(T0 : ElF S0 -> U Data)(f0 : S0 #> (T0 - El))
          (S1 : UF)(T1 : ElF S1 -> U Data)(f1 : S1 #> (T1 - El))
       -> (R : (s0 : ElF S0) -> El (T0 s0) -> (s1 : ElF S1) -> El (T1 s1) -> U Props)
       -> (DecR : (s0 : ElF S0) (t0 : El (T0 s0)) (s1 : ElF S1) (t1 : El (T1 s1))
-             -> El ((R s0 t0 s1 t1) `=> `0) + El (R s0 t0 s1 t1))
-      -> Dec (TabRel S0 T0 f0 S1 T1 f1)
-
+             -> Dec (R s0 t0 s1 t1))
+      -> Dec (TabRel S0 T0 S1 T1 R f0 f1)
+      
 TabDec (R0 `>< S0) T0 < f0 > (R1 `>< S1) T1 < f1 > R decR
-   with TabDec R0 (\ r0 -> S0 r0 `#>> \ s0 -> T0 (r0 , s0)) f0
-               R1 (\ r1 -> S1 r1 `#>> \ s1 -> T1 (r1 , s1)) f1
-               (\ r0 g0 r1 g1 -> TabRel (S0 r0) ((r0 ,_) - T0) g0 (S1 r1) ((r1 ,_) - T1) g1)
-               (\ r0 g0 r1 g1 -> TabDec (S0 r0) ((r0 ,_) - T0) g0 (S1 r1) ((r1 ,_) - T1) g1
-                                   (\ s0 t0 s1 t1 -> R (r0 , s0) t0 (r1 , s1) t1)
-                                   \ s0 t0 s1 t1 -> decR (r0 , s0) t0 (r1 , s1) t1)
-... | `0 , q = `0 , \ f -> q (fflam R0 \ r0 -> fflam R1 \ r1 -> \ rq ->
+  with TabDec R0 (\ r0 -> S0 r0 `#>> \ s0 -> T0 (r0 , s0)) f0
+          R1 (\ r1 -> S1 r1 `#>> \ s1 -> T1 (r1 , s1)) f1
+          (\ r0 g0 r1 g1 ->
+            TabRel (S0 r0) ((r0 ,_) - T0) (S1 r1) ((r1 ,_) - T1)
+            (\ s0 t0 s1 t1 -> R (r0 , s0) t0 (r1 , s1) t1)
+            g0 g1)
+          (\ r0 g0 r1 g1 -> TabDec (S0 r0) ((r0 ,_) - T0) g0 (S1 r1) ((r1 ,_) - T1) g1
+            (\ s0 t0 s1 t1 -> R (r0 , s0) t0 (r1 , s1) t1)
+            (\ s0 t0 s1 t1 -> decR (r0 , s0) t0 (r1 , s1) t1))
+... | b , z = {!!} {-
+... | `0 , n = `0 , \ f -> n (fflam R0 \ r0 -> fflam R1 \ r1 -> \ rq ->
                           fflam (S0 r0) \ s0 -> fflam (S1 r1) \ s1 -> \ sq ->
                             ffapp (R1 `>< S1) (ffapp (R0 `>< S0) f (r0 , s0)) (r1 , s1) (rq , sq) )
-... | `1 , q = `1 , fflam (R0 `>< S0) \ {(r0 , s0)->
-                   fflam (R1 `>< S1) \ {(r1 , s1) -> \ {(rq , sq) ->
-                   ffapp (S1 r1) (ffapp (S0 r0) (ffapp R1 (ffapp R0 q r0) r1 rq) s0) s1 sq}}}
+... | `1 , y = `1 , fflam (R0 `>< S0) \ (r0 , s0) -> fflam (R1 `>< S1) \ (r1 , s1) (rq , sq) ->
+                 ffapp (S1 r1) (ffapp (S0 r0) (ffapp R1 (ffapp R0 y r0) r1 rq) s0) s1 sq -}
 TabDec `0 T0 < f0 > (S1 `>< T) T1 < f1 > R decR = {!!}
 TabDec `0 T0 < f0 > `0 T1 < f1 > R decR = {!!}
 TabDec `0 T0 < f0 > `1 T1 < f1 > R decR = {!!}
 TabDec `0 T0 < f0 > (`E x) T1 < f1 > R decR = {!!}
-TabDec `1 T0 < f0 > (S1 `>< T) T1 < f1 > R decR = {!!}
+TabDec `1 T0 < f0 > (R1 `>< S1) T1 < f1 > R decR = `1 , {!!}
 TabDec `1 T0 < f0 > `0 T1 < f1 > R decR = {!!}
 TabDec `1 T0 < f0 > `1 T1 < f1 > R decR = {!!}
 TabDec `1 T0 < f0 > (`E x) T1 < f1 > R decR = {!!}
@@ -106,7 +110,6 @@ TabDec (`E x) T0 < f0 > (`E x₁) T1 < f1 > R decR = {!!}
 TabDec (_ `>< _) T0 < f0 > `0 T1 < f1 > R decR = {!!}
 TabDec (_ `>< _) T0 < f0 > `1 T1 < f1 > R decR = {!!}
 TabDec (_ `>< _) T0 < f0 > (`E x) T1 < f1 > R decR = {!!}
-
 
 EqDec T0 t0 T1 t1 .Naw = Eq T0 t0 T1 t1 `=> `0
 EqDec T0 t0 T1 t1 .Aye = Eq T0 t0 T1 t1
@@ -304,3 +307,34 @@ EqDec T0 t0 T1 t1 .exclude naw aye = naw aye
 
 -- End gazillion
 -------------------------------------------------------------------------------
+
+{-
+We encounter an amusing situation when function types have unequal domains.
+It becomes rather too easy to serve them up "equal inputs".
+-}
+
+foo : El {Data} (`E ("fred" ,- []) `#>> \ _ -> `F (`E ("naw" ,- "aye" ,- [])))
+foo = fflam (`E ("fred" ,- [])) \ _ -> $ "naw"
+
+bar : El {Data} (`E ("jim" ,- "sheila" ,- []) `#>> \ _ -> `F (`E ("naw" ,- "aye" ,- [])))
+bar = fflam (`E ("jim" ,- "sheila" ,- [])) \ _ -> $ "aye"
+
+baz : El {Data} (`E ("jim" ,- "sheila" ,- []) `#>> \ _ -> `F (`E ("naw" ,- "aye" ,- [])))
+baz = fflam (`E ("jim" ,- "sheila" ,- [])) \ _ -> $ "naw"
+
+claim : El (Eq {Data} {Data} (`E ("fred" ,- []) `#>> \ _ -> `F (`E ("naw" ,- "aye" ,- []))) foo
+               (`E ("jim" ,- "sheila" ,- []) `#>> \ _ -> `F (`E ("naw" ,- "aye" ,- []))) bar
+            `=> `0)
+claim bad = ffapp (`E ("jim" ,- "sheila" ,- [])) (ffapp (`E ("fred" ,- [])) bad ($ "fred")) ($ "jim") <> 
+
+haha : El (Eq {Data} {Data} (`E ("fred" ,- []) `#>> \ _ -> `F (`E ("naw" ,- "aye" ,- []))) foo
+               (`E ("jim" ,- "sheila" ,- []) `#>> \ _ -> `F (`E ("naw" ,- "aye" ,- []))) baz
+           )
+haha = fflam (`E ("fred" ,- [])) \ {(_ , ze) -> fflam (`E ("jim" ,- "sheila" ,- []))
+  \ { (_ , ze) -> _ ; (_ , su ze) -> _}}
+
+{-  -- use this instead?
+Eq (S0 `#>> T0) f0 (S1 `#>> T1) f1 =
+  S0 =F= S1 `/\
+  S0 `#>> \ s0 -> S1 `#>> \ s1 -> EqF S0 s0 S1 s1 `=> Eq (T0 s0) (ffapp S0 f0 s0) (T1 s1) (ffapp S1 f1 s1)
+-}
