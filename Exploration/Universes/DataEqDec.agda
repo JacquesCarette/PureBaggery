@@ -70,7 +70,7 @@ TabRel : (S0 : UF)(T0 : ElF S0 -> U Data)
 TabRel S0 T0  S1 T1 R f0 f1 = S0 `#>> \ s0 -> S1 `#>> \ s1 -> EqF S0 s0 S1 s1 `=> R s0 (ffapp S0 f0 s0) s1 (ffapp S1 f1 s1)
 
 -- HERE : finish up this mess. But it'll hopefully improve our life!
--- outstanding Q: what will the off-diagonal look like?
+-- outstanding Q: what will the off-diagonal look like? A: HORRENDOUS!
 TabDec : (S0 : UF)(T0 : ElF S0 -> U Data)(f0 : S0 #> (T0 - El))
          (S1 : UF)(T1 : ElF S1 -> U Data)(f1 : S1 #> (T1 - El))
       -> (R : (s0 : ElF S0) -> El (T0 s0) -> (s1 : ElF S1) -> El (T1 s1) -> U Props)
@@ -333,7 +333,7 @@ haha : El (Eq {Data} {Data} (`E ("fred" ,- []) `#>> \ _ -> `F (`E ("naw" ,- "aye
 haha = fflam (`E ("fred" ,- [])) \ {(_ , ze) -> fflam (`E ("jim" ,- "sheila" ,- []))
   \ { (_ , ze) -> _ ; (_ , su ze) -> _}}
 
-{-  -- use this instead?
+{-  -- HERE: use this instead?
 Eq (S0 `#>> T0) f0 (S1 `#>> T1) f1 =
   S0 =F= S1 `/\
   S0 `#>> \ s0 -> S1 `#>> \ s1 -> EqF S0 s0 S1 s1 `=> Eq (T0 s0) (ffapp S0 f0 s0) (T1 s1) (ffapp S1 f1 s1)
