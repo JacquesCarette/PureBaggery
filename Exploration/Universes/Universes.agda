@@ -9,7 +9,11 @@ open import Finite
 open import TabulatedFunctions
 
 data Kind : Set where
-  Data Extensional Props : Kind
+  Data         -- first-order data with decidable equality
+    Extensional  -- higher-order stuff with behavioural equality
+    Decided      -- proof-irrelevant and knowable
+    Props        -- proof-irrelevant and interesting
+    : Kind
 
 -- only two of the universes can have extensional functions
 canHazPi : Kind -> Set
@@ -19,6 +23,7 @@ canHazPi _           = Zero
 
 -- only some places have enumerations (Listable, really), namely not Props
 canHazF : Kind -> Set
+canHazF Decided = Zero
 canHazF Props = Zero
 canHazF _     = One
 
@@ -125,7 +130,10 @@ data U k where
 
   -- Making things out of proofs
   `Prf : U Props -> U k
-  
+
+  -- Negation for decision
+  `Not : U Decided -> U k
+
 El (S `>< T) = El S >< \ s -> El (T s)
 El `0 = Zero
 El `1 = One
@@ -134,7 +142,8 @@ El (S `#>> T) = S #> \ s -> El (T s)
 El (`F E) = ElF E
 El (`List S) = List (El S)
 El (`Mu Ix Sh Pos posix i) = Mu (El Ix) (\ i -> El (Sh i)) Pos posix i
-El (`Prf p) = El p
+El (`Prf P) = El P
+El (`Not D) = El D -> Zero
 
 -- Some useful kit for (at least) proofs
 infixr 20 _`/\_
@@ -204,5 +213,46 @@ T2E (`Mu Ix Sh Pos posix i)
   = `Mu Ix (\ i -> Sh i ^E) (\ i s' -> Pos i (Sh i -E s')) (\ i s' p -> posix i (Sh i -E s') p) i
   , shun (\ i -> Sh i -E_)
 T2E (`Prf S) = `Prf S , id
+T2E (`Not D) = `Not D , id
+
+whatAbout : (D : U Decided) -> El {Decided} (`Not D) + El D
+whoCares : (D : U Decided)(P : El D -> Set) (a b : El D) -> P a -> P b
+
+whatAbout (D `>< T) with whatAbout D
+... | `0 , x = `0 , fst - x
+... | `1 , x with whatAbout (T x)
+... | `0 , y = `0 , (/\ \ s t -> y (whoCares D _ s x t))
+... | `1 , y = `1 , x , y
+whatAbout `0 = `0 , id
+whatAbout `1 = `1 , <>
+whatAbout (S `#>> T) = {!!}
+whatAbout (`Mu D Sh Pos posix x) = {!!}
+whatAbout (`Prf D) = {!!}  -- make this not happen
+whatAbout (`Not D) with whatAbout D
+... | `0 , x = `1 , x
+... | `1 , x = `0 , \ f -> f x
+
+whoCares (S `>< T) P (as , at) (bs , bt) p =
+  whoCares S (\ as -> (ct : El (T as)) -> P (as , ct)) as bs (\ ct -> whoCares (T as) _ at ct p) bt
+whoCares `1 P <> <> p = p
+whoCares (S `#>> T) P a b = {!!}
+whoCares (`Mu D Sh Pos posix x) P a b p = {!!}
+whoCares (`Prf D) P a b p = {!!}
+whoCares (`Not D) P a b p = {!!} -- no chance, because P does not respect extensional equality!
 
 
+{-
+HERE
+TODO
+
+This was an attempt to introduce a universe of decided types.
+
+1. This should allow `Prf.
+
+2. Full `>< is getting us into gnarly coherence issues which push us to invent something like whoCares. Nondependent conjunction should be plenty.
+
+3. Consider introducing a separate UD as we did with UF, then embedding everywhere with `D.
+
+4. The plan, then, is to show that Equality for U Data lives in UD.
+
+-}
