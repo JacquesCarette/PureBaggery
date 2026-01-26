@@ -11,7 +11,6 @@ open import TabulatedFunctions
 data Kind : Set where
   Data         -- first-order data with decidable equality
     Extensional  -- higher-order stuff with behavioural equality
-    Decided      -- proof-irrelevant and knowable
     Props        -- proof-irrelevant and interesting
     : Kind
 
@@ -23,7 +22,6 @@ canHazPi _           = Zero
 
 -- only some places have enumerations (Listable, really), namely not Props
 canHazF : Kind -> Set
-canHazF Decided = Zero
 canHazF Props = Zero
 canHazF _     = One
 
@@ -37,14 +35,18 @@ module _ (Ix : Set) (Sh : Ix -> Set) (Pos : (i : Ix) -> Sh i -> UF)
   (posix : (i : Ix) (s : Sh i) (p : ElF (Pos i s)) -> Ix)
   where
 
+  -- indexed containers (with finite sets of positions)
   data Mu  (i : Ix) : Set where
     con : (s : Sh i) -> (Pos i s #> \ p -> Mu (posix i s p)) -> Mu i
 
+  -- proof of recursiveness is a Pi type, but the data is not
   data MuRec {i : Ix} : Mu i -> Set where
     con : (s : Sh i){k : Pos i s #> \ p -> Mu (posix i s p)}
        -> ((p : ElF (Pos i s)) -> MuRec (ffapp (Pos i s) k p))
        -> MuRec (con s k)
 
+  -- lots of work needed to expose what we know to the termination
+  -- checker
   data PoStack : Set where
     poNil : Ix -> PoStack
     poCons : (S : UF)(T : ElF S -> PoStack) -> PoStack
@@ -131,9 +133,7 @@ data U k where
   -- Making things out of proofs
   `Prf : U Props -> U k
 
-  -- Negation for decision
-  `Not : U Decided -> U k
-
+-- and all of this can be interpreted back into Agda
 El (S `>< T) = El S >< \ s -> El (T s)
 El `0 = Zero
 El `1 = One
@@ -143,7 +143,6 @@ El (`F E) = ElF E
 El (`List S) = List (El S)
 El (`Mu Ix Sh Pos posix i) = Mu (El Ix) (\ i -> El (Sh i)) Pos posix i
 El (`Prf P) = El P
-El (`Not D) = El D -> Zero
 
 -- Some useful kit for (at least) proofs
 infixr 20 _`/\_
@@ -213,8 +212,8 @@ T2E (`Mu Ix Sh Pos posix i)
   = `Mu Ix (\ i -> Sh i ^E) (\ i s' -> Pos i (Sh i -E s')) (\ i s' p -> posix i (Sh i -E s') p) i
   , shun (\ i -> Sh i -E_)
 T2E (`Prf S) = `Prf S , id
-T2E (`Not D) = `Not D , id
 
+{-
 whatAbout : (D : U Decided) -> El {Decided} (`Not D) + El D
 whoCares : (D : U Decided)(P : El D -> Set) (a b : El D) -> P a -> P b
 
@@ -255,4 +254,5 @@ This was an attempt to introduce a universe of decided types.
 
 4. The plan, then, is to show that Equality for U Data lives in UD.
 
+-}
 -}
