@@ -23,8 +23,10 @@ mapTuple (x ,- xs) f (t , ts) = f _ t , mapTuple xs (suu - f) ts
 -- point Agda to "look here" to see something that is indeed getting smaller.
 data _#>_  (S : UF)(T : ElF S -> Set) : Set
 _#>'_ : (S : UF) -> (T : ElF S -> Set) -> Set
+
 data _#>_ S T where
   <_> : S #>' T -> S #> T
+  
 (R `>< S) #>' T = R #> \ r -> S r #> \ s -> T (r , s) 
 `0 #>' T = One
 `1 #>' T = T <>
