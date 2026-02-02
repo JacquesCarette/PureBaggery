@@ -40,7 +40,22 @@ S `* T = S `>< (kon T)
   fetch ((c , T) ,- _) (_ , ze) = T
   fetch (_ ,- cTs) (_ , su i) = fetch cTs (_ , i)
 
-  
+-- ...whence, binary sums...
+_`+F_ : UF -> UF -> UF
+D `+F E = `ctors (("inl" , D) ,- ("inr" , E) ,- [])
+
+pattern inl d = ("inl" , ze) , d
+pattern inr e = ("inr" , su ze) , e
+
+-- ...whence binary digits
+`2 : UF
+`2 = `1 `+F `1
+
+pattern ff = inl <>
+pattern tt = inr <>
+
+
+
 -- Enumerating (elements of) UF
 enum-Enum-work : (xs ys : List String) -> (<: _-in xs :> -> <: _-in ys :>) -> List <: _-in ys :>
 enum-Enum-work []        ys shuffle = []
