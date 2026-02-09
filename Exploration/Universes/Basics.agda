@@ -136,13 +136,4 @@ record Fam (X : Set1) : Set1 where
     Ix : Set
     el : Ix -> X
 
-record Decision (U : Fam Set) : Set1 where
-  open Fam U
-  field
-    Naw : Ix
-    Aye : Ix
-    decide : el Naw + el Aye
-    exclude : el Naw -> el Aye -> Zero
-open Decision public
-
 open Fam public

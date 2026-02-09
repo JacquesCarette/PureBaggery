@@ -7,6 +7,7 @@ open import Thinnings
 open import Membership
 open import Finite
 open import TabulatedFunctions
+open import Decided
 
 data Kind : Set where
   Data         -- first-order data with decidable equality
@@ -152,9 +153,11 @@ P0 `/\ P1 = P0 `>< (kon P1)
 _`=>_ : U Props -> U Props -> U Props
 P0 `=> P1 = P0 `-> (kon P1)
 
+`NOT : U Props -> U Props
+`NOT p = p `=> `0
+
 _`->>_ : forall {k}{_ : canHazPi k} -> (S : U Extensional)(T : El S -> U k) -> U k
 _`->>_ {k}{p} S T = _`->_ {k} {Extensional} {p} S T
-
 
 -- could be made a constructor of U k, but is it worth the extra verbosity?
 -- likewise, could generalize to any Universe, but we're unlikely to use that generality
@@ -167,30 +170,6 @@ UFINITE = fam UF ElF
 UPROPS = fam (U Props) El
 UDATA = fam (U Data) El
 UEXTENSIONAL = fam (U Extensional) El
-
-{-
--- We can embed UF types into U Data, but we need a backwards map
--- to cope with the dependency inherent in `><
-F2D : (S : UF) -> U Data >< \ T -> El T -> ElF S
-F2D (S `>< T) =
-  let S' , f = F2D S in
-  (S' `>< \ s' -> fst (F2D (T (f s')))) , \ (s' , t') ->
-  let T' , g = F2D (T (f s')) in f s' , g t'
-F2D `0 = `0 , \ ()
-F2D `1 = `1 , _
-F2D (`E xs) = `E xs , id
--}
-{-
--- transport is tricky
-f2d : (S : UF) -> let S' , f = F2D S
-   in (s : ElF S)
-   -> El S' >< \ s' -> El (EqF S s S (f s'))
-f2d (S `>< T) (s , t) =
-  let s' , sq = f2d S s in let t' , tq = f2d (T s) t in
-  (s' , {!!}) , {!!}
-f2d `1 s = _
-f2d (`E xs) xi = xi , Enum-refl xs xi
--}
 
 T2E : {k : Kind}(S : U k) -> U Extensional >< \ T -> El T -> El S
 _^E : {k : Kind}(S : U k) -> U Extensional
@@ -213,46 +192,35 @@ T2E (`Mu Ix Sh Pos posix i)
   , shun (\ i -> Sh i -E_)
 T2E (`Prf S) = `Prf S , id
 
-{-
-whatAbout : (D : U Decided) -> El {Decided} (`Not D) + El D
-whoCares : (D : U Decided)(P : El D -> Set) (a b : El D) -> P a -> P b
+-- decideds can be props
+-- use De Morgan in a couple of spots (hide them bits!)
+-- design decision: go all the way up to extensional for the
+--  'function' buried under a negation
+Forget : UD -> U Props
+Forget `0 = `0
+Forget `1 = `1
+Forget (D `| E) = `NOT (`NOT (Forget D) `/\ `NOT (Forget E))
+Forget (D `& E) = Forget D `/\ Forget E
+Forget (`Aa S D) = S `#>> \ s -> Forget (D s)
+Forget (`Ex S D) = `NOT (`F S `->> \s -> `NOT (Forget (D s)))
 
-whatAbout (D `>< T) with whatAbout D
-... | `0 , x = `0 , fst - x
-... | `1 , x with whatAbout (T x)
-... | `0 , y = `0 , (/\ \ s t -> y (whoCares D _ s x t))
-... | `1 , y = `1 , x , y
-whatAbout `0 = `0 , id
-whatAbout `1 = `1 , <>
-whatAbout (S `#>> T) = {!!}
-whatAbout (`Mu D Sh Pos posix x) = {!!}
-whatAbout (`Prf D) = {!!}  -- make this not happen
-whatAbout (`Not D) with whatAbout D
-... | `0 , x = `1 , x
-... | `1 , x = `0 , \ f -> f x
+-- Given an erased version, we can get classical double-negation
+-- and then eventually recover the witness from that erased version
+-- as everything in sight is decidable
+RecallDNEG : (D : UD) -> El (Forget D) -> ((ElD D -> Zero) -> Zero)
+Recall : (D : UD) -> El (Forget D) -> ElD D
 
-whoCares (S `>< T) P (as , at) (bs , bt) p =
-  whoCares S (\ as -> (ct : El (T as)) -> P (as , ct)) as bs (\ ct -> whoCares (T as) _ at ct p) bt
-whoCares `1 P <> <> p = p
-whoCares (S `#>> T) P a b = {!!}
-whoCares (`Mu D Sh Pos posix x) P a b p = {!!}
-whoCares (`Prf D) P a b p = {!!}
-whoCares (`Not D) P a b p = {!!} -- no chance, because P does not respect extensional equality!
+RecallDNEG `1 pf denial = denial pf
+RecallDNEG (D `| E) pf denial = pf ((\ d -> denial (inl (Recall D d))) ,
+                                     \ e -> denial (inr (Recall E e)))
+RecallDNEG (D `& E) (d , e) denial = denial (Recall D d , Recall E e)
+RecallDNEG (`Aa S D) pf denial = denial (`fflam S (\ s -> Recall (D s) (ffapp S pf s)) )
+RecallDNEG (`Ex S D) pf denial = pf \ s d -> denial (s , Recall (D s) d)
 
+Recall D d = witnessDNEG D (RecallDNEG D d)
 
 {-
 HERE
-TODO
-
-This was an attempt to introduce a universe of decided types.
-
-1. This should allow `Prf.
-
-2. Full `>< is getting us into gnarly coherence issues which push us to invent something like whoCares. Nondependent conjunction should be plenty.
-
-3. Consider introducing a separate UD as we did with UF, then embedding everywhere with `D.
-
 4. The plan, then, is to show that Equality for U Data lives in UD.
 
--}
 -}

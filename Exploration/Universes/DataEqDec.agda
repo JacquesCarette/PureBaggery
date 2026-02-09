@@ -10,8 +10,8 @@ open import TabulatedFunctions
 open import Universes
 open import FiniteEq
 open import Equality
-open import FiniteDecision
 
+{- HERE HERE HERE needs entirely redone!
 -----------------------------------------------------------------------------------
 -- The next gazillions of lines help us show that we have decidable equality for the universe
 -- of Data.
@@ -419,4 +419,6 @@ haha = fflam (`E ("fred" ,- [])) \ {(_ , ze) -> fflam (`E ("jim" ,- "sheila" ,- 
 Eq (S0 `#>> T0) f0 (S1 `#>> T1) f1 =
   S0 =F= S1 `/\
   S0 `#>> \ s0 -> S1 `#>> \ s1 -> EqF S0 s0 S1 s1 `=> Eq (T0 s0) (ffapp S0 f0 s0) (T1 s1) (ffapp S1 f1 s1)
+-}
+
 -}
