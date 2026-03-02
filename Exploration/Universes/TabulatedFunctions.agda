@@ -56,6 +56,14 @@ ffapp `0        < <> > ()
 ffapp `1        < t >  <>      = t
 ffapp (`E xs)   < ts > i       = proj xs ts i
 
+-- wrappers for above two, but implicit S
+\\ : {S : UF} {T : ElF S -> Set} -> (f : [: T :]) -> (S #> T)
+\\ {S} = fflam S
+
+infixl 65 _$$_
+_$$_ : {S : UF} {T : ElF S -> Set} -> (S #> T) -> [: T :]
+_$$_ {S} = ffapp S
+
 -- Internal versions of Tuple, tabulated functions,
 -- tabulation, projection, lam and app
 -- which were basically already there

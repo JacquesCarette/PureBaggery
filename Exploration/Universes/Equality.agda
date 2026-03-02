@@ -9,6 +9,7 @@ open import Finite
 open import TabulatedFunctions
 open import Universes
 open import FiniteEq
+open import Mu
 
 List-Rel : {k0 k1 : Kind} (T0 : U k0) (T1 : U k1) (R : El T0 -> El T1 -> U Props)
   -> List (El T0) -> List (El T1) -> U Props

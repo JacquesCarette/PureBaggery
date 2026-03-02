@@ -6,7 +6,6 @@ open import Basics
 open import Membership
 open import Finite
 open import TabulatedFunctions
-open import Universes
 open import Decided
 
 ----------------------------------------------------------------------------
@@ -49,30 +48,40 @@ _=F=_ : UF -> UF -> UD
 `E xs =F= `E ys = EqListStrings xs ys
 _ =F= _ = `0 -- off-diagonal: False
 
+-- defining separate coercion and coherence is not as elegant, we'll define them
+-- as projections
+
+-- doing them all at once lets us not repeat ourselves needlessly
+coehE : (xs ys : List String) (q : ElD (EqListStrings xs ys)) -> (x : <: _-in xs :>) ->
+   <: _-in ys :> >< (\ y -> ElD (Enum-Eq xs x ys y))
+coehE (x ,- xs) (y ,- ys) q (_ , i) with primStringEquality x y
+coehE (x ,- xs) (y ,- ys) q (_ , ze) | `1 = zee , <>
+coehE (x ,- xs) (y ,- ys) q (_ , su i) | `1
+  with j , ij <- coehE xs ys q (_ , i) = suu j , ij
+
+-- sometimes nice to have each part separately
 coeE : (xs ys : List String) -> ElD (EqListStrings xs ys) -> <: _-in xs :> -> <: _-in ys :>
 cohE : (xs ys : List String) (q : ElD (EqListStrings xs ys)) -> (x : <: _-in xs :>) ->
   ElD (Enum-Eq xs x ys (coeE xs ys q x))
 
-coeE (x ,- xs) (y ,- ys) q (_ , i) with primStringEquality x y
-coeE (x ,- xs) (y ,- ys) q (_ , ze) | `1 = zee
-coeE (x ,- xs) (y ,- ys) q (_ , su i) | `1 = suu (coeE xs ys q (_ , i))
+coeE xs ys q s = fst (coehE xs ys q s)
+cohE xs ys q s = snd (coehE xs ys q s)
 
-cohE (x ,- xs) (y ,- ys) q (_ , i) with primStringEquality x y
-cohE (x ,- xs) (y ,- ys) q (_ , ze) | `1 = <>
-cohE (x ,- xs) (y ,- ys) q (_ , su i) | `1 = cohE xs ys q (_ , i)
+-- same for UF
+coehF : (S T : UF) (q : ElD (S =F= T)) (s : ElF S) ->
+  ElF T >< (\ t -> ElD (EqF S s T t))
+coehF (S0 `>< T0) (S1 `>< T1) (qS , qT) (s0 , t0)
+  with (s1 , sQ) <- coehF S0 S1 qS s0
+  with (t1 , tQ) <- coehF (T0 s0) (T1 s1) (`ffapp _ (`ffapp S1 (`ffapp S0 qT s0) s1) sQ) t0
+  = (s1 , t1) , (sQ , tQ)
+coehF `1 `1 q s = <> , <>
+coehF (`E xs) (`E ys) q s = coehE xs ys q s
 
 coeF : (S T : UF) -> ElD (S =F= T) -> ElF S -> ElF T
 cohF : (S T : UF) (q : ElD (S =F= T)) (s : ElF S) -> ElD (EqF S s T (coeF S T q s))
 
-coeF (S0 `>< T0) (S1 `>< T1) (qS , qT) (s0 , t0) with coeF S0 S1 qS s0 | cohF S0 S1 qS s0
-... | s1 | sQ = s1 , coeF (T0 s0) (T1 s1) (`ffapp _ (`ffapp S1 (`ffapp S0 qT s0) s1) sQ) t0
-coeF `1 `1 eq s = <>
-coeF (`E xs) (`E ys) eq s = coeE xs ys eq s
-
-cohF (S0 `>< T0) (S1 `>< T1) (qS , qT) (s0 , t0) with coeF S0 S1 qS s0 | cohF S0 S1 qS s0
-... | s1 | sQ = sQ , cohF (T0 s0) (T1 s1) (`ffapp _ (`ffapp S1 (`ffapp S0 qT s0) s1) sQ) t0
-cohF `1 `1 q s = <>
-cohF (`E xs) (`E ys) q s = cohE xs ys q s
+coeF S T eq s = fst (coehF S T eq s)
+cohF S T eq s = snd (coehF S T eq s)
 
 -- EqF and =F= are both reflexive. Need helpers as usual
 reflE : (xs : List String) (x : <: _-in xs :>) -> ElD (Enum-Eq xs x xs x)
