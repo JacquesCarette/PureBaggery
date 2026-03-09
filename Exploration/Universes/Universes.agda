@@ -55,6 +55,8 @@ data U where
   -- Making things out of proofs
   _`^_ : forall {j k} -> Embeds j k -> U j -> U k
 
+infixr 30 _`->_
+
 -- and all of this can be interpreted back into Agda
 El (S `>< T) = El S >< \ s -> El (T s)
 El `0 = Zero
@@ -77,11 +79,22 @@ pf=>vl p = FO>HOV `^ (HOP>FO `^ p)
 uf=>vl : UF -> Types
 uf=>vl d = FO>HOV `^ (`F d)
 
+vl : forall {k} -> U k -> Types
+vl {FO} T = FO>HOV `^ T
+vl {HO Value} T = T
+vl {HO Proof} T = pf=>vl T
+
+pf : forall {k} -> Props -> U k
+pf {FO} P = HOP>FO `^ P
+pf {HO Value} P = vl P
+pf {HO Proof} P = P
+
 -- Some useful kit for (at least) proofs
 infixr 20 _`/\_
 _`/\_ : Props -> Props -> Props
 P0 `/\ P1 = P0 `>< (kon P1)
 
+infixr 20 _`=>_
 _`=>_ : Props -> Props -> Props
 P0 `=> P1 = pf=>vl P0 `-> (kon P1)
 
@@ -99,6 +112,14 @@ Forget (D `| E) = `NOT (`NOT (Forget D) `/\ `NOT (Forget E))
 Forget (D `& E) = Forget D `/\ Forget E
 Forget (`Aa S D) = uf=>vl S `-> \ s -> Forget (D s)
 Forget (`Ex S D) = `NOT (uf=>vl S `-> \ s -> `NOT (Forget (D s)))
+
+forget : (D : UD) -> ElD D -> El (Forget D)
+forget `1 <> = <>
+forget (D `| E) (inl d) (nd , _) = nd (forget D d)
+forget (D `| E) (inr e) (_ , ne) = ne (forget E e)
+forget (D `& E) (d , e) = forget D d , forget E e
+forget (`Aa S D) d s = forget (D s) (`ffapp S d s)
+forget (`Ex S D) (s , d) bad = bad s (forget (D s) d)
 
 -- Given an erased version, we can get classical double-negation
 -- and then eventually recover the witness from that erased version

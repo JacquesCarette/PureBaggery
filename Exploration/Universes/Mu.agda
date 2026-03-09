@@ -22,7 +22,7 @@ module _ {Ix : Set} {Sh : Ix -> Set} {Pos : (i : Ix) -> Sh i -> UF}
   -- proof of recursiveness is a Pi type, but the data is not
   data MuRec {i : Ix} : Mu Ix Sh Pos posix i -> Set where
     con : (s : Sh i){k : Pos i s #> \ p -> Mu Ix Sh Pos posix (posix i s p)}
-       -> ((p : ElF (Pos i s)) -> MuRec (ffapp (Pos i s) k p))
+       -> ((p : ElF (Pos i s)) -> MuRec (k $$ p))
        -> MuRec (con s k)
 
   -- lots of work needed to expose what we know to the termination
@@ -96,3 +96,27 @@ module MUEQ
   MuEq : (i0 : Ix0) (m0 : Mu Ix0 Sh0 Pos0 posix0 i0)
          (i1 : Ix1) (m1 : Mu Ix1 Sh1 Pos1 posix1 i1) -> UD
   MuEq i0 m0 = MuEqHelp i0 (muRec m0)
+
+module MUXFORM
+  {Ix0 : Set} {Sh0 : Ix0 -> Set} {Pos0 : (i : Ix0) -> Sh0 i -> UF}
+  {posix0 : (i : Ix0) (s : Sh0 i) (p0 : ElF (Pos0 i s)) -> Ix0}
+  {Ix1 : Set} {Sh1 : Ix1 -> Set} {Pos1 : (i : Ix1) -> Sh1 i -> UF}
+  {posix1 : (i : Ix1) (s : Sh1 i) (p : ElF (Pos1 i s)) -> Ix1}
+  (_~_ : Ix0 -> Ix1 -> Set)
+  (sh : (i0 : Ix0)(i1 : Ix1) -> i0 ~ i1 -> Sh0 i0 -> Sh1 i1)
+  (po : (i0 : Ix0)(i1 : Ix1)(iq : i0 ~ i1)(s0 : Sh0 i0) ->
+    ElF (Pos1 i1 (sh i0 i1 iq s0)) -> ElF (Pos0 i0 s0))
+  (pi~ : (i0 : Ix0)(i1 : Ix1)(iq : i0 ~ i1)(s0 : Sh0 i0)
+         (p1 : ElF (Pos1 i1 (sh i0 i1 iq s0))) ->
+         posix0 i0 s0 (po i0 i1 iq s0 p1) ~ posix1 i1 (sh i0 i1 iq s0) p1)
+  where
+
+  muXFormHelp : (i0 : Ix0)(i1 : Ix1) -> i0 ~ i1 ->
+    {t : Mu Ix0 Sh0 Pos0 posix0 i0} -> MuRec t -> Mu Ix1 Sh1 Pos1 posix1 i1
+  muXFormHelp i0 i1 iq (con s0 r0) =
+    con (sh i0 i1 iq s0)
+        (\\ \ p1 -> muXFormHelp _ _ (pi~ i0 i1 iq s0 p1) (r0 (po i0 i1 iq s0 p1)))
+  
+  muXForm : (i0 : Ix0)(i1 : Ix1) -> i0 ~ i1 ->
+    Mu Ix0 Sh0 Pos0 posix0 i0 -> Mu Ix1 Sh1 Pos1 posix1 i1
+  muXForm i0 i1 iq = muRec - muXFormHelp i0 i1 iq
