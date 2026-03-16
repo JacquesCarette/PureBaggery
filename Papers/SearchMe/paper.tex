@@ -1,0 +1,111 @@
+\documentclass[acmsmall,review,prologue,dvipsnames]{acmart}
+\settopmatter{printfolios=true,printccs=false,printacmref=false}
+
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+
+\title{Search Me!}
+
+\author{Jacques Carette}
+\affiliation{McMaster} % TODO
+\author{Conor Mc Bride}
+\affiliation{Strathclyde} % TODO
+
+\begin{abstract}
+Fill me in
+\end{abstract}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}\label{sec:intro}
+
+Potential start:  Up to isomorphism, this paper is about numbers.
+
+Potential end: Many are obsessed with (very) large universes. We ought to show some love to the small ones.
+UD+UF just the start.
+
+Points to make:
+\begin{enumerate}
+\item finite types as coordinate system for positions in data types
+\item when finite types are domains of functions, those functions have first-order tabulations
+\item to be clear: Universes, DataEqDec, Equality not used in the story directly
+% \item it's useful to have at least 2 universes of proofs 
+% \item being polymorphic over all of that... doesn't seem to work very well; which unfortunately
+%  leads to some duplication (see FiniteEq amongst others)
+\item initerested in (structured!) finite types as presentations of evidenced algorithmic decision making
+\item bleu / vert; internal / external
+% motivation 1: bleu ~ invertibility of typechecking. leads to winning with the termination checker
+% purely vert, you lose
+% post-facto: intension/extension, representation/computation pairings
+\item do coerce and coherence simultaneously (not crucial, but ergonomic)
+\item want to talk about 2 positions being equal (and the evidence of that) without leaving UF,
+  i.e. why it is important UD is interpreted by UF
+\item "classical" logic becomes constructive for UD+UF. That's worth a lot.
+\end{enumerate}
+
+Minor things to remember:
+\begin{enumerate}
+\item adventures in beating the termination checker
+\item Pi types in finite types are no fun
+\item Agda-ism: (proof) irrelevance for things you know are irrelevant seems to work;
+ proof irrelevance as a \emph{desiderata} is hellish
+\item Strings are so much nicer than numbers... and still finite. Humans like them, especially for tags.
+\item where \emph{do} we use thinnings?
+\item heterogeneous equality, and when off-diagonal should be `0 vs `1
+\item J contains choices
+\end{enumerate}
+
+Story beats:
+\begin{enumerate}
+\item Free Monads of Containers
+\begin{itemize}
+\item reminder of what a container (description) is
+\item extension of a container is higher-order; hampers reasoning, forces funext often needlessly 
+(ex: finite position sets)
+\item Nat as lfp of Containers: infinitely many implementations of 0, which you shouldn't dare
+identify judgementally
+\item leverage that finiteness: we want a universe that guarantees finiteness and decidability of 
+some questions of an exploratory nature, which are decidable when exploring is bounded.
+\item shapes of derivatives are dependent pairs, so we want these to behave nicely too (eg: exist!)
+\item also motivates tabulated functions
+\end{itemize}
+
+\item Infrastructure to support the above
+\begin{itemize}
+\item universe F of finite types; key bit: finite enumerations E
+\item we want some structure on top of that
+\item do we want Pi? we certainly don't want Agda's functions as what we interpret anything in E
+\item internal tabulated functions: lo and behold, they are vert!
+\item next: external tabulated functions or nice E? choose nice E.
+\end{itemize}
+
+\item Building Free Monads
+\begin{itemize}
+\item interested in tabulated functions where codomain is not finite
+\item want to build recursive view that gives us successive layers (ordinal interface) of those
+structures
+\item the view should cover. the termination checker does not believe us. It's not wrong, as
+it can't get its hands on the evidence that it actually is.
+%tabulated functions: there are ways to do it that will lead to big fights with the termination
+% checker. See comments above. open point: which order? % TODO
+\item reminder: you might think you want recursivity evidence to be proof irrelevant... but no, you don't.
+yes, they are mere propositions, but you need to be strict lest you enable the liars to win
+\item with the recursive view actually in hand, we can get there, and prove the Monad laws honestly
+\item use inductive equality here, because we're exactly dealing with first-order data that is all Set-like
+\item since substitution are (Agda) functions, the statement of the laws need to be stated 'extensionally'
+\end{itemize}
+
+\item Searching Free Monads
+\begin{itemize}
+\item decisions, De Morgan, dneg
+\item decidable equality, very classical, have LEM, (X -> False) -> False goes away
+% we could get away with homogeneous, with proper book-keeping. but that's a story for another day.
+\item important point: no quadratic search. Testing equality of shapes unifies position types (J!)
+\item one-hole context / pointing. every value has a finite coordinate system (either way)
+\item decisions about values lift because of the precision of the coordinate system
+\end{itemize}
+\end{enumerate}
+
+\end{document}
+
