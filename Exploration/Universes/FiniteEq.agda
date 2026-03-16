@@ -24,10 +24,10 @@ Enum-refl (x ,- xs) (_ , su i) = Enum-refl xs (_ , i)
 -- UF value equality
 EqF : (T0 : UF)(t0 : ElF T0)(T1 : UF)(t1 : ElF T1) -> UD
 EqF (S0 `>< T0) (s0 , t0) (S1 `>< T1) (s1 , t1) =
-  EqF S0 s0 S1 s1 `& EqF (T0 s0) t0 (T1 s1) t1
--- EqF `1 t0 `1 t1 = {!!}
+  EqF S0 s0 S1 s1 `& EqF (T0 s0) t0 (T1 s1) t1 -- Het. shows up here
+EqF `1 t0 `1 t1 = `1 -- we need this because off-diagonal is (now) `0
 EqF (`E xs) xi (`E ys) yj = Enum-Eq xs xi ys yj
-EqF _ _ _ _ = `1
+EqF _ _ _ _ = `0
 
 -- some kit before UF type equality
 EqListStrings : List String -> List String -> UD

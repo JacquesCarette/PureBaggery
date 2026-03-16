@@ -1,5 +1,6 @@
 module FiniteDecision where
 
+-- this is now unused
 open import Basics
 open import Universes
 open import Finite
