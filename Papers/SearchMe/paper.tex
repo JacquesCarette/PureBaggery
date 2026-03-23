@@ -23,6 +23,9 @@
 
 %%%% specific identifiers
 \newcommand{\UF}{\DU{F}}
+\newcommand{\ElF}[1]{\F{\llbracket \black{#1} \rrbracket}_{\UF}}
+
+\newcommand{\UE}{\F{\mathbb{E}}}
 \newcommand{\UD}{\DU{D}}
 \newcommand{\SET}{\D{Set}}
 
@@ -40,8 +43,14 @@
 \newcommand{\SG}[3]{(\V{#1}\hb #2)\pti #3}
 \newcommand{\pr}[2]{#1\red{,}\, #2}
 
+\newcommand{\PI}[3]{(\V{#1}\hb #2)\fto #3}
+
+
 \newcommand{\ENUM}[1]{\blue{\{}#1\blue{\}}}
 
+\newcommand{\VERTPI}[2]{#1 \mathrel{{}_{\UF}\!\!\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}} #2}
+\newcommand{\vertflam}[1]{\F{\uplambda}_{\UF}\:#1}
+\newcommand{\vertfapp}[2]{#1 \mathop{\F{\$}_{\UF}} #2}
 
 %%%% punctuation and spacing
 \newcommand{\hab}{:}
@@ -131,7 +140,7 @@ Notoriously, it takes function extensionality to prove that the neutral element
 is unique, because, on the face of it, intensionally it is not. There are lots of ways to
 construct functions from the empty type to expressions --- e.g., by choosing any $t$, above.
 And if we were so unwary as to identify all of these functions \jgm{ally}, we should
-collapse the \jdm{al} equality in the presence of false hypothesis and destroy the computability
+collapse the \jgm{al} equality in the presence of false hypothesis and destroy the computability
 of normal forms.
 
 We pay quite a price for the functional encoding of first-order things! Let us not!
@@ -151,6 +160,30 @@ some questions of an exploratory nature, which are decidable when exploring is b
 \item shapes of derivatives are dependent pairs, so we want these to behave nicely too (eg: exist!)
 \item also motivates tabulated functions
 \end{itemize}
+
+
+\section{Finite Types and Tabulated Functions}
+
+We intend to construct a Tarski-style universe $\UF$ of finite types with an explicit interpretation into $\SET$.
+\[
+\Axiom{\UF\hab\SET}\qquad
+\Rule{\V{N}\hab\UF}
+     {\ElF{\V{N}}\hab\SET}
+\]
+A key objective, however, is also to obtain a tabulated dependent function type
+\[
+\Rule{\V{N}\hab\UF \hg \V{T}\hab\ElF{\V{N}}\fto\SET}
+     {\VERTPI{\V{N}}{\V{T}}\hab \SET}
+\qquad
+\Rule{\V{f}\hab \PI{x}{\V{N}}{\V{T}\:\V{x}}}
+     {\vertflam{\V{f}\hab \VERTPI{\V{N}}{\V{T}}}}
+\qquad
+\Rule{\V{ts}\hab \VERTPI{\V{N}}{\V{T}} \hg \V{i}\hab\ElF{\V{N}}}
+     {\vertfapp{\V{ts}}{\V{i}}\hab \V{T}\:\V{i}}
+\]
+
+
+
 
 Potential end: Many are obsessed with (very) large universes. We ought to show some love to the small ones.
 UD+UF just the start.
