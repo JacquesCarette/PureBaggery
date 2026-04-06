@@ -44,6 +44,7 @@
 \newcommand{\pr}[2]{#1\red{,}\, #2}
 
 \newcommand{\PI}[3]{(\V{#1}\hb #2)\fto #3}
+\newcommand{\LAM}[2]{\red{\uplambda}\V{#1}\mapsto #2}
 
 
 \newcommand{\ENUM}[1]{\blue{\{}#1\blue{\}}}
@@ -242,7 +243,13 @@ the dependent pairing of the meta-language.
 \Rule{\V{S}\hab\UF \hg \V{T}\hab\ElF{\V{S}}\fto\UF}
      {\FSG{\V{S}}{\V{T}}\hab \UF}
 \qquad
-foo
+\ElF{\FSG{\V{S}}{\V{T}}} = \SG{s}{\V{S}}{\V{T}\:\V{s}}
+\]
+Our presentation of tabulated functions for dependent pairs is simply currying.
+\[
+\VERTPI{\FSG{\V{R}}{\V{S}}}{\V{T}} = \VERTPI{\V{R}}{\LAM{r}{\VERTPI{\V{S}}{\LAM{s}{\V{T}\:(\pr{r}{s})}}}}
+\qquad
+\qquad
 \]
 
 
@@ -252,7 +259,6 @@ foo
 \begin{itemize}
 \item leverage that finiteness: we want a universe that guarantees finiteness and decidability of 
 some questions of an exploratory nature, which are decidable when exploring is bounded.
-\item shapes of derivatives are dependent pairs, so we want these to behave nicely too (eg: exist!)
 \item also motivates tabulated functions
 \end{itemize}
 
@@ -326,6 +332,8 @@ yes, they are mere propositions, but you need to be strict lest you enable the l
 \item decisions about values lift because of the precision of the coordinate system
 \end{itemize}
 \end{enumerate}
+
+TODO: inverse image (because we can search!)
 
 Potential end: Many are obsessed with (very) large universes. We ought to show some love to the small ones.
 UD+UF just the start.
