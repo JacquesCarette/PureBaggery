@@ -247,15 +247,19 @@ the dependent pairing of the meta-language.
 \]
 Our presentation of tabulated functions for dependent pairs is simply currying
 \[
-\VERTPI{(\FSG{\V{R}}{\V{S}})}{\V{T}}\quad =
-\quad \VERTPI{\V{R}}{\LAM{r}{\VERTPI{\V{S}\:\V{r}}{\LAM{s}{\V{T}\:(\pr{\V{r}}{\V{s}})}}}}
+\VERTPI{(\FSG{\V{R}}{\V{S}})}{\V{T}}\; =
+\; \VERTPI{\V{R}}{\LAM{r}{\VERTPI{\V{S}\:\V{r}}{\LAM{s}{\V{T}\:(\pr{\V{r}}{\V{s}})}}}}
 \]
-where our convention is that $\LAM{\cdot}{}$ scopes rightward as far as possible.
+where our convention is that $\LAM{\cdot}{}$ scopes rightward as far as possible and
+that $\vertfapp{\cdot}{\cdot}$ associates to the left%
+\footnote{``rather as we all did in the Sixties'' -- Roger Hindley}
 \[ \vertflam{\V{f}}\; =\; \vertflam{\LAM{r}{\vertflam{\LAM{s}{\V{f}\:(\pr{\V{r}}{\V{s}})}}}}
 \qquad
 \vertfapp{\V{f}}{(\pr{\V{r}}{\V{s}})}\; =\; \vertfapp{\vertfapp{\V{f}}{\V{r}}}{\V{s}}
 \]
-
+Our careful reader will regard these equations as suspicious, with no clue in the code as to the
+type-level recursion which is unfolding. Quite right, too! We promise we will fix this, but we have
+worse trouble to get ourselves into first.
 
 
 
