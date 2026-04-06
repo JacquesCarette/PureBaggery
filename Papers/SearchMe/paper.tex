@@ -245,17 +245,21 @@ the dependent pairing of the meta-language.
 \qquad
 \ElF{\FSG{\V{S}}{\V{T}}} = \SG{s}{\V{S}}{\V{T}\:\V{s}}
 \]
-Our presentation of tabulated functions for dependent pairs is simply currying.
+Our presentation of tabulated functions for dependent pairs is simply currying
 \[
-\VERTPI{\FSG{\V{R}}{\V{S}}}{\V{T}} = \VERTPI{\V{R}}{\LAM{r}{\VERTPI{\V{S}}{\LAM{s}{\V{T}\:(\pr{r}{s})}}}}
+\VERTPI{(\FSG{\V{R}}{\V{S}})}{\V{T}}\quad =
+\quad \VERTPI{\V{R}}{\LAM{r}{\VERTPI{\V{S}\:\V{r}}{\LAM{s}{\V{T}\:(\pr{\V{r}}{\V{s}})}}}}
+\]
+where our convention is that $\LAM{\cdot}{}$ scopes rightward as far as possible.
+\[ \vertflam{\V{f}}\; =\; \vertflam{\LAM{r}{\vertflam{\LAM{s}{\V{f}\:(\pr{\V{r}}{\V{s}})}}}}
 \qquad
-\qquad
+\vertfapp{\V{f}}{(\pr{\V{r}}{\V{s}})}\; =\; \vertfapp{\vertfapp{\V{f}}{\V{r}}}{\V{s}}
 \]
 
 
 
 
-
+\hrulefill
 \begin{itemize}
 \item leverage that finiteness: we want a universe that guarantees finiteness and decidability of 
 some questions of an exploratory nature, which are decidable when exploring is bounded.
