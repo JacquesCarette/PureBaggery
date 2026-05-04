@@ -39,6 +39,7 @@
 \newcommand{\fto}{\mathrel{\blue{\to}}}
 \newcommand{\pti}{\mathrel{\blue{\times}}}
 \newcommand{\peq}{\mathrel{\blue{=}}}
+\newcommand{\blank}{\cdot}
 
 \newcommand{\SG}[3]{(\V{#1}\hb #2)\pti #3}
 \newcommand{\pr}[2]{#1\red{,}\, #2}
@@ -177,7 +178,18 @@ where a container is specified by a shape type and a shape-indexed family of pos
 \CX{\ctr{\V{S}}{\V{P}}}{\V{X}} = \SG{s}{\V{S}}{(\V{P}\:\V{s}\fto\V{X})}
 \]
 
-By way of example, consider
+To equip $\FM{\V{C}}{\blank}$ with the structure of a monad, we should note that $\va \blank$ is `return' and define `join' as follows:
+\[ \Rule{\V{ts} \hab \FM{\V{C}}{(\FM{\V{C}}{\V{X}})}}
+        {\F{join}\: \V{ts} \hab \FM{\V{C}}{\V{X}}}
+\qquad\qquad
+\begin{array}[c]{lcl}
+\F{join}\: \va{\V{t}} & = & \V{t}\\
+\F{join}\: \nd{\pr{\V{s}}{\V{k}}} & = & \nd{\pr{\V{s}}{\LAM{p}{\F{join}\: (\V{k}\:\V{p})}}} \\
+\end{array}
+\]
+The recursion in this definition is structural, by inspection, because all of $\V{k}$'s output are smaller than $\nd{\pr{\V{s}}{\V{k}}}$. One of the monad laws \emph{is} the base case of the definition, but to prove the other two requires function extensionality.
+
+Meanwhile, by way of a concrete example, consider
 \[
 \Axiom{\F{Expr}\hab\CTR}\quad
 \F{Expr} = \ctr{\ENUM{\C{neutral},\C{combine}}}
@@ -189,7 +201,7 @@ By way of example, consider
 which induces $\FM{\F{Expr}}{\V{X}}$, the type of terms in the \remph{syntax} of monoids
 with variables drawn from $\V{X}$.
 
-Notoriously, it takes function extensionality to prove that the neutral element
+Notoriously, it also takes function extensionality to even prove that the neutral element
 \[
 \nd{\pr{\C{neutral}}{\F{absurd}}}
 \qquad\mbox{or}\qquad
@@ -289,7 +301,13 @@ using our tabulated function space to avoid the function space of our metalangua
 We can see no direct way to compute this higher-order function type more neatly than to tabulate its domain and then curry, so adopting the constructor for function spaces does not save us from computing them. We face less work without it. We may not have $\UF$-codes for the function spaces but we can make do with the $\UF$-codes for their tabulations.
 % sadly 'tetration' is not categorical...
 
-The price we pay is that $\ElF{\VERTPIF{\V{N}}{\V{T}}}$ is \emph{not} the same type as $\VERTPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}}$.
+The price we pay is that $\ElF{\VERTPIF{\V{N}}{\V{T}}}$ is \emph{not} the same type as $\VERTPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}}$ when $\V{N}$ and $\V{T}$ are open terms. Equating these types makes sense \emph{algebraically} but does follow from the definitions.
+
+%HERE
+% We should of course now give a treatment of finite enumerations, but first let us see how our free monads with tabulated functions plan is going. If in join we replace (k p) with (k $F p) we are no longer structurally recursive! So internalisation goes blam. Moreover if we try to inline \lambda F and $F, that forces us to generalise the problem to cope with currying. We very quickly lose sight of why the recursion is (actually) structural. Worse, we are doing a complicated maneuver one recursive function over the data. That insures our approach will not scale, as we do not want to be forced to do this every time. We want to introduction a recursion view and we need some infrastructure to deal with that (bleu/vert). Once we've figured our way out of that mess, enumerations will come out `right' on their own.
+
+% Worth commenting? The bleu/vert idea shows up in many more places, including in symbolic computation. And gluing.
+
 
 \hrulefill
 \begin{itemize}
@@ -331,6 +349,7 @@ Minor things to remember:
 
 Story beats:
 \begin{enumerate}
+\item Introduction
 \item Free Monads of Containers
 
 \item Infrastructure to support the above
