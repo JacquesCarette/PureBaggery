@@ -46,7 +46,7 @@
 \newcommand{\PI}[3]{(\V{#1}\hb #2)\fto #3}
 \newcommand{\LAM}[2]{\red{\uplambda}\V{#1}\mapsto #2}
 
-
+%%% Various combinators
 \newcommand{\ENUM}[1]{\blue{\{}#1\blue{\}}}
 
 \newcommand{\VERTPI}[2]{#1 \mathrel{{}_{\UF}\!\!\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}} #2}
@@ -54,6 +54,7 @@
 \newcommand{\vertfapp}[2]{#1 \mathop{\F{\$}_{\UF}} #2}
 
 \newcommand{\FSG}[2]{#1 \mathrel{\red{\times_{\UF}}} #2}
+\newcommand{\impl}[1]{\ensuremath{\left\{ #1 \right\}}}
 
 %%%% punctuation and spacing
 \newcommand{\hab}{:}
@@ -258,11 +259,17 @@ that $\vertfapp{\cdot}{\cdot}$ associates to the left%
 \vertfapp{\V{f}}{(\pr{\V{r}}{\V{s}})}\; =\; \vertfapp{\vertfapp{\V{f}}{\V{r}}}{\V{s}}
 \]
 Our careful reader will regard these equations as suspicious, with no clue in the code as to the
-type-level recursion which is unfolding. Quite right, too! We promise we will fix this, but we have
-worse trouble to get ourselves into first.
+type-level recursion which is unfolding. Quite right, too! 
 
-
-
+Let us fill in the hidden $\UF$-codes that clarify the type-level recursion in the above.
+\[
+\begin{array}{rcl}
+\vertflam{\impl{\FSG{\V{R}}{\V{S}}}\:\V{f}}& = &
+  \vertflam{\impl{\V{R}}\:\LAM{r}{\vertflam{\impl{\V{S}\:\V{r}}\:\LAM{s}{\V{f}\:(\pr{\V{r}}{\V{s}})}}}} \\
+\vertfapp{\V{f}}{\impl{\FSG{\V{R}}{\V{S}}}\:(\pr{\V{r}}{\V{s}})} & = & 
+  \vertfapp{\impl{\V{R}}\:\vertfapp{\V{f}}{\V{r}}}{\impl{\V{s}\: \V{r}}\:\V{s}}
+\end{array}
+\]
 \hrulefill
 \begin{itemize}
 \item leverage that finiteness: we want a universe that guarantees finiteness and decidability of 
