@@ -7,6 +7,7 @@
 \usepackage{hyperref}
 \usepackage{amsmath}
 \usepackage{stmaryrd}
+\usepackage{upgreek}
 
 %%%% ascii
 \newcommand{\hash}{\char 35}
@@ -29,9 +30,11 @@
 \newcommand{\SET}{\D{Set}}
 
 \newcommand{\CTR}{\D{Container}}
-\newcommand{\CX}[2]{\F{\llbracket \black{#1} \rrbracket_{\D{C}}}\:#2}
+\newcommand{\CX}[2]{\F{\llbracket \black{#1} \rrbracket^{\D{C}}}\:#2}
 \newcommand{\pCX}[1]{(#1)}
 \newcommand{\ctr}[2]{#1 \mathop{\red{\triangleleft}} #2}
+\newcommand{\FTR}{\D{Fontainer}}
+\newcommand{\FX}[2]{\F{\llbracket \black{#1} \rrbracket^{\D{F}}}\:#2}
 
 \newcommand{\FM}[2]{{#1}^{\D{\ast}}\:#2}
 \newcommand{\va}[1]{\red{\hash}#1}
@@ -46,6 +49,7 @@
 
 \newcommand{\PI}[3]{(\V{#1}\hb #2)\fto #3}
 \newcommand{\LAM}[2]{\red{\uplambda}\V{#1}\mapsto #2}
+\newcommand{\KON}[1]{\red{\upkappa}\:#1}
 
 %%% Various combinators
 \newcommand{\ENUM}[1]{\blue{\{}#1\blue{\}}}
@@ -80,7 +84,7 @@
 \city{Hamilton}
 \country{Canada}
 }
-\author{Conor Mc Bride}
+\author{Conor Titania Mc Bride}
 \affiliation{
 \department{Department of Computer and Information Sciences}
 \institution{University of Strathclyde}
@@ -301,7 +305,31 @@ using our tabulated function space to avoid the function space of our metalangua
 We can see no direct way to compute this higher-order function type more neatly than to tabulate its domain and then curry, so adopting the constructor for function spaces does not save us from computing them. We face less work without it. We may not have $\UF$-codes for the function spaces but we can make do with the $\UF$-codes for their tabulations.
 % sadly 'tetration' is not categorical...
 
-The price we pay is that $\ElF{\VERTPIF{\V{N}}{\V{T}}}$ is \emph{not} the same type as $\VERTPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}}$ when $\V{N}$ and $\V{T}$ are open terms. Equating these types makes sense \emph{algebraically} but does follow from the definitions.
+The price we pay is that $\ElF{\VERTPIF{\V{N}}{\V{T}}}$ is \emph{not} the same type as $\VERTPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}}$ when $\V{N}$ and $\V{T}$ are open terms. Equating these types makes sense \remph{algebraically} but does not follow from the definitions. It has the potential, however, to be adopted as a `$\nu$-rule' in the sense of \citet{DBLP:conf/icfp/AllaisMB13}, as it is sufficient to add it only for open terms which have stopped computing by pattern matching.
+
+\paragraph{Finitary Containers and their Free Monads}
+Now that we have tabulated functions, let us adapt containers and see what happens to the free monad construction. ($\KON{\blank}$ makes constant functions.)
+\[
+\Rule{\V{S}\hab\UF\hg \V{P}\hab\ElF{\V{S}}\fto\UF}
+     {\ctr{\V{S}}{\V{P}}\hab\FTR}
+\qquad
+\Rule{\V{C}\hab\FTR\hg \V{X}\hab\SET}
+     {\FX{\V{C}}{\V{X}}\hab\SET}
+\quad
+\FX{\ctr{\V{S}}{\V{P}}}{\V{X}} = \SG{s}{\ElF{\V{S}}}{\VERTPI{\V{P}\:\V{s}}{\KON{\V{X}}}}
+\]
+Note that we are quite happy to see \remph{actual} functions in the \remph{descriptions} of containers, but we insist on \remph{tabulated} functions in their extensions.
+\[
+\Rule{\V{C} \hab \CTR \hg  \V{X} \hab \SET}
+     {\FM{\V{C}}{\V{X}} \hab \SET}
+\qquad
+\Rule{\V{x}\hab \V{X}}
+     {\va{\V{x}}\hab \FM{\V{C}}{\V{X}}}
+\qquad
+\Rule{\V{cts} \hab \FX{\V{C}}{\pCX{\FM{\V{C}}{\V{X}}}}}
+     {\nd{\V{cts}}\hab \FM{\V{C}}{\V{X}}}
+\]
+
 
 %HERE
 % We should of course now give a treatment of finite enumerations, but first let us see how our free monads with tabulated functions plan is going. If in join we replace (k p) with (k $F p) we are no longer structurally recursive! So internalisation goes blam. Moreover if we try to inline \lambda F and $F, that forces us to generalise the problem to cope with currying. We very quickly lose sight of why the recursion is (actually) structural. Worse, we are doing a complicated maneuver one recursive function over the data. That insures our approach will not scale, as we do not want to be forced to do this every time. We want to introduction a recursion view and we need some infrastructure to deal with that (bleu/vert). Once we've figured our way out of that mess, enumerations will come out `right' on their own.
@@ -392,6 +420,8 @@ TODO: inverse image (because we can search!)
 
 Potential end: Many are obsessed with (very) large universes. We ought to show some love to the small ones.
 UD+UF just the start.
+
+\bibliography{searchme}
 
 \end{document}
 
