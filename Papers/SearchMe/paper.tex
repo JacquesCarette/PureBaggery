@@ -35,6 +35,8 @@
 \newcommand{\ctr}[2]{#1 \mathop{\red{\triangleleft}} #2}
 \newcommand{\FTR}{\D{Fontainer}}
 \newcommand{\FX}[2]{\F{\llbracket \black{#1} \rrbracket^{\D{F}}}\:#2}
+\newcommand{\CSh}[1]{#1\:\F{.Sh}}
+\newcommand{\CPo}[2]{#1\:\F{.Po}\:#2}
 
 \newcommand{\FM}[2]{{#1}^{\D{\ast}}\:#2}
 \newcommand{\va}[1]{\red{\hash}#1}
@@ -181,6 +183,7 @@ where a container is specified by a shape type and a shape-indexed family of pos
 \quad
 \CX{\ctr{\V{S}}{\V{P}}}{\V{X}} = \SG{s}{\V{S}}{(\V{P}\:\V{s}\fto\V{X})}
 \]
+Notationally, if it is inconvenient to pattern match a container, $\V{C}$, as $\ctr{\V{S}}{\V{P}}$, we may write its shape $\V{S}$ as $\CSh{\V{C}}$ and instantiate its position family $\V{P}\:\V{s}$ as $\CPo{\V{C}}{\V{s}}$.
 
 To equip $\FM{\V{C}}{\blank}$ with the structure of a monad, we should note that $\va \blank$ is `return' and define `join' as follows:
 \[ \Rule{\V{ts} \hab \FM{\V{C}}{(\FM{\V{C}}{\V{X}})}}
@@ -320,7 +323,7 @@ Now that we have tabulated functions, let us adapt containers and see what happe
 \]
 Note that we are quite happy to see \remph{actual} functions in the \remph{descriptions} of containers, but we insist on \remph{tabulated} functions in their extensions.
 \[
-\Rule{\V{C} \hab \CTR \hg  \V{X} \hab \SET}
+\Rule{\V{C} \hab \FTR \hg  \V{X} \hab \SET}
      {\FM{\V{C}}{\V{X}} \hab \SET}
 \qquad
 \Rule{\V{x}\hab \V{X}}
@@ -329,6 +332,21 @@ Note that we are quite happy to see \remph{actual} functions in the \remph{descr
 \Rule{\V{cts} \hab \FX{\V{C}}{\pCX{\FM{\V{C}}{\V{X}}}}}
      {\nd{\V{cts}}\hab \FM{\V{C}}{\V{X}}}
 \]
+Now, our term-like data are genuinely first-order things, with just one implementation each. But what happens to join?
+\[ \Rule{\V{ts} \hab \FM{\V{C}}{(\FM{\V{C}}{\V{X}})}}
+        {\F{join}\: \V{ts} \hab \FM{\V{C}}{\V{X}}}
+\qquad\qquad
+\begin{array}[c]{lcl}
+\F{join}\: \va{\V{t}} & = & \V{t}\\
+\F{join}\: \nd{\pr{\V{s}}{\V{k}}} & = & \nd{\pr{\V{s}}{\vertflam{\LAM{p}{\F{join}\: (\vertfapp{\V{k}}{\V{p}})}}}} \\
+\end{array}
+\]
+This definition looks good on paper but arouses the suspicions of most syntactically driven termination checkers because $\vertfapp{\V{k}}{\V{p}}$ is not conspicuously smaller than $\nd{\pr{\V{s}}{\V{k}}}$, even though it is in every case projected from $\V{k}$. We could, perhaps, work around this problem by laboriously inlining the tabulation and projection operations, but why should we have to? The power of the container abstraction is that we explain how to implement operations like $\F{join}$ \remph{uniformly}. Can we construct a recursion \remph{explanation} which justifies the uniform approach?
+
+
+\section{The View from Above}
+
+A lesson well worth learning from \citet{DBLP:journals/jar/McKinnaP99} is that data can admit newer and more convenient induction principles than those with which they were conceived. We may reorganise the recursive structure of data in much the way that \citet{DBLP:conf/popl/Wadler87} rearrange case analysis with `views'.
 
 
 %HERE
