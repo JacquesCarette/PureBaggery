@@ -41,6 +41,8 @@
 \newcommand{\FM}[2]{{#1}^{\D{\ast}}\:#2}
 \newcommand{\va}[1]{\red{\hash}#1}
 \newcommand{\nd}[1]{\red{\langle\black{#1}\rangle}}
+\newcommand{\REC}[1]{\D{Rec}\:#1}
+
 \newcommand{\fto}{\mathrel{\blue{\to}}}
 \newcommand{\pti}{\mathrel{\blue{\times}}}
 \newcommand{\peq}{\mathrel{\blue{=}}}
@@ -346,8 +348,19 @@ This definition looks good on paper but arouses the suspicions of most syntactic
 
 \section{The View from Above}
 
-A lesson well worth learning from \citet{DBLP:journals/jar/McKinnaP99} is that data can admit newer and more convenient induction principles than those with which they were conceived. We may reorganise the recursive structure of data in much the way that \citet{DBLP:conf/popl/Wadler87} rearrange case analysis with `views'.
-
+A lesson well worth learning from \citet{DBLP:journals/jar/McKinnaP99} is that data can admit newer and more convenient induction principles than those with which they were conceived. We may reorganise the recursive structure of data in much the way that \citet{DBLP:conf/popl/Wadler87} rearrange case analysis with `views'. Let us say what it is for a term in a finitary free monad to be `recursive' in the sense that its notion of substructure projection is well founded.
+\[
+\Rule{\V{t} \hab \FM{\V{C}}{\V{X}}}
+     {\REC{\V{t}} \hab \SET}
+     \qquad
+\Rule{\V{x}\hab \V{X}}
+     {\va{\V{x}}\hab \REC{\va{\V{x}}}}
+\qquad
+\Rule{\V{s}\hab\ElF{\CSh{\V{C}}} \quad
+      \V{f}\hab\PI{p}{\CPo{\V{C}}{\V{s}}}{\REC{(\vertfapp{\V{k}}{\V{p}})}}}
+     {\nd{\pr{\V{s}}{\V{f}}} \hab \REC{\nd{\pr{\V{s}}{\V{k}}}}}
+\]
+Note that our functional presentation in the step case of recursivity makes $\V{f}\:\V{p}$ clearly a structural subproof of $\nd{\pr{\V{s}}{\V{f}}}$. Correspondingly, we achieve projection-based recursion on a term by ordinary structural recursion on its recursivity proof. The challenge now is to implement the `covering function', in the sense of \citet{DBLP:journals/jfp/McBrideM04}, which shows that all terms are recursive. And that's where our troubles \remph{really} begin.
 
 %HERE
 % We should of course now give a treatment of finite enumerations, but first let us see how our free monads with tabulated functions plan is going. If in join we replace (k p) with (k $F p) we are no longer structurally recursive! So internalisation goes blam. Moreover if we try to inline \lambda F and $F, that forces us to generalise the problem to cope with currying. We very quickly lose sight of why the recursion is (actually) structural. Worse, we are doing a complicated maneuver one recursive function over the data. That insures our approach will not scale, as we do not want to be forced to do this every time. We want to introduction a recursion view and we need some infrastructure to deal with that (bleu/vert). Once we've figured our way out of that mess, enumerations will come out `right' on their own.
