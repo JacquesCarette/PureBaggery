@@ -42,6 +42,7 @@
 \newcommand{\va}[1]{\red{\hash}#1}
 \newcommand{\nd}[1]{\red{\langle\black{#1}\rangle}}
 \newcommand{\REC}[1]{\D{Rec}\:#1}
+\newcommand{\rec}[1]{\F{rec}\:#1}
 
 \newcommand{\fto}{\mathrel{\blue{\to}}}
 \newcommand{\pti}{\mathrel{\blue{\times}}}
@@ -66,6 +67,7 @@
 
 \newcommand{\FSG}[2]{#1 \mathrel{\red{\times_{\UF}}} #2}
 \newcommand{\impl}[1]{\ensuremath{\left\{ #1 \right\}}}
+\newcommand{\HOLE}{\orange{?}}
 
 %%%% punctuation and spacing
 \newcommand{\hab}{:}
@@ -339,7 +341,7 @@ Now, our term-like data are genuinely first-order things, with just one implemen
         {\F{join}\: \V{ts} \hab \FM{\V{C}}{\V{X}}}
 \qquad\qquad
 \begin{array}[c]{lcl}
-\F{join}\: \va{\V{t}} & = & \V{t}\\
+\F{join}\: \va{\V{x}} & = & \V{x}\\
 \F{join}\: \nd{\pr{\V{s}}{\V{k}}} & = & \nd{\pr{\V{s}}{\vertflam{\LAM{p}{\F{join}\: (\vertfapp{\V{k}}{\V{p}})}}}} \\
 \end{array}
 \]
@@ -361,6 +363,69 @@ A lesson well worth learning from \citet{DBLP:journals/jar/McKinnaP99} is that d
      {\nd{\pr{\V{s}}{\V{f}}} \hab \REC{\nd{\pr{\V{s}}{\V{k}}}}}
 \]
 Note that our functional presentation in the step case of recursivity makes $\V{f}\:\V{p}$ clearly a structural subproof of $\nd{\pr{\V{s}}{\V{f}}}$. Correspondingly, we achieve projection-based recursion on a term by ordinary structural recursion on its recursivity proof. The challenge now is to implement the `covering function', in the sense of \citet{DBLP:journals/jfp/McBrideM04}, which shows that all terms are recursive. And that's where our troubles \remph{really} begin.
+
+Our task is to implement, using only structural recursion,
+\[ 
+\Rule{\V{t} \hab \FM{\V{C}}{\V{X}}}
+     {\rec{\V{t}} \hab \REC{\V{t}}}
+\]
+
+Our opening moves are forced, the base case is straightforward and in the step case we must clearly copy the shape across and receive a position by return:
+\[ 
+\begin{array}[c]{lcl}
+\rec{\va{\V{x}}} & = & \va{\V{x}}\\
+\rec{\nd{\pr{\V{s}}{\V{k}}}} & = & \nd{\pr{\V{s}}{\LAM{p}{\HOLE}}} \\
+\end{array}
+\]
+At this point, we see that we need
+\[
+\V{k} \hab \VERTPI{\CPo{\V{C}}{\V{s}}}{\KON{(\FM{\V{C}}{\V{X}})}} \quad 
+\vdash \quad
+\HOLE \hab \REC{(\vertfapp{\V{k}}{\V{p}})}
+\]
+but we are not allowed simply to \remph{apply} $\V{k}$. Rather we must dismantle it carefully according to the structure of $\CPo{\V{C}}{\V{s}}$. So we shall certainly need a helper function which abstracts that position type in order to inspect it.
+
+\[
+\Rule{\V{P}\hab\UF\quad \V{k} \hab \VERTPI{\V{P}}{\KON{(\FM{\V{C}}{\V{X}})}}
+      \quad \V{p}\hab \ElF{\V{P}}}
+     {\F{help}\:\V{P}\:\V{k}\:\V{p} \hab \REC{(\vertfapp{\V{k}}{\V{p}})}}
+\]
+The difficult case is when $\V{P}$ is a dependent pair type.
+\[
+\F{help}\:(\FSG{\V{R}}{\V{S}}) \:\V{k}\:(\pr{\V{r}}{\V{s}}) = \HOLE
+\quad\text{where}\quad
+\V{k} \hab 
+\VERTPI{\V{R}}{\LAM{r}{\VERTPI{\V{S}\:\V{r}}{\KON{(\FM{\V{C}}{\V{X}})}}}}
+\]
+We certainly would like to call $\F{help}\:\V{S}\:\HOLE\:\V{s}$ but the return type of $\V{k}$ is not helpful for $\HOLE$ because the terms we are trying to unpack are now two layers down instead of one. This problem will only get worse if $\V{R}$ turns out also to be a dependent pair type, pushing the term even further down. We have an entire class of problems to solve by mutual recursion and so far we have seen only three instances of it.
+
+\paragraph{Dependent types to the rescue!} The dependently typed way to solve a class of problems is to \remph{reflect} it. We started with the problem to show the recursivity of a single term but our problems kept growing by branching over position sets.
+
+We can instantiate a general pattern for solving such problems. Step one, introduce a \remph{data} type $\D{Problem}\hab\SET$ of problem \remph{descriptions}. Step two, recursively define $\F{Input}\hab \D{Problem}\fto\SET$ which specifies the input data appropriate to the problem in question. Step three, recursively define $\F{Output}\hab \PI{P}{\D{Problem}}{\F{Input}\: \V{P}\fto\SET}$. Step four, solve all the problems by defining $\F{solve}\hab\PI{P}{\D{Problem}}{\PI{i}{\D{Input}\:P}{\F{Output}\:P\:i}}$. Crucially $\V{P}$ can swell as well as shrink while $\F{solve}$ proceeds provided $\V{i}$ gets smaller.
+
+In our case, we should start with a base case which shows where we come in
+\[\Axiom{\C{\varepsilon} \hab \D{Problem}}
+\qquad
+\begin{array}[c]{l}
+\F{Input}\: \C{\varepsilon} = \FM{\V{C}}{\V{X}}
+\\
+\F{Output}\: \C{\varepsilon}\: \V{t} = \REC{\V{t}}
+\end{array}
+\]
+so that we can take $\rec{\V{t}} = \F{solve}\:\C{\varepsilon}\: t$. Then our step case should allow us to branch problems over a finite set.
+\[
+\Rule{\V{S}\hab\UF \quad \V{P}\hab \ElF{S}\fto\D{Problem}}
+     {\C{branch}\:\V{S}\:\V{P} \hab \D{Problem}}
+\quad
+\begin{array}[c]{l}
+\F{Input}\: (\C{branch}\:\V{S}\:\V{P}) = \VERTPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{S})}}
+\\
+\F{Output}\: (\C{branch}\:\V{S}\:\V{P})\: \V{k} = 
+    \PI{s}{\ElF{\V{S}}}{\F{Output}\:(\V{P}\:\V{s})\:(\vertfapp{\V{k}}{\V{s}})}
+\end{array}
+\]
+
+% that typechecks but doesn't termination check. SIGH.
 
 %HERE
 % We should of course now give a treatment of finite enumerations, but first let us see how our free monads with tabulated functions plan is going. If in join we replace (k p) with (k $F p) we are no longer structurally recursive! So internalisation goes blam. Moreover if we try to inline \lambda F and $F, that forces us to generalise the problem to cope with currying. We very quickly lose sight of why the recursion is (actually) structural. Worse, we are doing a complicated maneuver one recursive function over the data. That insures our approach will not scale, as we do not want to be forced to do this every time. We want to introduction a recursion view and we need some infrastructure to deal with that (bleu/vert). Once we've figured our way out of that mess, enumerations will come out `right' on their own.
