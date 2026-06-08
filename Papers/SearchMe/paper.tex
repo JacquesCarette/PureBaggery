@@ -65,6 +65,12 @@
 \newcommand{\VERTPIF}[2]{#1 \mathrel{\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}_{\UF}} #2}
 \newcommand{\ROUGEPIF}[2]{#1 \mathrel{\red{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}_{\UF}} #2}
 
+\newcommand{\BLEUPI}[2]{#1 \mathrel{{}_{\UF}\!\!\blue{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}} #2}
+\newcommand{\VERTPIB}[2]{#1 \mathrel{{}_{\UF}\!\!\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\leadsto}}}} #2}
+\newcommand{\bleuflam}[1]{\F{\uplambda}_{\UF}\:#1}
+\newcommand{\bleufapp}[2]{#1 \mathop{\F{\$}_{\UF}} #2}
+
+
 \newcommand{\FSG}[2]{#1 \mathrel{\red{\times_{\UF}}} #2}
 \newcommand{\impl}[1]{\ensuremath{\left\{ #1 \right\}}}
 \newcommand{\HOLE}{\orange{?}}
@@ -271,6 +277,8 @@ the dependent pairing of the meta-language.
 \qquad
 \ElF{\FSG{\V{S}}{\V{T}}} = \SG{s}{\V{S}}{\V{T}\:\V{s}}
 \]
+We promise to return to the representation of finite tagged enumerations in due course: indeed $\UF$ will need at least one base case. However, in choosing the narrative structure for this story, we prefer to wait until we have explored the consequences of our choice to close $\UF$ under dependent pairing. We were taught a lesson!
+
 Our presentation of tabulated functions for dependent pairs is simply currying
 \[
 \VERTPI{(\FSG{\V{R}}{\V{S}})}{\V{T}}\; =
@@ -348,7 +356,7 @@ Now, our term-like data are genuinely first-order things, with just one implemen
 This definition looks good on paper but arouses the suspicions of most syntactically driven termination checkers because $\vertfapp{\V{k}}{\V{p}}$ is not conspicuously smaller than $\nd{\pr{\V{s}}{\V{k}}}$, even though it is in every case projected from $\V{k}$. We could, perhaps, work around this problem by laboriously inlining the tabulation and projection operations, but why should we have to? The power of the container abstraction is that we explain how to implement operations like $\F{join}$ \remph{uniformly}. Can we construct a recursion \remph{explanation} which justifies the uniform approach?
 
 
-\section{The View from Above}
+\section{The View from Above, Obscured}
 
 A lesson well worth learning from \citet{DBLP:journals/jar/McKinnaP99} is that data can admit newer and more convenient induction principles than those with which they were conceived. We may reorganise the recursive structure of data in much the way that \citet{DBLP:conf/popl/Wadler87} rearrange case analysis with `views'. Let us say what it is for a term in a finitary free monad to be `recursive' in the sense that its notion of substructure projection is well founded.
 \[
@@ -403,27 +411,87 @@ We certainly would like to call $\F{help}\:\V{S}\:\HOLE\:\V{s}$ but the return t
 
 We can instantiate a general pattern for solving such problems. Step one, introduce a \remph{data} type $\D{Problem}\hab\SET$ of problem \remph{descriptions}. Step two, recursively define $\F{Input}\hab \D{Problem}\fto\SET$ which specifies the input data appropriate to the problem in question. Step three, recursively define $\F{Output}\hab \PI{P}{\D{Problem}}{\F{Input}\: \V{P}\fto\SET}$. Step four, solve all the problems by defining $\F{solve}\hab\PI{P}{\D{Problem}}{\PI{i}{\D{Input}\:P}{\F{Output}\:P\:i}}$. Crucially $\V{P}$ can swell as well as shrink while $\F{solve}$ proceeds provided $\V{i}$ gets smaller.
 
+\newcommand{\basecase}{\C{\varepsilon}}
+\newcommand{\branch}[2]{#1\mathop{\C{\Yleft}}#2}
 In our case, we should start with a base case which shows where we come in
-\[\Axiom{\C{\varepsilon} \hab \D{Problem}}
+\[\Axiom{\basecase \hab \D{Problem}}
 \qquad
 \begin{array}[c]{l}
-\F{Input}\: \C{\varepsilon} = \FM{\V{C}}{\V{X}}
+\F{Input}\: \basecase = \FM{\V{C}}{\V{X}}
 \\
-\F{Output}\: \C{\varepsilon}\: \V{t} = \REC{\V{t}}
+\F{Output}\: \basecase\: \V{t} = \REC{\V{t}}
 \end{array}
 \]
-so that we can take $\rec{\V{t}} = \F{solve}\:\C{\varepsilon}\: t$. Then our step case should allow us to branch problems over a finite set.
+so that we can take $\rec{\V{t}} = \F{solve}\:\basecase\: t$. Then our step case, $\branch{\blank}{\blank}$, should allow us to branch problems over a finite set.
 \[
 \Rule{\V{S}\hab\UF \quad \V{P}\hab \ElF{S}\fto\D{Problem}}
-     {\C{branch}\:\V{S}\:\V{P} \hab \D{Problem}}
+     {\branch{\V{S}}{\V{P}} \hab \D{Problem}}
 \quad
 \begin{array}[c]{l}
-\F{Input}\: (\C{branch}\:\V{S}\:\V{P}) = \VERTPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{S})}}
+\F{Input}\: (\branch{\V{S}}{\V{P}}) = \VERTPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{S})}}
 \\
-\F{Output}\: (\C{branch}\:\V{S}\:\V{P})\: \V{k} = 
+\F{Output}\: (\branch{\V{S}}{\V{P}})\: \V{k} = 
     \PI{s}{\ElF{\V{S}}}{\F{Output}\:(\V{P}\:\V{s})\:(\vertfapp{\V{k}}{\V{s}})}
 \end{array}
 \]
+
+With this extra flex in problem description, let us now try to $\F{solve}$ our whole family of problems.
+\[\begin{array}{lcl}
+\F{solve}\:\basecase\:\va{\V{x}} & = & \va{\V{x}}\\
+\F{solve}\:\basecase\:\nd{\pr{\V{s}}{\V{k}}} & = &
+\nd{\pr{\V{s}}{\F{solve}\:(\branch{\CPo{\V{C}}{\V{s}}}{\KON{\basecase}})\:\V{k}}} \\
+\F{solve}\:(\branch{(\FSG{\V{R}}{\V{S}})}{\V{P}})\:\V{k} & = &
+\F{solve}\:
+(\branch{\V{R}}{\LAM{r}{
+  \branch{\V{S}\:\V{r}}{\LAM{s}{\V{P}\:(\pr{\V{r}}{\V{s}})}}}})
+\:\V{k}\\
+\vdots\\
+\end{array}\]
+Of course, we shall need to spell out our story about enumerations to see how the mutual recursion returns from $\branch{\blank}{\blank}$ problems to $\basecase$ problems, but the good news is that currying out the problem descriptions syncs neatly with the currying out of the type of $\V{k}$ and the story so far typechecks. The bad news, however, is that the problem acquires a larger sequence of smaller branchings while $\V{k}$ stays put, so syntactic guard checkers are fooled into rejecting this entirely sensible definition.
+
+
+\section{Bleu et Vert: Tabulated Functions With More Care}
+
+When all you have is a hammer, everything looks like a nail. Conspicuous constraction comes from cancelling construction. Our currying by computing recursively over $\UF$ has left the after currying $\V{k}$ look no simpler than the $\V{k}$ before currying. Computing out the currying immediately conceals our intent to treat it as problem simplification.
+
+We can arrest computation and make simplification explicit by discarding our green-typeset tabulated function space $\VERTPI{\V{N}}{\V{P}}$ and reintroducing the notion \remph{inductively}, with a canonical (therefore, typeset in blue) type constructor and an explicit value constructor.
+\[
+\Rule{\V{N}\hab\UF \hg \V{T}\hab\ElF{\V{N}}\fto\SET}
+     {\BLEUPI{\V{N}}{\V{T}}\hab \SET}
+\qquad
+\Rule{\V{k}\hab\VERTPIB{\V{N}}{\V{T}}}
+     {\nd{\V{k}}\hab\BLEUPI{\V{N}}{\V{T}}}
+\]
+But what is being wrapped by $\nd{\blank}$? Exactly a \remph{small-step} version of our computed tabulation!
+\[
+\Rule{\V{N}\hab\UF \hg \V{T}\hab\ElF{\V{N}}\fto\SET}
+     {\VERTPIB{\V{N}}{\V{T}}\hab \SET}
+\qquad     
+\VERTPIB{(\FSG{\V{R}}{\V{S}})}{\V{T}} \;=\;
+\BLEUPI{\V{R}}{\LAM{r}{\BLEUPI{\V{S}\:\V{r}}{\LAM{s}{\V{T}\:(\pr{\V{r}}{\V{s}})}}}}
+\]
+This function does not compute \remph{recursively}. Rather, after one step of case analysis, it reinvokes the \remph{inductive} tabulation (in strictly positive positions, of course!). This is a reusable culinary technique, mutually defining inductive and small-step computational versions of the same notion, to brake the unfolding of computation by requiring the unwrapping of data. It is too subtle a recipe to merit a name in the English language, so we like to call it `bleu et vert'.
+
+Now, we must repair \remph{everything}, changing the types of abstraction and application to their `bleu' counterparts. Note that both operations remain \remph{defined} themselves, so their names stay typeset in green.
+\[
+\Rule{\V{f}\hab \PI{x}{\V{N}}{\V{T}\:\V{x}}}
+     {\bleuflam{\V{f}}\hab \BLEUPI{\V{N}}{\V{T}}}
+\qquad
+\Rule{\V{ts}\hab \BLEUPI{\V{N}}{\V{T}} \hg \V{i}\hab\ElF{\V{N}}}
+     {\bleufapp{\V{ts}}{\V{i}}\hab \V{T}\:\V{i}}
+\]
+The definitions must still be constructed with some explicit awareness of type descriptions, but now we must also be careful to wrap and unwrap in the right places.     
+\[
+\begin{array}{rcl}
+\bleuflam{\impl{\FSG{\V{R}}{\V{S}}}\:\V{f}}& = &
+  \nd{\bleuflam{\LAM{r}{\bleuflam{\LAM{s}{\V{f}\:(\pr{\V{r}}{\V{s}})}}}}} \\
+\bleufapp{\nd{\V{f}}}{\impl{\FSG{\V{R}}{\V{S}}}\:(\pr{\V{r}}{\V{s}})} & = & 
+  \bleufapp{\bleufapp{\V{f}}{\V{r}}}{\V{s}}
+\end{array}
+\]
+Specifically, we must match explicitly on type descriptions to determine \remph{what} is to be wrapped by abstraction or unwrapped by application. At use sites, including on the right hand sides of the definitions, the use of a canonical type constructor for tabulated function space allows the hidden type information to be reconstructed unambiguously. This brevity is an unexpected bonus from the layers of bleu separating the vert.
+
+
 
 % that typechecks but doesn't termination check. SIGH.
 
