@@ -24,8 +24,10 @@
 %%%% specific identifiers
 \newcommand{\UF}{\DU{F}}
 \newcommand{\ElF}[1]{\F{\llbracket \black{#1} \rrbracket}_{\UF}}
-
 \newcommand{\UE}{\F{\mathbb{E}}}
+\newcommand{\ElE}[1]{\F{\llbracket \black{#1} \rrbracket}_{\UE}}
+\newcommand{\EF}[1]{\red{\{\!|}#1\red{|\!\}}}
+
 \newcommand{\UD}{\DU{D}}
 \newcommand{\SET}{\D{Set}}
 
@@ -48,6 +50,14 @@
 \newcommand{\pti}{\mathrel{\blue{\times}}}
 \newcommand{\peq}{\mathrel{\blue{=}}}
 \newcommand{\blank}{\cdot}
+\newcommand{\IN}[2]{#1\mathrel{\blue{\in}}#2}
+\newcommand{\IRIN}[2]{#1\mathrel{\green{\in}_{\D{2}}}#2}
+\newcommand{\ze}{\C{ze}}
+\newcommand{\su}[1]{\C{su}\:#1}
+\newcommand{\LIST}[1]{\D{List}\: #1}
+\newcommand{\nil}{\C{[]}}
+\newcommand{\cons}[2]{#1\mathop{\red{:\!:}} #2}
+\newcommand{\DOL}[1]{\green{\$}#1}
 
 \newcommand{\SG}[3]{(\V{#1}\hb #2)\pti #3}
 \newcommand{\pr}[2]{#1\red{,}\, #2}
@@ -59,17 +69,26 @@
 %%% Various combinators
 \newcommand{\ENUM}[1]{\blue{\{}#1\blue{\}}}
 
-\newcommand{\VERTPI}[2]{#1 \mathrel{{}_{\UF}\!\!\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}} #2}
+\newcommand{\VERTFPI}[2]{#1 \mathrel{{}_{\UF}\!\!\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}} #2}
 \newcommand{\vertflam}[1]{\F{\uplambda}_{\UF}\:#1}
 \newcommand{\vertfapp}[2]{#1 \mathop{\F{\$}_{\UF}} #2}
 \newcommand{\VERTPIF}[2]{#1 \mathrel{\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}_{\UF}} #2}
 \newcommand{\ROUGEPIF}[2]{#1 \mathrel{\red{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}_{\UF}} #2}
 
-\newcommand{\BLEUPI}[2]{#1 \mathrel{{}_{\UF}\!\!\blue{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}} #2}
-\newcommand{\VERTPIB}[2]{#1 \mathrel{{}_{\UF}\!\!\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\leadsto}}}} #2}
+\newcommand{\BLEUFPI}[2]{#1 \mathrel{{}_{\UF}\!\!\blue{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}} #2}
+\newcommand{\VERTFPIB}[2]{#1 \mathrel{{}_{\UF}\!\!\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\leadsto}}}} #2}
 \newcommand{\bleuflam}[1]{\F{\uplambda}_{\UF}\:#1}
 \newcommand{\bleufapp}[2]{#1 \mathop{\F{\$}_{\UF}} #2}
 
+
+\newcommand{\VERTEPI}[2]{#1 \mathrel{{}_{\UE}\!\!\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}} #2}
+\newcommand{\vertelam}[1]{\F{\uplambda}_{\UE}\:#1}
+\newcommand{\verteapp}[2]{#1 \mathop{\F{\$}_{\UE}} #2}
+
+\newcommand{\BLEUEPI}[2]{#1 \mathrel{{}_{\UE}\!\!\blue{\raisebox{0.03in}[0in][0in]{\ensuremath{\to}}}} #2}
+\newcommand{\VERTEPIB}[2]{#1 \mathrel{{}_{\UE}\!\!\green{\raisebox{0.03in}[0in][0in]{\ensuremath{\leadsto}}}} #2}
+\newcommand{\bleuelam}[1]{\F{\uplambda}_{\UE}\:#1}
+\newcommand{\bleueapp}[2]{#1 \mathop{\F{\$}_{\UE}} #2}
 
 \newcommand{\FSG}[2]{#1 \mathrel{\red{\times_{\UF}}} #2}
 \newcommand{\impl}[1]{\ensuremath{\left\{ #1 \right\}}}
@@ -247,21 +266,33 @@ We intend to construct a universe $\UF$ of finite types with an explicit interpr
 A key objective, however, is also to obtain a tabulated dependent function type, whose domain is finite but whose codomain need not be
 \[
 \Rule{\V{N}\hab\UF \hg \V{T}\hab\ElF{\V{N}}\fto\SET}
-     {\VERTPI{\V{N}}{\V{T}}\hab \SET}
+     {\VERTFPI{\V{N}}{\V{T}}\hab \SET}
 \qquad
-\Rule{\V{f}\hab \PI{x}{\V{N}}{\V{T}\:\V{x}}}
-     {\vertflam{\V{f}}\hab \VERTPI{\V{N}}{\V{T}}}
+\Rule{\V{f}\hab \PI{x}{\ElF{\V{N}}}{\V{T}\:\V{x}}}
+     {\vertflam{\V{f}}\hab \VERTFPI{\V{N}}{\V{T}}}
 \qquad
-\Rule{\V{ts}\hab \VERTPI{\V{N}}{\V{T}} \hg \V{i}\hab\ElF{\V{N}}}
-     {\vertfapp{\V{ts}}{\V{i}}\hab \V{T}\:\V{i}}
+\Rule{\V{k}\hab \VERTFPI{\V{N}}{\V{T}} \hg \V{i}\hab\ElF{\V{N}}}
+     {\vertfapp{\V{k}}{\V{i}}\hab \V{T}\:\V{i}}
 \]
 \noindent for which a $\beta$-rule is provable, namely
 \[\vertfapp{\vertflam{\V{f}}}{\V{i}}\peq\V{f}\:\V{i}\]
 \noindent where attempting to have this rule hold \jgm{ally} will get us into the same exact trouble as before.
 
 \paragraph{What do we want in $\UF$?} We shall certainly need finite enumerations, such as the
-$\ENUM{\C{neutral},\C{combine}}$ and $\ENUM{\C{left},\C{right}}$ encountered above. It would helpful
-if these were not both the \emph{number} $2$. Moreover, to facilitate constructions such as the derivative
+$\ENUM{\C{neutral},\C{combine}}$ and $\ENUM{\C{left},\C{right}}$ encountered above. It would be helpful
+if these were not both the \emph{number} $2$. Let us at least promise that $\UF$ will have a sub-universe $\UE$ of finite \remph{tagged} enumerations. Our set-forming braces now become a constructor for $\UF$.
+\[
+\Axiom{\UE \hab \SET}
+\qquad
+\Rule{\V{ts} \hab \UE}
+     {\ElE{\V{ts}} \hab \SET}
+\qquad
+\Rule{\V{ts} \hab \UE}
+     {\EF{\V{ts}} \hab \UF}
+\qquad
+\ElF{\EF{\V{ts}}} \; = \; \ElE{\V{ts}}
+\]
+Moreover, to facilitate constructions such as the derivative
 of containers, we should support dependent pairing: the shape of the derivative of $\ctr{\V{S}}{\V{P}}$
 is the dependent pair type $ \SG{s}{\V{S}}{\V{P}\:\V{s}}$. For our $\F{Expr}$ example, these shapes are
 $(\pr{\C{combine}}{\C{left}})$ and $(\pr{\C{combine}}{\C{right}})$ which, by an outrageous coincidence,
@@ -277,19 +308,19 @@ the dependent pairing of the meta-language.
 \qquad
 \ElF{\FSG{\V{S}}{\V{T}}} = \SG{s}{\V{S}}{\V{T}\:\V{s}}
 \]
-We promise to return to the representation of finite tagged enumerations in due course: indeed $\UF$ will need at least one base case. However, in choosing the narrative structure for this story, we prefer to wait until we have explored the consequences of our choice to close $\UF$ under dependent pairing. We were taught a lesson!
+We promise to return to the definitions of $\UE$ and $\ElE{\blank}$, and their associated notion of tabulated functions, in due course.  However, in choosing the narrative structure for this story, we prefer to wait until we have explored the consequences of our choice to close $\UF$ under dependent pairing. We were taught a lesson!
 
 Our presentation of tabulated functions for dependent pairs is simply currying
 \[
-\VERTPI{(\FSG{\V{R}}{\V{S}})}{\V{T}}\; =
-\; \VERTPI{\V{R}}{\LAM{r}{\VERTPI{\V{S}\:\V{r}}{\LAM{s}{\V{T}\:(\pr{\V{r}}{\V{s}})}}}}
+\VERTFPI{(\FSG{\V{R}}{\V{S}})}{\V{T}}\; =
+\; \VERTFPI{\V{R}}{\LAM{r}{\VERTFPI{\V{S}\:\V{r}}{\LAM{s}{\V{T}\:(\pr{\V{r}}{\V{s}})}}}}
 \]
 where our convention is that $\LAM{\cdot}{}$ scopes rightward as far as possible and
 that $\vertfapp{\cdot}{\cdot}$ associates to the left%
 \footnote{``rather as we all did in the Sixties'' -- Roger Hindley}
 \[ \vertflam{\V{f}}\; =\; \vertflam{\LAM{r}{\vertflam{\LAM{s}{\V{f}\:(\pr{\V{r}}{\V{s}})}}}}
 \qquad
-\vertfapp{\V{f}}{(\pr{\V{r}}{\V{s}})}\; =\; \vertfapp{\vertfapp{\V{f}}{\V{r}}}{\V{s}}
+\vertfapp{\V{k}}{(\pr{\V{r}}{\V{s}})}\; =\; \vertfapp{\vertfapp{\V{k}}{\V{r}}}{\V{s}}
 \]
 Our careful reader will regard these equations as suspicious, with no clue in the code as to the
 type-level recursion which is unfolding. Quite right, too! 
@@ -299,8 +330,8 @@ Let us fill in the hidden $\UF$-codes that clarify the type-level recursion in t
 \begin{array}{rcl}
 \vertflam{\impl{\FSG{\V{R}}{\V{S}}}\:\V{f}}& = &
   \vertflam{\impl{\V{R}}\:\LAM{r}{\vertflam{\impl{\V{S}\:\V{r}}\:\LAM{s}{\V{f}\:(\pr{\V{r}}{\V{s}})}}}} \\
-\vertfapp{\V{f}}{\impl{\FSG{\V{R}}{\V{S}}}\:(\pr{\V{r}}{\V{s}})} & = & 
-  \vertfapp{\vertfapp{\V{f}}{\impl{\V{R}}\:\V{r}}}{\impl{\V{S}\: \V{r}}\:\V{s}}
+\vertfapp{\V{k}}{\impl{\FSG{\V{R}}{\V{S}}}\:(\pr{\V{r}}{\V{s}})} & = & 
+  \vertfapp{\vertfapp{\V{k}}{\impl{\V{R}}\:\V{r}}}{\impl{\V{S}\: \V{r}}\:\V{s}}
 \end{array}
 \]
 
@@ -311,16 +342,16 @@ What if the codomain of such a function is also finite? Such functions are thems
 \Rule{\V{N}\hab\UF \hg \V{T}\hab\ElF{\V{N}}\fto\UF}
      {\VERTPIF{\V{N}}{\V{T}}\hab \UF}
 \]
-Note that we have move the $\UF$ subscript to the codomain end of the arrow. Abstraction and application are exactly as before. Of course, we could have written $\VERTPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}}$ if we were content with a $\SET$, but we are not. The point is to get function spaces \emph{internal} to $\UF$. This rather raises the question of whether we should go further and add codes for function spaces as a constructor for $\UF$. The good news is that we may readily take 
-\[ \ElF{\ROUGEPIF{\V{N}}{\V{T}}}\; = \; \VERTPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}} \]
+Note that we have move the $\UF$ subscript to the codomain end of the arrow. Abstraction and application are exactly as before. Of course, we could have written $\VERTFPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}}$ if we were content with a $\SET$, but we are not. The point is to get function spaces \emph{internal} to $\UF$. This rather raises the question of whether we should go further and add codes for function spaces as a constructor for $\UF$. The good news is that we may readily take 
+\[ \ElF{\ROUGEPIF{\V{N}}{\V{T}}}\; = \; \VERTFPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}} \]
 using our tabulated function space to avoid the function space of our metalanguage. The bad news is that we now have to extend this tabulated function space construction to the case when the domain is itself a function type:
 \[
-\VERTPI{(\ROUGEPIF{\V{R}}{\V{S}})}{\V{T}}\; = \; ?
+\VERTFPI{(\ROUGEPIF{\V{R}}{\V{S}})}{\V{T}}\; = \; ?
 \]
 We can see no direct way to compute this higher-order function type more neatly than to tabulate its domain and then curry, so adopting the constructor for function spaces does not save us from computing them. We face less work without it. We may not have $\UF$-codes for the function spaces but we can make do with the $\UF$-codes for their tabulations.
 % sadly 'tetration' is not categorical...
 
-The price we pay is that $\ElF{\VERTPIF{\V{N}}{\V{T}}}$ is \emph{not} the same type as $\VERTPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}}$ when $\V{N}$ and $\V{T}$ are open terms. Equating these types makes sense \remph{algebraically} but does not follow from the definitions. It has the potential, however, to be adopted as a `$\nu$-rule' in the sense of \citet{DBLP:conf/icfp/AllaisMB13}, as it is sufficient to add it only for open terms which have stopped computing by pattern matching.
+The price we pay is that $\ElF{\VERTPIF{\V{N}}{\V{T}}}$ is \emph{not} the same type as $\VERTFPI{\V{N}}{\LAM{n}{\ElF{\V{T}\:\V{n}}}}$ when $\V{N}$ and $\V{T}$ are open terms. Equating these types makes sense \remph{algebraically} but does not follow from the definitions. It has the potential, however, to be adopted as a `$\nu$-rule' in the sense of \citet{DBLP:conf/icfp/AllaisMB13}, as it is sufficient to add it only for open terms which have stopped computing by pattern matching.
 
 \paragraph{Finitary Containers and their Free Monads}
 Now that we have tabulated functions, let us adapt containers and see what happens to the free monad construction. ($\KON{\blank}$ makes constant functions.)
@@ -331,7 +362,7 @@ Now that we have tabulated functions, let us adapt containers and see what happe
 \Rule{\V{C}\hab\FTR\hg \V{X}\hab\SET}
      {\FX{\V{C}}{\V{X}}\hab\SET}
 \quad
-\FX{\ctr{\V{S}}{\V{P}}}{\V{X}} = \SG{s}{\ElF{\V{S}}}{\VERTPI{\V{P}\:\V{s}}{\KON{\V{X}}}}
+\FX{\ctr{\V{S}}{\V{P}}}{\V{X}} = \SG{s}{\ElF{\V{S}}}{\VERTFPI{\V{P}\:\V{s}}{\KON{\V{X}}}}
 \]
 Note that we are quite happy to see \remph{actual} functions in the \remph{descriptions} of containers, but we insist on \remph{tabulated} functions in their extensions.
 \[
@@ -387,14 +418,14 @@ Our opening moves are forced, the base case is straightforward and in the step c
 \]
 At this point, we see that we need
 \[
-\V{k} \hab \VERTPI{\CPo{\V{C}}{\V{s}}}{\KON{(\FM{\V{C}}{\V{X}})}} \quad 
+\V{k} \hab \VERTFPI{\CPo{\V{C}}{\V{s}}}{\KON{(\FM{\V{C}}{\V{X}})}} \quad 
 \vdash \quad
 \HOLE \hab \REC{(\vertfapp{\V{k}}{\V{p}})}
 \]
 but we are not allowed simply to \remph{apply} $\V{k}$. Rather we must dismantle it carefully according to the structure of $\CPo{\V{C}}{\V{s}}$. So we shall certainly need a helper function which abstracts that position type in order to inspect it.
 
 \[
-\Rule{\V{P}\hab\UF\quad \V{k} \hab \VERTPI{\V{P}}{\KON{(\FM{\V{C}}{\V{X}})}}
+\Rule{\V{P}\hab\UF\quad \V{k} \hab \VERTFPI{\V{P}}{\KON{(\FM{\V{C}}{\V{X}})}}
       \quad \V{p}\hab \ElF{\V{P}}}
      {\F{help}\:\V{P}\:\V{k}\:\V{p} \hab \REC{(\vertfapp{\V{k}}{\V{p}})}}
 \]
@@ -403,7 +434,7 @@ The difficult case is when $\V{P}$ is a dependent pair type.
 \F{help}\:(\FSG{\V{R}}{\V{S}}) \:\V{k}\:(\pr{\V{r}}{\V{s}}) = \HOLE
 \quad\text{where}\quad
 \V{k} \hab 
-\VERTPI{\V{R}}{\LAM{r}{\VERTPI{\V{S}\:\V{r}}{\KON{(\FM{\V{C}}{\V{X}})}}}}
+\VERTFPI{\V{R}}{\LAM{r}{\VERTFPI{\V{S}\:\V{r}}{\KON{(\FM{\V{C}}{\V{X}})}}}}
 \]
 We certainly would like to call $\F{help}\:\V{S}\:\HOLE\:\V{s}$ but the return type of $\V{k}$ is not helpful for $\HOLE$ because the terms we are trying to unpack are now two layers down instead of one. This problem will only get worse if $\V{R}$ turns out also to be a dependent pair type, pushing the term even further down. We have an entire class of problems to solve by mutual recursion and so far we have seen only three instances of it.
 
@@ -428,7 +459,7 @@ so that we can take $\rec{\V{t}} = \F{solve}\:\basecase\: t$. Then our step case
      {\branch{\V{S}}{\V{P}} \hab \D{Problem}}
 \quad
 \begin{array}[c]{l}
-\F{Input}\: (\branch{\V{S}}{\V{P}}) \;=\; \VERTPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{s})}}
+\F{Input}\: (\branch{\V{S}}{\V{P}}) \;=\; \VERTFPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{s})}}
 \\
 \F{Output}\: (\branch{\V{S}}{\V{P}})\: \V{k} \;=\; 
     \PI{s}{\ElF{\V{S}}}{\F{Output}\:(\V{P}\:\V{s})\:(\vertfapp{\V{k}}{\V{s}})}
@@ -454,39 +485,39 @@ Of course, we shall need to spell out our story about enumerations to see how th
 
 When all you have is a hammer, everything looks like a nail. Conspicuous constraction comes from cancelling construction. Our currying by computing recursively over $\UF$ has left the after currying $\V{k}$ look no simpler than the $\V{k}$ before currying. Excessive currying conceals the subtle layering of problem simplification that is our intent. A more sophisticated cuisine is required.
 
-We can arrest computation and make simplification explicit by discarding our green-typeset tabulated function space $\VERTPI{\V{N}}{\V{P}}$ and reintroducing the notion \remph{inductively}, with a canonical (therefore, typeset in blue) type constructor and an explicit value constructor.
+We can arrest computation and make simplification explicit by discarding our green-typeset tabulated function space $\VERTFPI{\V{N}}{\V{P}}$ and reintroducing the notion \remph{inductively}, with a canonical (therefore, typeset in blue) type constructor and an explicit value constructor.
 \[
 \Rule{\V{N}\hab\UF \hg \V{T}\hab\ElF{\V{N}}\fto\SET}
-     {\BLEUPI{\V{N}}{\V{T}}\hab \SET}
+     {\BLEUFPI{\V{N}}{\V{T}}\hab \SET}
 \qquad
-\Rule{\V{k}\hab\VERTPIB{\V{N}}{\V{T}}}
-     {\nd{\V{k}}\hab\BLEUPI{\V{N}}{\V{T}}}
+\Rule{\V{k}\hab\VERTFPIB{\V{N}}{\V{T}}}
+     {\nd{\V{k}}\hab\BLEUFPI{\V{N}}{\V{T}}}
 \]
 But what is being wrapped by $\nd{\blank}$? Exactly a \remph{small-step} version of our computed tabulation!
 \[
 \Rule{\V{N}\hab\UF \hg \V{T}\hab\ElF{\V{N}}\fto\SET}
-     {\VERTPIB{\V{N}}{\V{T}}\hab \SET}
+     {\VERTFPIB{\V{N}}{\V{T}}\hab \SET}
 \qquad     
-\VERTPIB{(\FSG{\V{R}}{\V{S}})}{\V{T}} \;=\;
-\BLEUPI{\V{R}}{\LAM{r}{\BLEUPI{\V{S}\:\V{r}}{\LAM{s}{\V{T}\:(\pr{\V{r}}{\V{s}})}}}}
+\VERTFPIB{(\FSG{\V{R}}{\V{S}})}{\V{T}} \;=\;
+\BLEUFPI{\V{R}}{\LAM{r}{\BLEUFPI{\V{S}\:\V{r}}{\LAM{s}{\V{T}\:(\pr{\V{r}}{\V{s}})}}}}
 \]
 This function does not compute \remph{recursively}. Rather, after one step of case analysis, it reinvokes the \remph{inductive} tabulation (in strictly positive positions, of course!). This is a reusable culinary technique, mutually defining inductive and small-step computational versions of the same notion, to brake the unfolding of computation by requiring the unwrapping of data. We call this delicately layered recipe `bleu et vert'.
 
 Now, we must repair \remph{everything}, changing the types of abstraction and application to their `bleu' counterparts. Note that both operations remain \remph{defined} themselves, so their names stay typeset in green.
 \[
-\Rule{\V{f}\hab \PI{x}{\V{N}}{\V{T}\:\V{x}}}
-     {\bleuflam{\V{f}}\hab \BLEUPI{\V{N}}{\V{T}}}
+\Rule{\V{f}\hab \PI{x}{\ElF{\V{N}}}{\V{T}\:\V{x}}}
+     {\bleuflam{\V{f}}\hab \BLEUFPI{\V{N}}{\V{T}}}
 \qquad
-\Rule{\V{ts}\hab \BLEUPI{\V{N}}{\V{T}} \hg \V{i}\hab\ElF{\V{N}}}
-     {\bleufapp{\V{ts}}{\V{i}}\hab \V{T}\:\V{i}}
+\Rule{\V{k}\hab \BLEUFPI{\V{N}}{\V{T}} \hg \V{i}\hab\ElF{\V{N}}}
+     {\bleufapp{\V{k}}{\V{i}}\hab \V{T}\:\V{i}}
 \]
 The definitions must still be constructed with some explicit awareness of type descriptions, but now we must also be careful to wrap and unwrap in the right places.     
 \[
 \begin{array}{rcl}
 \bleuflam{\impl{\FSG{\V{R}}{\V{S}}}\:\V{f}}& = &
   \nd{\bleuflam{\LAM{r}{\bleuflam{\LAM{s}{\V{f}\:(\pr{\V{r}}{\V{s}})}}}}} \\
-\bleufapp{\nd{\V{f}}}{\impl{\FSG{\V{R}}{\V{S}}}\:(\pr{\V{r}}{\V{s}})} & = & 
-  \bleufapp{\bleufapp{\V{f}}{\V{r}}}{\V{s}}
+\bleufapp{\nd{\V{k}}}{\impl{\FSG{\V{R}}{\V{S}}}\:(\pr{\V{r}}{\V{s}})} & = & 
+  \bleufapp{\bleufapp{\V{k}}{\V{r}}}{\V{s}}
 \end{array}
 \]
 Specifically, we must match explicitly on type descriptions to determine \remph{what} is to be wrapped by abstraction or unwrapped by application. At use sites, including on the right hand sides of the definitions, the use of a canonical type constructor for tabulated function space allows the hidden type information to be reconstructed unambiguously. This brevity is an unexpected bonus from the layers of bleu separating the vert.
@@ -494,7 +525,7 @@ Specifically, we must match explicitly on type descriptions to determine \remph{
 \paragraph{The `Bleu et Vert' View from Above}
 We should now check that our extra layering makes our recursion structural. Our `$\D{Problem}$, $\F{Input}$, $\F{Output}$, $\F{solve}$' approach remains the same, apart from the step case of $\F{Input}$, which crucially now becomes
 \[
-\F{Input}\: (\branch{\V{S}}{\V{P}}) \;=\; \BLEUPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{s})}}
+\F{Input}\: (\branch{\V{S}}{\V{P}}) \;=\; \BLEUFPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{s})}}
 \]
 giving us the layers we need to be seen to strip away. We obtain
 \[
@@ -504,17 +535,54 @@ giving us the layers we need to be seen to strip away. We obtain
   \branch{\V{S}\:\V{r}}{\LAM{s}{\V{P}\:(\pr{\V{r}}{\V{s}})}}}})
 \:\V{k}
 \]
-which is clearly a simplification.
+which clearly makes the tabulated function smaller.
 
-% that typechecks but doesn't termination check. SIGH.
+Now that we have figured out how to cope with the combination of dependent pairs and tabulated function by currying, we should return to $\UF$'s base cases---the finite tagged enumerations we envisaged earlier.
+
+\section{Finite Tagged Enumerations}
+
+Alphabetical order exists, so we \remph{could} choose to represent finite tagged enumerations as strictly ordered lists of strings with elements being strings with an irrelevant proof of membership. However, our misspent youth as C programmers counsels a more primitive approach: finite enumerations are effectively initial segments of the natural numbers, with tags as an aid to legibility. Accordingly we propose to take $\UE = \LIST{\D{String}}$ equipped with a proof-relevant notion of membership amounting to an index.
+\[
+\Rule{\V{x}\hab \V{X} \quad \V{xs} \hab \D{List}\:\V{X}}
+     {\IN{\V{x}}{\V{xs}} \hab \SET}
+\qquad
+\Axiom{\ze \hab \IN{\V{x}}{\cons{\V{x}}{\V{xs}}}}
+\qquad
+\Rule{\V{i} \hab \IN{\V{x}}{\V{xs}}}
+     {\su{\V{i}} \hab \IN{\V{x}}{\cons{\V{y}}{\V{xs}}}}
+\qquad\quad
+\begin{array}[c]{l}
+\UE \;=\; \LIST{\D{String}} \\
+\ElE{\V{ts}} \;=\; \SG{t}{\D{String}}{\IN{\V{t}}{\V{ts}}}
+\end{array}
+\]
+
+We choose to draw a veil over exactly what a $\D{String}$ is beyond assuming a decidable equality allowing us to define the Boolean membership test, $\IRIN{\V{t}}{\V{ts}}$. It is then straightforward to define an operation $\DOL{\blank}$ which recovers the first index of a string in a list given an implicit and irrelevant proof that it occurs at all. Provided that we are sensible enough not to repeat ourselves, we acquire a convenient tag-based notation which works in all concrete examples. When programming \remph{generically} however, we ignore the strings and work with the numbers.
 
 %HERE
-% We should of course now give a treatment of finite enumerations, but first let us see how our free monads with tabulated functions plan is going. If in join we replace (k p) with (k $F p) we are no longer structurally recursive! So internalisation goes blam. Moreover if we try to inline \lambda F and $F, that forces us to generalise the problem to cope with currying. We very quickly lose sight of why the recursion is (actually) structural. Worse, we are doing a complicated maneuver one recursive function over the data. That insures our approach will not scale, as we do not want to be forced to do this every time. We want to introduction a recursion view and we need some infrastructure to deal with that (bleu/vert). Once we've figured our way out of that mess, enumerations will come out `right' on their own.
+\[
+\Rule{\V{ts}\hab\UE \hg \V{T}\hab\ElE{\V{ts}}\fto\SET}
+     {\BLEUEPI{\V{ts}}{\V{T}}\hab \SET}
+\qquad
+\Rule{\V{k}\hab\VERTEPIB{\V{ts}}{\V{T}}}
+     {\nd{\V{k}}\hab\BLEUEPI{\V{ts}}{\V{T}}}
+\]
 
-% Worth commenting? The bleu/vert idea shows up in many more places, including in symbolic computation. And gluing.
-
+\[
+\Rule{\V{ts}\hab\UE \hg \V{T}\hab\ElE{\V{ts}}\fto\SET}
+     {\VERTEPIB{\V{ts}}{\V{T}}\hab \SET}
+\]
+\[
+\Rule{\V{f}\hab \PI{x}{\ElE{\V{ts}}}{\V{T}\:\V{x}}}
+     {\bleuelam{\V{f}}\hab \BLEUEPI{\V{ts}}{\V{T}}}
+\qquad
+\Rule{\V{k}\hab \BLEUEPI{\V{ts}}{\V{T}} \hg \V{i}\hab\ElE{\V{ts}}}
+     {\bleueapp{\V{k}}{\V{i}}\hab \V{T}\:\V{i}}
+\]
 
 \hrulefill
+
+% Worth commenting? The bleu/vert idea shows up in many more places, including in symbolic computation. And gluing.
 \begin{itemize}
 \item leverage that finiteness: we want a universe that guarantees finiteness and decidability of 
 some questions of an exploratory nature, which are decidable when exploring is bounded.
