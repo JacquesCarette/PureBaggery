@@ -54,10 +54,16 @@
 \newcommand{\IRIN}[2]{#1\mathrel{\green{\in}_{\D{2}}}#2}
 \newcommand{\ze}{\C{ze}}
 \newcommand{\su}[1]{\C{su}\:#1}
+\newcommand{\sndy}[1]{\check{#1}}
+\newcommand{\zee}{\sndy{\C{ze}}}
+\newcommand{\suu}[1]{\sndy{\C{su}}\:#1}
 \newcommand{\LIST}[1]{\D{List}\: #1}
 \newcommand{\nil}{\C{[]}}
 \newcommand{\cons}[2]{#1\mathop{\red{:\!:}} #2}
-\newcommand{\DOL}[1]{\green{\$}#1}
+\newcommand{\DOL}[1]{\green{\text{\textexclamdown}}#1}
+
+\newcommand{\ONE}{\D{1}}
+\newcommand{\void}{\C{\star}}
 
 \newcommand{\SG}[3]{(\V{#1}\hb #2)\pti #3}
 \newcommand{\pr}[2]{#1\red{,}\, #2}
@@ -93,6 +99,7 @@
 \newcommand{\FSG}[2]{#1 \mathrel{\red{\times_{\UF}}} #2}
 \newcommand{\impl}[1]{\ensuremath{\left\{ #1 \right\}}}
 \newcommand{\HOLE}{\orange{?}}
+\newcommand{\after}{\mathop{\F{\circ}}}
 
 %%%% punctuation and spacing
 \newcommand{\hab}{:}
@@ -443,7 +450,9 @@ We certainly would like to call $\F{help}\:\V{S}\:\HOLE\:\V{s}$ but the return t
 We can instantiate a general pattern for solving such problems. Step one, introduce a \remph{data} type $\D{Problem}\hab\SET$ of problem \remph{descriptions}. Step two, recursively define $\F{Input}\hab \D{Problem}\fto\SET$ which specifies the input data appropriate to the problem in question. Step three, recursively define $\F{Output}\hab \PI{P}{\D{Problem}}{\F{Input}\: \V{P}\fto\SET}$. Step four, solve all the problems by defining $\F{solve}\hab\PI{P}{\D{Problem}}{\PI{i}{\D{Input}\:P}{\F{Output}\:P\:i}}$. Crucially $\V{P}$ can swell as well as shrink while $\F{solve}$ proceeds provided $\V{i}$ gets smaller.
 
 \newcommand{\basecase}{\C{\varepsilon}}
-\newcommand{\branch}[2]{#1\mathop{\C{\Yleft}}#2}
+\newcommand{\branch}[3]{#2\mathop{{}_{#1}\hspace*{-0.04in}\raisebox{0.03in}[0in][0in]{\ensuremath{\C{\Yleft}}}}#3}
+\newcommand{\branchF}{\branch{\UF}}
+\newcommand{\branchE}{\branch{\UE}}
 In our case, we should start with a base case which shows where we come in
 \[\Axiom{\basecase \hab \D{Problem}}
 \qquad
@@ -453,15 +462,15 @@ In our case, we should start with a base case which shows where we come in
 \F{Output}\: \basecase\: \V{t} \;=\; \REC{\V{t}}
 \end{array}
 \]
-so that we can take $\rec{\V{t}} = \F{solve}\:\basecase\: t$. Then our step case, $\branch{\blank}{\blank}$, should allow us to branch problems over a finite set.
+so that we can take $\rec{\V{t}} = \F{solve}\:\basecase\: t$. Then our step case, $\branchF{\blank}{\blank}$, should allow us to branch problems over a finite set.
 \[
-\Rule{\V{S}\hab\UF \quad \V{P}\hab \ElF{S}\fto\D{Problem}}
-     {\branch{\V{S}}{\V{P}} \hab \D{Problem}}
+\Rule{\V{S}\hab\UF \quad \V{P}\hab \ElF{\V{S}}\fto\D{Problem}}
+     {\branchF{\V{S}}{\V{P}} \hab \D{Problem}}
 \quad
 \begin{array}[c]{l}
-\F{Input}\: (\branch{\V{S}}{\V{P}}) \;=\; \VERTFPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{s})}}
+\F{Input}\: (\branchF{\V{S}}{\V{P}}) \;=\; \VERTFPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{s})}}
 \\
-\F{Output}\: (\branch{\V{S}}{\V{P}})\: \V{k} \;=\; 
+\F{Output}\: (\branchF{\V{S}}{\V{P}})\: \V{k} \;=\; 
     \PI{s}{\ElF{\V{S}}}{\F{Output}\:(\V{P}\:\V{s})\:(\vertfapp{\V{k}}{\V{s}})}
 \end{array}
 \]
@@ -470,15 +479,15 @@ With this extra flex in problem description, let us now try to $\F{solve}$ our w
 \[\begin{array}{lcl}
 \F{solve}\:\basecase\:\va{\V{x}} & = & \va{\V{x}}\\
 \F{solve}\:\basecase\:\nd{\pr{\V{s}}{\V{k}}} & = &
-\nd{\pr{\V{s}}{\F{solve}\:(\branch{\CPo{\V{C}}{\V{s}}}{\KON{\basecase}})\:\V{k}}} \\
-\F{solve}\:(\branch{(\FSG{\V{R}}{\V{S}})}{\V{P}})\:\V{k} & = &
+\nd{\pr{\V{s}}{\F{solve}\:(\branchF{\CPo{\V{C}}{\V{s}}}{\KON{\basecase}})\:\V{k}}} \\
+\F{solve}\:(\branchF{(\FSG{\V{R}}{\V{S}})}{\V{P}})\:\V{k} & = &
 \F{solve}\:
-(\branch{\V{R}}{\LAM{r}{
-  \branch{\V{S}\:\V{r}}{\LAM{s}{\V{P}\:(\pr{\V{r}}{\V{s}})}}}})
+(\branchF{\V{R}}{\LAM{r}{
+  \branchF{\V{S}\:\V{r}}{\LAM{s}{\V{P}\:(\pr{\V{r}}{\V{s}})}}}})
 \:\V{k}\\
 \vdots\\
 \end{array}\]
-Of course, we shall need to spell out our story about enumerations to see how the mutual recursion returns from $\branch{\blank}{\blank}$ problems to $\basecase$ problems, but the good news is that currying out the problem descriptions syncs neatly with the currying out of the type of $\V{k}$ and the story so far typechecks. The bad news, however, is that the problem acquires a larger sequence of smaller branchings while $\V{k}$ stays put, so syntactic guard checkers are fooled into rejecting this entirely sensible definition.
+Of course, we shall need to spell out our story about enumerations to see how the mutual recursion returns from $\branchF{\blank}{\blank}$ problems to $\basecase$ problems, but the good news is that currying out the problem descriptions syncs neatly with the currying out of the type of $\V{k}$ and the story so far typechecks. The bad news, however, is that the problem acquires a larger sequence of smaller branchings while $\V{k}$ stays put, so syntactic guard checkers are fooled into rejecting this entirely sensible definition.
 
 
 \section{Bleu et Vert: Tabulated Functions Mille Feuilles}
@@ -525,14 +534,14 @@ Specifically, we must match explicitly on type descriptions to determine \remph{
 \paragraph{The `Bleu et Vert' View from Above}
 We should now check that our extra layering makes our recursion structural. Our `$\D{Problem}$, $\F{Input}$, $\F{Output}$, $\F{solve}$' approach remains the same, apart from the step case of $\F{Input}$, which crucially now becomes
 \[
-\F{Input}\: (\branch{\V{S}}{\V{P}}) \;=\; \BLEUFPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{s})}}
+\F{Input}\: (\branchF{\V{S}}{\V{P}}) \;=\; \BLEUFPI{\V{S}}{\LAM{s}{\F{Input}\:(\V{P}\:\V{s})}}
 \]
 giving us the layers we need to be seen to strip away. We obtain
 \[
-\F{solve}\:(\branch{(\FSG{\V{R}}{\V{S}})}{\V{P}})\:\nd{\V{k}}  \;=\;
+\F{solve}\:(\branchF{(\FSG{\V{R}}{\V{S}})}{\V{P}})\:\nd{\V{k}}  \;=\;
 \F{solve}\:
-(\branch{\V{R}}{\LAM{r}{
-  \branch{\V{S}\:\V{r}}{\LAM{s}{\V{P}\:(\pr{\V{r}}{\V{s}})}}}})
+(\branchF{\V{R}}{\LAM{r}{
+  \branchF{\V{S}\:\V{r}}{\LAM{s}{\V{P}\:(\pr{\V{r}}{\V{s}})}}}})
 \:\V{k}
 \]
 which clearly makes the tabulated function smaller.
@@ -557,28 +566,103 @@ Alphabetical order exists, so we \remph{could} choose to represent finite tagged
 \end{array}
 \]
 
-We choose to draw a veil over exactly what a $\D{String}$ is beyond assuming a decidable equality allowing us to define the Boolean membership test, $\IRIN{\V{t}}{\V{ts}}$. It is then straightforward to define an operation $\DOL{\blank}$ which recovers the first index of a string in a list given an implicit and irrelevant proof that it occurs at all. Provided that we are sensible enough not to repeat ourselves, we acquire a convenient tag-based notation which works in all concrete examples. When programming \remph{generically} however, we ignore the strings and work with the numbers.
-
-%HERE
+We choose to draw a veil over exactly what a $\D{String}$ is beyond assuming a decidable equality allowing us to define the Boolean membership test, $\IRIN{\V{t}}{\V{ts}}$. It is then straightforward to define an operation $\DOL{\blank}$ which recovers the first index of a string in a list given an implicit and irrelevant proof that it occurs at all. Provided that we are sensible enough not to repeat ourselves, we acquire a convenient tag-based notation which works in all concrete examples. When programming \remph{generically}, however, we leave the strings to unification and work with the numbers. Indeed, we make use of the following, both as expressions and as \remph{patterns}:
 \[
+\Axiom{\zee\hab\ElE{\cons{\V{t}}{\V{ts}}}} \qquad   \zee \;=\; \pr{\_}{\ze}
+\qquad\qquad
+\Rule{\V{i}\hab\ElE{\V{ts}}}
+     {\suu{\V{i}}\hab\ElE{\cons{\V{t}}{\V{ts}}}} \qquad
+  \suu{(\pr{\_}{\V{j}})} \;=\; \pr{\_}{\su{\V{j}}}
+\]
+
+Of course, we must also explain how finite tagged enumerations behave as the domains of tabulated functions. We give a `bleu et vert' presentation, following exactly the structure we arrived at, above.
+\[
+\VERTFPIB{\EF{\V{ts}}}{\V{T}} \;=\; \BLEUEPI{\V{ts}}{\V{T}}
+\qquad
 \Rule{\V{ts}\hab\UE \hg \V{T}\hab\ElE{\V{ts}}\fto\SET}
      {\BLEUEPI{\V{ts}}{\V{T}}\hab \SET}
 \qquad
 \Rule{\V{k}\hab\VERTEPIB{\V{ts}}{\V{T}}}
      {\nd{\V{k}}\hab\BLEUEPI{\V{ts}}{\V{T}}}
 \]
-
+Again, the `vert' function space computes by case analysis:
 \[
 \Rule{\V{ts}\hab\UE \hg \V{T}\hab\ElE{\V{ts}}\fto\SET}
      {\VERTEPIB{\V{ts}}{\V{T}}\hab \SET}
+\qquad
+\begin{array}[c]{l@{\:}lcl@{\:}c@{\:}l}
+\VERTEPIB{\nil&}{\V{T}}  & = & & \ONE \\
+\VERTEPIB{(\cons{\V{t}}{\V{ts}})&}{\V{T}}  & = & \V{T}\:\zee &\pti& (\BLEUEPI{\V{ts}}{(\V{T}\after\suu{\blank})})\\
+\end{array}
 \]
+We shall, of course, need the appropriate abstraction and application.
 \[
+\bleuflam{\impl{\EF{\V{ts}}}\:\V{f}} \; =\;
+  \nd{\bleuelam{\V{f}}}
+\qquad
 \Rule{\V{f}\hab \PI{x}{\ElE{\V{ts}}}{\V{T}\:\V{x}}}
      {\bleuelam{\V{f}}\hab \BLEUEPI{\V{ts}}{\V{T}}}
 \qquad
+\begin{array}[c]{lcl}
+\bleuelam{\impl{\nil}\:\V{f}} & = & \nd{\void}\\
+\bleuelam{\impl{\cons{\V{t}}{\V{ts}}}\:\V{f}} & = &
+  \nd{\pr{\V{f}\:\zee}{\bleuelam{(\V{f}\after\suu{\blank})}}}\\
+\end{array}
+\]
+The abstraction is the classic `vector tabulation' homework: the key insight, tricky for those trained on `for'-loops, is to shift the \remph{function} by composition with successor. The application need only be defined for nonempty enumerations, and is a straightforward vector projection.
+\[
+\bleufapp{\nd{\V{k}}}{\impl{\EF{\V{ts}}}\:\V{i}} \; = \; 
+  \bleueapp{\V{k}}{\V{i}}
+\qquad
 \Rule{\V{k}\hab \BLEUEPI{\V{ts}}{\V{T}} \hg \V{i}\hab\ElE{\V{ts}}}
      {\bleueapp{\V{k}}{\V{i}}\hab \V{T}\:\V{i}}
+\qquad
+\begin{array}[c]{lcl}     
+\bleueapp{\nd{\pr{\V{z}}{\V{k}}}}{\zee} & = & 
+  \V{z} \\
+\bleueapp{\nd{\pr{\V{z}}{\V{k}}}}{\suu{\V{i}}} & = & 
+  \bleueapp{\V{k}}{\V{i}} \\
+\end{array}
 \]
+
+\paragraph{The Recursive View from Above}
+Now that our $\UF$ universe has a base case, let us close the loop for our recursive view.
+We must first extend our notion of $\D{Problem}$ to allow branching over finite tagged enumerations.
+\[
+\Rule{\V{ts}\hab\UE \quad \V{P}\hab \ElE{\V{ts}}\fto\D{Problem}}
+     {\branchE{\V{ts}}{\V{P}} \hab \D{Problem}}
+\quad
+\begin{array}[c]{l}
+\F{Input}\: (\branchE{\V{ts}}{\V{P}}) \;=\; \VERTEPI{\V{ts}}{\LAM{i}{\F{Input}\:(\V{P}\:\V{i})}}
+\\
+\F{Output}\: (\branchE{\V{ts}}{\V{P}})\: \V{k} \;=\; 
+    \PI{i}{\ElE{\V{ts}}}{\F{Output}\:(\V{P}\:\V{i})\:(\verteapp{\V{k}}{\V{i}})}
+\end{array}
+\]
+We must then complete the definition of $\F{solve}$, which we recapitulate in full for your scrutiny.
+\[\begin{array}{l@{\:}l@{\:}c@{\:}lcl@{\:}l@{\:}l@{\:}c@{\:}l}
+& \D{Problem} & \F{Input} & \multicolumn{4}{l}{\qquad\F{Output}} & \mbox{sub-}\D{Problem} & \F{Input}
+\\ \hline
+\F{solve}&\basecase &\va{\V{x}} && = & \va{\V{x}}\\
+\F{solve}&\basecase &\nd{\pr{\V{s}}{\V{k}}} && = &
+\C{\langle}
+\pr{\V{s}}{&\F{solve} &(\branchF{\CPo{\V{C}}{\V{s}}}{\KON{\basecase}})&\V{k}&}
+\C{\rangle}\smallskip \\
+\F{solve}&(\branchF{(\FSG{\V{R}}{\V{S}})}{\V{P}}) &\nd{\V{k}}  &&=&
+& \F{solve} &
+(\branchF{\V{R}}{\LAM{r}{
+  \branchF{\V{S}\:\V{r}}{\LAM{s}{\V{P}\:(\pr{\V{r}}{\V{s}})}}}})
+ &\V{k} \\
+\F{solve}&(\branchF{\EF{\V{ts}}}{\V{P}}) &\nd{\V{k}}  &&=&
+&  \F{solve} &(\branchE{\V{ts}}{\V{P}}) &\V{k} \smallskip\\
+\F{solve}&(\branchE{(\cons{\V{t}}{\V{ts}})}{\V{P}}) &\nd{\pr{\V{z}}{\V{k}}} & \zee &=&
+&  \F{solve} &(\V{P}\:\zee) &\V{z}\\
+\F{solve}&(\branchE{(\cons{\V{t}}{\V{ts}})}{\V{P}}) &\nd{\pr{\V{z}}{\V{k}}} & (\suu{\V{i}}) &=&
+&  \F{solve} &(\branchE{\V{ts}}{(\V{P}\after\suu{\blank})}) &\V{k} &\V{i}\\
+\end{array}\]
+As you can verify by inspection, the $\D{Problem}$ grows and shrinks all over the place, with the type of the $\F{Output}$ varying even in \remph{arity} as it does so. But the $\F{Input}$ gets structurally smaller at every step!
+If you are wondering how we ever return to the base case problem, $\basecase$, as found in the first two lines, consider what happens in the penultimate line, where we reach the indicated tag in an enumeration. The subproblem, $\V{P}\:\zee$, thus selected could be further exploration of a larger table, but it could also very well be exactly $\basecase$, if we have finally arrived at a recursive substructure.
+
 
 \hrulefill
 
