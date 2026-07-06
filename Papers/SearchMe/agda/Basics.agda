@@ -100,3 +100,35 @@ data List (X : Set) : Set where
   [] : List X
   _,-_ : X -> List X -> List X
 infixr 20 _,-_
+
+data _~_ {X : Set}(x : X) : X -> Set where
+  r~ : x ~ x
+
+R~ : {X : Set}(x : X) -> x ~ x
+R~ x = r~
+
+_~$~_ : forall {S T}{f g : S -> T} -> f ~ g ->
+                    {a b : S} -> a ~ b
+                    -> f a ~ g b
+r~ ~$~ r~ = r~
+
+_$~_ : forall {S T}(f : S -> T) ->
+                    {a b : S} -> a ~ b
+                    -> f a ~ f b
+f $~ q = R~ f ~$~ q
+
+infixl 90 _~$~_ _$~_
+
+module _ {X : Set}(x : X) where
+
+  _~[_>_ : forall {y z} -> x ~ y -> y ~ z -> x ~ z
+  _~[_>_ r~ q = q
+  
+  _<_]~_ : forall {y z} -> y ~ x -> y ~ z -> x ~ z
+  _<_]~_ r~ q = q
+
+  _[QED] : x ~ x
+  _[QED] = r~
+
+  infixr 2 _~[_>_ _<_]~_
+  infixr 3 _[QED]

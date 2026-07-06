@@ -57,3 +57,23 @@ _$E_ {t ,- ts} < z , k > zee = z
 _$E_ {t ,- ts} < z , k > (suu i) = k $E (_ , i)
 
 infixl 20 _$E_
+
+betaE : {ts : UE}{T : [ ts ]E -> Set}
+   -> (f : (x : [ ts ]E) -> T x)
+   -> (x : [ ts ]E) -> (\\E f $E x) ~ f x
+betaE {t ,- ts} f zee = r~
+betaE {t ,- ts} f (suu i) = betaE (sus - f) (_ , i)
+
+etaE : {ts : UE}{T : [ ts ]E -> Set}
+    -> (k : ts -E> T)
+    -> (\\E \ i -> k $E i) ~ k
+etaE {[]} < <> > = r~
+etaE {t ,- ts} < z , k > = ((z ,_) - <_>) $~ etaE k
+
+extE : {ts : UE}{T : [ ts ]E -> Set}
+    -> (f g : (x : [ ts ]E) -> T x)
+    -> ((x : [ ts ]E) -> f x ~ g x)
+    -> \\E f ~ \\E g
+extE {[]} f g q = r~
+extE {t ,- ts} f g q =
+  <_> $~ (R~ _,_ ~$~ q zee ~$~ extE _ _ (sus - q))
