@@ -1,4 +1,4 @@
-\documentclass[acmsmall,review,prologue,dvipsnames]{acmart}
+\documentclass[acmsmall,review,prologue,dvipsnames,bookmarks=false]{acmart}
 \settopmatter{printfolios=true,printccs=false,printacmref=true}
 
 \usepackage{pig}
@@ -690,6 +690,23 @@ Now that we have justified our recursion view, we can implement a structurally r
 Any apparent non-linearity in the equations for $\F{joinr}$ is an informative illusion. Matching on $\V{r}$ leaves no choice as to what $\V{ts}$ must be. Indeed programmers who have enough experience with forced-move unification will confuse their readers by leaving the data themselves implicit and trading openly only in the recursivity proof objects.
 
 As one is wont to do, proving that this $\F{join}$ obeys its laws is next on our plate but we will mostly get a stomach ache from the effort. How are we to reason about $\F{join}$? At the moment we have only its defining equation in terms of $\F{joinr}$ and $\rec{\blank}$.
+
+Naturally, we ought to start with $\F{map}$ first. It too follows the same pattern of definition as $\F{join}$.
+\[ 
+\begin{array}[c]{c@{\qquad\quad}l}
+\Rule{\V{f} \hab \V{X}\fto\V{Y} \quad \V{t} \hab \FM{\V{C}}{\V{X}}}
+	{\F{map}\: \V{f}\: \V{t} \hab \FM{\V{C}}{\V{Y}}} &
+\begin{array}[c]{l@{\;=\;}l}
+	\F{map}\: \V{f}\: \V{t} & \F{mapr}\: \V{f}\:\V{t} \: (\rec{\V{t})}
+\end{array} \\
+\Rule{\V{f} \hab \V{X}\fto\V{Y} \quad \V{t} \hab \FM{\V{C}}{\V{X}} \quad \V{r} \hab \REC{\V{t}}}
+	{\F{mapr}\: \V{F}\: \V{t}\: \V{r} \hab \FM{\V{C}}{\V{Y}}} &
+\begin{array}[c]{l@{\:}l@{\:}c@{\:}c@{\;=\;}l}
+	\F{mapr} & \V{f} & \va{\V{x}}     & \va{\V{x}} & \va{\V{f}\:\V{x}}\\
+	\F{mapr} & \V{f} & \nd{\pr{\V{s}}{\V{k}}} & \nd{\pr{\V{s}}{\V{f}}} & \nd{\pr{\V{s}}{\vertflam{\LAM{p}{\F{mapr}\: \V{f} (\vertfapp{\V{k}}{\V{p}}) \: (\V{f}\: \V{p})}}}} \\
+\end{array} \\
+\end{array}
+\]
 
 % TODO
 % either cause 'rec' to reduce, and then get ourselves into the same mess that warranted 'solve', OR
