@@ -46,6 +46,8 @@ betaF {R `>< S} f (r , s) =
     ~[ betaF (\ s -> f (r , s)) s >
   f (r , s) [QED]
 
+-- HERE: extF isn't just for lambdas?
+-- what's the right mix of extF and etaF
 extF : {S : UF}{T : [ S ]F -> Set}
     -> (f g : (x : [ S ]F) -> T x)
     -> ((x : [ S ]F) -> f x ~ g x)
@@ -137,6 +139,145 @@ joinr < s , k > (step s f) =
 join : forall {C X} -> C ^* (C ^* X) -> C ^* X
 join xcc = joinr xcc (rec xcc)
 
+module _ {C : Fontainer} where
+
+ module _ {A B : Set} where
+
+  -- HERE: Refactor to use this...
+  data [_]^*_<=_ (R : A -> C ^* B -> Set)
+    : C ^* A -> C ^* B -> Set where
+    # : forall {a b} -> R a b -> [ R ]^* # a <= b
+    step : forall s {j k}
+        -> ((p : [ C .Po s ]F) -> [ R ]^* (j $F p) <= (k $F p))
+        -> [ R ]^* < s , j > <= < s , k >
+
+  -- ...as a generalisation of this
+  data [_]^*_<->_ (R : A -> B -> Set)
+    : C ^* A -> C ^* B -> Set where
+    # : forall {a b} -> R a b -> [ R ]^* # a <-> # b
+    step : forall s {j k}
+        -> ((p : [ C .Po s ]F) -> [ R ]^* (j $F p) <-> (k $F p))
+        -> [ R ]^* < s , j > <-> < s , k >
+
+  -- HERE: loosen the type of rs to allow A and B to vary
+  module _ {R S : A -> B -> Set}(rs : forall {a b} -> R a b -> S a b) where
+
+    MAPR : forall {ac bc} -> [ R ]^* ac <-> bc -> [ S ]^* ac <-> bc
+    MAPR (# rab) = # (rs rab)
+    MAPR (step s f) = step s \ p -> MAPR (f p)
+
+  -- HERE: try to make this less of a mess
+  -- by starting from diag and using more generous map.
+  module _ (R : A -> B -> Set)(ab : (a : A) -> <: R a :>) where
+
+    --                       vvvvvv SMELLS BAD
+    mapRr : (ac : C ^* A) -> Rec ac -> <: [ R ]^* ac <->_ :>
+    mapRr (# _) (# _) with _ , rab <- ab _ = _ , # rab
+    mapRr < (s , k) > (step s f)
+      = < s , \\F (\ p -> let bc , abc = mapRr (k $F p) (f p) in bc)  >
+      , step s \ p -> let bc , abc = mapRr (k $F p) (f p) in
+        tsbus _ _ (betaF (\ p -> mapRr (k $F p) (f p) .fst) p) ([ R ]^* k $F p <->_) abc
+
+    mapR : (ac : C ^* A) -> <: [ R ]^* ac <->_ :>
+    mapR ac = mapRr ac (rec ac)
+
+  module _ (R : A -> B -> Set)(aq : forall {a b0 b1} -> R a b0 -> R a b1 -> b0 ~ b1)
+    where
+
+    funR : forall {ac bc0 bc1}
+        -> [ R ]^* ac <-> bc0
+        -> [ R ]^* ac <-> bc1
+        -> bc0 ~ bc1
+    funR (# rab0) (# rab1) = # $~ aq rab0 rab1
+    funR (step s {k = j} f) (step .s {k = k} g) = ((s ,_) - <_>) $~ (
+      j
+      < etaF j ]~
+      (\\F \ p -> j $F p)
+      ~[ extF _ _ (\ p -> funR (f p) (g p)) >
+      (\\F \ p -> k $F p)
+      ~[ etaF k >
+      k [QED])
+
+ module _ {A : Set} where
+
+  diag : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
+  diag = rec - go where
+    go : forall {ac} -> Rec ac -> [ _~_ ]^* ac <-> ac
+    go (# x) = # r~
+    go (step s f) = step s \ p -> go (f p)
+
+ module _ {A B : Set}{R : A -> B -> Set} where
+
+  sym^* : forall {ac bc}
+       -> [ R ]^* ac <-> bc
+       -> [ (\ b a -> R a b) ]^* bc <-> ac
+  sym^* (# x) = # x
+  sym^* (step s f) = step s \ p -> sym^* (f p)
+
+ module _ {A B D : Set}{R : A -> B -> Set}{S : B -> D -> Set} where
+
+   _-^*-_ : forall {ac bc dc}
+     -> [ R ]^* ac <-> bc
+     -> [ S ]^* bc <-> dc
+     -> [ R -Rel- S ]^* ac <-> dc
+   # ab -^*- # bd = # (_ , ab , bd)
+   step s f -^*- step .s g = step s \ p -> f p -^*- g p
+
+
+ module _ {A : Set} where
+
+  map : forall {B} -> (A -> B) -> C ^* A -> C ^* B
+  map ab ac = fst (mapR (\ a b -> ab a ~ b) (\ a -> _ , r~) ac)
+
+
+  liftR~ : {ac bc : C ^* A} -> [ _~_ ]^* ac <-> bc -> ac ~ bc
+  liftR~ (# r~) = r~
+  liftR~ (step s {j} {k} f) = ((s ,_) - <_>) $~ (
+      j
+      < etaF j ]~
+      (\\F \ p -> j $F p)
+      ~[ extF _ _ (\ p -> liftR~ (f p)) >
+      (\\F \ p -> k $F p)
+      ~[ etaF k >
+      k [QED])
+
+  lift~R : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
+  lift~R ac
+    with bc , abcq <- mapR _~_ (\ a -> _ , r~) ac
+    with r~ <- liftR~ abcq
+    = abcq
+
+  mapId : forall (aa : A -> A)
+     -> (q : (a : A) -> aa a ~ a)
+     -> (ac : C ^* A)
+     -> map aa ac ~ ac
+  mapId aa q ac
+    with bc , abcq <- mapR (\ a b -> aa a ~ b) (\ a -> _ , r~) ac
+       = bc
+           < liftR~ (MAPR (\ {a}{b} w -> a < q a ]~ aa a ~[ w > b [QED]) abcq) ]~
+         ac [QED]
+
+  _-Join-_ : C ^* (C ^* A) -> C ^* A -> Set
+  acc -Join- ac = [ _~_ ]^* acc <= ac 
+
+ module _ {R S T}
+   {rs : R -> S}{st : S -> T}{rt : R -> T}
+   (q : (r : R) -> st (rs r) ~ rt r)
+   (rc : C ^* R)
+   where
+   
+
+    mapCo : map st (map rs rc) ~ map rt rc
+    mapCo
+      with sc , rscq <- mapR (\ a b -> rs a ~ b) (\ a -> _ , r~) rc
+         | tc1 , rtcq <- mapR (\ a b -> rt a ~ b) (\ a -> _ , r~) rc
+      with tc0 , stcq <- mapR (\ a b -> st a ~ b) (\ a -> _ , r~) sc
+      = liftR~
+       (MAPR (\ { {t0}{t1} (_ , (_ , r~ , r~) , r~) -> q _ })
+         (sym^* (rscq -^*- stcq) -^*- rtcq)
+       )
+
+{- -- KEEP THIS (ELSEWHERE?) IT'S GLORIOUSLY GHASTLY!
 mapr : forall {C A B} -> (A -> B)
     -> (ac : C ^* A) -> Rec ac -> C ^* B
 mapr ab (# a) (# .a) = # (ab a)
@@ -163,3 +304,47 @@ mapId : forall {C A}(aa : A -> A)
      -> (ac : C ^* A)
      -> map aa ac ~ ac
 mapId aa q ac = mapIdR aa q ac (rec ac)
+
+mapExtR : forall {C R S}
+  {j l : R -> S}
+  (q : (r : R) -> j r ~ l r)
+  (rc : C ^* R)(rj : Rec rc)
+  (rd : C ^* R)(rl : Rec rd)
+  (w : rc ~ rd)
+  ->
+  mapr j rc rj ~ mapr l rd rl
+mapExtR q (# x) (# .x) (# .x) (# .x) r~ = # $~ q x
+mapExtR {j = j}{l} q < (s , k) > (step s f) < (s , k) > (step .s g) r~
+  = ((s ,_) - <_>) $~ (
+  (\\F \ p -> mapr j (k $F p) (f p))
+    ~[ extF _ _ (\ p -> mapExtR q (k $F p) (f p) (k $F p) (g p) r~) >
+  (\\F \ p -> mapr l (k $F p) (g p))
+    [QED])
+
+mapCoR : forall {C R S T}
+  {rs : R -> S}{st : S -> T}{rt : R -> T}
+  (q : (r : R) -> st (rs r) ~ rt r)
+  (rc : C ^* R)(rcr : Rec rc)
+  (scr : Rec (mapr rs rc rcr))
+  ->
+  mapr st (mapr rs rc rcr) scr ~ mapr rt rc rcr
+mapCoR q (# x) (# .x) (# _) = # $~ q x
+mapCoR {rs = rs}{st}{rt} q < (s , k) > (step .s f) (step .s g) =
+  ((s ,_) - <_>) $~ (
+  (\\F \ p -> mapr st ((\\F \ p -> mapr rs (k $F p) (f p)) $F p) (g p))
+    ~[ extF _ _ (\ p -> mapExtR (\ _ -> r~) _ _ _ _
+                          (betaF (\ p -> mapr rs (k $F p) (f p)) p)) >
+  (\\F \ p -> mapr st (mapr rs (k $F p) (f p)) _)
+    ~[ extF _ _ (\ p -> mapCoR q (k $F p) (f p)
+        (subst _ _ (betaF (\ p -> mapr rs (k $F p) (f p)) p) Rec (g p))) >
+  (\\F \ p -> mapr rt (k $F p) (f p))
+    [QED])
+
+mapCo : forall {C R S T}
+  {rs : R -> S}{st : S -> T}{rt : R -> T}
+  (q : (r : R) -> st (rs r) ~ rt r)
+  (rc : C ^* R)
+  ->
+  map st (map rs rc) ~ map rt rc
+mapCo q rc = mapCoR q rc (rec rc) (rec (mapr _ rc (rec rc)))
+-}

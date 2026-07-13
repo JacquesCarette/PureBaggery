@@ -62,6 +62,11 @@ module _ {I : Set} where
   infixr 1 _-:>_
   infixr 10 _*:_
 
+module _ {I J K : Set}(_-IJ-_ : I -> J -> Set)(_-JK-_ : J -> K -> Set) where
+
+  _-Rel-_ : I -> K -> Set
+  i -Rel- k = <: i -IJ-_ *: _-JK- k :>
+
 
 /\_ : {S : Set}{T : S -> Set}{P : S >< T -> Set}
   -> ((s : S) -> (t : T s) -> P (s , t))
@@ -132,3 +137,11 @@ module _ {X : Set}(x : X) where
 
   infixr 2 _~[_>_ _<_]~_
   infixr 3 _[QED]
+
+  subst : (y : X)(q : x ~ y)(P : X -> Set)
+       -> P x -> P y
+  subst _ r~ P p = p
+
+  tsbus : (y : X)(q : x ~ y)(P : X -> Set)
+       -> P y -> P x
+  tsbus _ r~ P p = p
