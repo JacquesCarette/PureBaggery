@@ -46,8 +46,6 @@ betaF {R `>< S} f (r , s) =
     ~[ betaF (\ s -> f (r , s)) s >
   f (r , s) [QED]
 
--- HERE: extF isn't just for lambdas?
--- what's the right mix of extF and etaF
 extF : {S : UF}{T : [ S ]F -> Set}
     -> (f g : (x : [ S ]F) -> T x)
     -> ((x : [ S ]F) -> f x ~ g x)
@@ -67,6 +65,15 @@ etaF {R `>< S} < k > = <_> $~ (
     ~[ etaF k >
   k [QED])
 
+poiF : {S : UF}{T : [ S ]F -> Set}
+    -> {f g : S -F> T}
+    -> (q : (s : [ S ]F) -> f $F s ~ g $F s)
+    -> f ~ g
+poiF {f = f}{g} q = 
+  f < etaF f ]~
+  \\F (f $F_) ~[ extF _ _ q >
+  \\F (g $F_) ~[ etaF g >
+  g [QED]
 
 infix 20 _<|_
 record Fontainer : Set where
@@ -232,14 +239,7 @@ module _ {C : Fontainer} where
         -> [ R ]^* ac <= bc1
         -> bc0 ~ bc1
     funR (# rab0) (# rab1) = aq rab0 rab1
-    funR (step s {k = j} f) (step .s {k = k} g) = ((s ,_) - <_>) $~ (
-      j
-      < etaF j ]~
-      (\\F \ p -> j $F p)
-      ~[ extF _ _ (\ p -> funR (f p) (g p)) >
-      (\\F \ p -> k $F p)
-      ~[ etaF k >
-      k [QED])
+    funR (step s {k = j} f) (step .s {k = k} g) = ((s ,_) - <_>) $~ poiF \ p -> funR (f p) (g p)
 
  module _ {A B : Set}{R : A -> B -> Set} where
 
@@ -276,14 +276,7 @@ module _ {C : Fontainer} where
 
   liftR~ : {ac bc : C ^* A} -> [ _~_ ]^* ac <-> bc -> ac ~ bc
   liftR~ (# [ r~ ]#) = r~
-  liftR~ (step s {j} {k} f) = ((s ,_) - <_>) $~ (
-      j
-      < etaF j ]~
-      (\\F \ p -> j $F p)
-      ~[ extF _ _ (\ p -> liftR~ (f p)) >
-      (\\F \ p -> k $F p)
-      ~[ etaF k >
-      k [QED])
+  liftR~ (step s {j} {k} f) = ((s ,_) - <_>) $~ poiF (\ p -> liftR~ (f p))
 
   lift~R : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
   lift~R ac
@@ -303,6 +296,24 @@ module _ {C : Fontainer} where
 
   _-Join-_ : C ^* (C ^* A) -> C ^* A -> Set
   acc -Join- ac = [ _~_ ]^* acc <= ac 
+
+  join1 : (ac : C ^* A) -> # ac -Join- ac
+  join1 ac = # r~
+
+  join2 : {ac ac' : C ^* A}{acc : C ^* (C ^* A)}
+    -> [ (\ a bc -> # a ~ bc) ]^* ac <-> acc
+    -> acc -Join- ac'
+    -> ac ~ ac'
+  join2 x y = liftR~ (MAPR (\ { (_ , [ r~ ]# , # r~) -> [ r~ ]# }) (x -^*- y))
+
+ module _ {A : Set} where
+  join3 : {accc : C ^* (C ^* (C ^* A))}{acc bcc : C ^* (C ^* A)}{ac bc : C ^* A}
+       -> accc -Join- acc -> acc -Join- ac
+       -> [ _-Join-_ ]^* accc <-> bcc -> bcc -Join- bc
+       -> ac ~ bc
+  join3 (# r~) h (# [ x ]#) (# r~) = funR _~_ (\ { r~ q -> q }) h x
+  join3 (step s g) (step .s h) (step .s i) (step .s j) = ((s ,_) - <_>) $~
+    poiF (\ p -> {!join3 (g p) (h p) (i p) (j p)!})
 
  module _ {R S T}
    {rs : R -> S}{st : S -> T}{rt : R -> T}
