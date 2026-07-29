@@ -138,6 +138,7 @@ module _ {C : Fontainer} where
 
     rec = solve base
 
+{-
 joinr : forall {C X} -> (xcc : C ^* (C ^* X)) -> Rec xcc -> C ^* X
 joinr (# t) (# t) = t
 joinr < s , k > (step s f) =
@@ -145,7 +146,7 @@ joinr < s , k > (step s f) =
 
 join : forall {C X} -> C ^* (C ^* X) -> C ^* X
 join xcc = joinr xcc (rec xcc)
-
+-}
 {-
 Working towards the join laws, we introduce a slightly asymmetric
 version of the C ^_ relator.
@@ -194,6 +195,12 @@ module _ {C : Fontainer} where
     go (# x) = # [ r~ ]#
     go (step s f) = step s \ p -> go (f p)
 
+
+{- HERE
+   The word "map" is used in too many incompatible ways.
+   Let's try to tighten the naming.
+-}
+
  module _ {A B : Set} where
   module _
     {R : A -> C ^* B -> Set}
@@ -211,7 +218,7 @@ module _ {C : Fontainer} where
     MAPR# : forall {ac bc} -> [ R ]^* ac <-> bc -> [ S ]^* ac <-> bc
     MAPR# = MAPR \ { [ r ]# -> [ rs r ]# }
 
-  module _ (R : A -> C ^* B -> Set)(abc : (a : A) -> <: R a :>) where
+  module _ {R : A -> C ^* B -> Set}(abc : (a : A) -> <: R a :>) where
 
     shtep : (s : [ C .Sh ]F)(k : C .Po s -F> (\ _ -> C ^* A))
          -> ((p : [ C .Po s ]F) -> <: [ R ]^* (k $F p) <=_ :>)
@@ -272,7 +279,7 @@ module _ {C : Fontainer} where
  module _ {A : Set} where
 
   map : forall {B} -> (A -> B) -> C ^* A -> C ^* B
-  map ab ac = fst (mapR (R# \ a b -> ab a ~ b) (\ a -> _ , [ r~ ]#) ac)
+  map ab ac = fst (mapR {R = R# \ a b -> ab a ~ b} (\ a -> _ , [ r~ ]#) ac)
 
   liftR~ : {ac bc : C ^* A} -> [ _~_ ]^* ac <-> bc -> ac ~ bc
   liftR~ (# [ r~ ]#) = r~
@@ -280,7 +287,7 @@ module _ {C : Fontainer} where
 
   lift~R : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
   lift~R ac
-    with bc , abcq <- mapR (R# _~_) (\ a -> _ , [ r~ ]#) ac
+    with bc , abcq <- mapR (\ a -> _ , [ r~ ]#) ac
     with r~ <- liftR~ abcq
     = abcq
 
@@ -289,7 +296,7 @@ module _ {C : Fontainer} where
      -> (ac : C ^* A)
      -> map aa ac ~ ac
   mapId aa q ac
-    with bc , abcq <- mapR (R# \ a b -> aa a ~ b) (\ a -> _ , [ r~ ]#) ac
+    with bc , abcq <- mapR {R = R# \ a b -> aa a ~ b} (\ a -> _ , [ r~ ]#) ac
        = bc
            < liftR~ (MAPR (\ { {a} [ r~ ]# -> [ a < q a ]~ aa a [QED] ]# }) abcq) ]~
          ac [QED]
@@ -313,7 +320,12 @@ module _ {C : Fontainer} where
        -> ac ~ bc
   join3 (# r~) h (# [ x ]#) (# r~) = funR _~_ (\ { r~ q -> q }) h x
   join3 (step s g) (step .s h) (step .s i) (step .s j) = ((s ,_) - <_>) $~
-    poiF (\ p -> {!join3 (g p) (h p) (i p) (j p)!})
+    poiF (\ p -> join3 (g p) (h p) (i p) (j p))
+
+  joinf : (acc : C ^* (C ^* A)) -> <: acc -Join-_ :>
+  joinf = mapR \ ac -> _ , r~
+
+  join = joinf - fst
 
  module _ {R S T}
    {rs : R -> S}{st : S -> T}{rt : R -> T}
@@ -324,9 +336,9 @@ module _ {C : Fontainer} where
 
     mapCo : map st (map rs rc) ~ map rt rc
     mapCo
-      with sc , rscq <- mapR (R# \ a b -> rs a ~ b) (\ a -> _ , [ r~ ]#) rc
-         | tc1 , rtcq <- mapR (R# \ a b -> rt a ~ b) (\ a -> _ , [ r~ ]#) rc
-      with tc0 , stcq <- mapR (R# \ a b -> st a ~ b) (\ a -> _ , [ r~ ]#) sc
+      with sc , rscq <- mapR {R = R# \ a b -> rs a ~ b} (\ a -> _ , [ r~ ]#) rc
+         | tc1 , rtcq <- mapR {R = R# \ a b -> rt a ~ b} (\ a -> _ , [ r~ ]#) rc
+      with tc0 , stcq <- mapR {R = R# \ a b -> st a ~ b} (\ a -> _ , [ r~ ]#) sc
       = liftR~
           (MAPR (\ { [ _ , (_ , r~ , r~) , r~ ]# -> [ q _ ]# })
                 (sym^* (rscq -^*#- stcq) -^*#- rtcq))
