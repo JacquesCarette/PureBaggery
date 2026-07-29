@@ -139,11 +139,28 @@ joinr < s , k > (step s f) =
 join : forall {C X} -> C ^* (C ^* X) -> C ^* X
 join xcc = joinr xcc (rec xcc)
 
+{-
+Working towards the join laws, we introduce a slightly asymmetric
+version of the C ^_ relator.
+  [_]^*_<=_ (R : A -> C ^* B -> Set)
+    : C ^* A -> C ^* B -> Set 
+This lifts
+a relation R between A-variables and B-terms to
+a relation between A-terms and B-terms
+by insisting that the latter have the same node structure
+as the former, and that the A-variable leaves in the former
+are related to the corresponding B-subterms in the latter.
+
+In particular, the Join relation is a special case
+  _-Join-_ : C ^* (C ^* A) -> C ^* A -> Set
+  acc -Join- ac = [ _~_ ]^* acc <= ac 
+-}
+
 module _ {C : Fontainer} where
 
  module _ {A B : Set} where
 
-  -- HERE: Refactor to use this...
+  --
   data [_]^*_<=_ (R : A -> C ^* B -> Set)
     : C ^* A -> C ^* B -> Set where
     # : forall {a b} -> R a b -> [ R ]^* # a <= b
@@ -151,44 +168,70 @@ module _ {C : Fontainer} where
         -> ((p : [ C .Po s ]F) -> [ R ]^* (j $F p) <= (k $F p))
         -> [ R ]^* < s , j > <= < s , k >
 
-  -- ...as a generalisation of this
-  data [_]^*_<->_ (R : A -> B -> Set)
-    : C ^* A -> C ^* B -> Set where
-    # : forall {a b} -> R a b -> [ R ]^* # a <-> # b
-    step : forall s {j k}
-        -> ((p : [ C .Po s ]F) -> [ R ]^* (j $F p) <-> (k $F p))
-        -> [ R ]^* < s , j > <-> < s , k >
+  module _ (R : A -> B -> Set) where
 
-  -- HERE: loosen the type of rs to allow A and B to vary
-  module _ {R S : A -> B -> Set}(rs : forall {a b} -> R a b -> S a b) where
+    {- We recover the usual relator by saying
+       when a B-term is a related B-variable.
+    -}
+    data R# (a : A) : C ^* B -> Set where
+      [_]# : {b : B} -> R a b -> R# a (# b)
 
-    MAPR : forall {ac bc} -> [ R ]^* ac <-> bc -> [ S ]^* ac <-> bc
-    MAPR (# rab) = # (rs rab)
+    [_]^*_<->_ : C ^* A -> C ^* B -> Set
+    [_]^*_<->_ ac bc = [ R# ]^* ac <= bc
+
+ module _ {A : Set} where
+
+  diag : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
+  diag = rec - go where
+    go : forall {ac} -> Rec ac -> [ _~_ ]^* ac <-> ac
+    go (# x) = # [ r~ ]#
+    go (step s f) = step s \ p -> go (f p)
+
+ module _ {A B : Set} where
+  module _
+    {R : A -> C ^* B -> Set}
+    {S : A -> C ^* B -> Set}
+    (rs : forall {a bc} -> R a bc -> S a bc)
+    where
+
+    MAPR : forall {ac bc} -> [ R ]^* ac <= bc -> [ S ]^* ac <= bc
+    MAPR (# r) = # (rs r)
     MAPR (step s f) = step s \ p -> MAPR (f p)
 
-  -- HERE: try to make this less of a mess
-  -- by starting from diag and using more generous map.
-  module _ (R : A -> B -> Set)(ab : (a : A) -> <: R a :>) where
+  module _ {R S : A -> B -> Set}(rs : forall {a b} -> R a b -> S a b) where
+    -- is the type of rs too tight?
 
-    --                       vvvvvv SMELLS BAD
-    mapRr : (ac : C ^* A) -> Rec ac -> <: [ R ]^* ac <->_ :>
-    mapRr (# _) (# _) with _ , rab <- ab _ = _ , # rab
-    mapRr < (s , k) > (step s f)
-      = < s , \\F (\ p -> let bc , abc = mapRr (k $F p) (f p) in bc)  >
-      , step s \ p -> let bc , abc = mapRr (k $F p) (f p) in
-        tsbus _ _ (betaF (\ p -> mapRr (k $F p) (f p) .fst) p) ([ R ]^* k $F p <->_) abc
+    MAPR# : forall {ac bc} -> [ R ]^* ac <-> bc -> [ S ]^* ac <-> bc
+    MAPR# = MAPR \ { [ r ]# -> [ rs r ]# }
 
-    mapR : (ac : C ^* A) -> <: [ R ]^* ac <->_ :>
+  module _ (R : A -> C ^* B -> Set)(abc : (a : A) -> <: R a :>) where
+
+    shtep : (s : [ C .Sh ]F)(k : C .Po s -F> (\ _ -> C ^* A))
+         -> ((p : [ C .Po s ]F) -> <: [ R ]^* (k $F p) <=_ :>)
+         -> <: [ R ]^* < s , k > <=_ :>
+    shtep s k h
+      = < s , (\\F \ p -> fst (h p)) >
+      , step s \ p -> tsbus _ _ (betaF (\ p -> h p .fst) p) ([ R ]^* k $F p <=_) (h p .snd)
+                  --  ^^^^^ it's tricky to get rid of this
+
+    -- what's new here is the need to *construct* the related term
+    -- can't do that just by relation implication
+
+    mapRr : (ac : C ^* A) -> Rec ac -> <: [ R ]^* ac <=_ :>
+    mapRr (# _) (# x) with _ , r <- abc x = _ , # r
+    mapRr < s , k > (step s f) = shtep s k \ p -> mapRr _ (f p)
+
+    mapR : (ac : C ^* A) -> <: [ R ]^* ac <=_ :>
     mapR ac = mapRr ac (rec ac)
 
-  module _ (R : A -> B -> Set)(aq : forall {a b0 b1} -> R a b0 -> R a b1 -> b0 ~ b1)
+  module _ (R : A -> C ^* B -> Set)(aq : forall {a b0 b1} -> R a b0 -> R a b1 -> b0 ~ b1)
     where
 
     funR : forall {ac bc0 bc1}
-        -> [ R ]^* ac <-> bc0
-        -> [ R ]^* ac <-> bc1
+        -> [ R ]^* ac <= bc0
+        -> [ R ]^* ac <= bc1
         -> bc0 ~ bc1
-    funR (# rab0) (# rab1) = # $~ aq rab0 rab1
+    funR (# rab0) (# rab1) = aq rab0 rab1
     funR (step s {k = j} f) (step .s {k = k} g) = ((s ,_) - <_>) $~ (
       j
       < etaF j ]~
@@ -198,40 +241,41 @@ module _ {C : Fontainer} where
       ~[ etaF k >
       k [QED])
 
- module _ {A : Set} where
-
-  diag : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
-  diag = rec - go where
-    go : forall {ac} -> Rec ac -> [ _~_ ]^* ac <-> ac
-    go (# x) = # r~
-    go (step s f) = step s \ p -> go (f p)
-
  module _ {A B : Set}{R : A -> B -> Set} where
 
   sym^* : forall {ac bc}
        -> [ R ]^* ac <-> bc
        -> [ (\ b a -> R a b) ]^* bc <-> ac
-  sym^* (# x) = # x
+  sym^* (# [ x ]#) = # [ x ]#
   sym^* (step s f) = step s \ p -> sym^* (f p)
+
+
+ module _ {A B D : Set}
+    {R : A -> C ^* B -> Set}{S : B -> C ^* D -> Set} where
+
+   _-^*-_ : forall {ac bc dc}
+     -> [ R ]^* ac <= bc
+     -> [ S ]^* bc <= dc
+     -> [ R -Rel- [_]^*_<=_ S ]^* ac <= dc
+   # ab -^*- bd = # (_ , ab , bd)
+   step s f -^*- step .s g = step s \ p -> f p -^*- g p
 
  module _ {A B D : Set}{R : A -> B -> Set}{S : B -> D -> Set} where
 
-   _-^*-_ : forall {ac bc dc}
+   _-^*#-_ : forall {ac bc dc}
      -> [ R ]^* ac <-> bc
      -> [ S ]^* bc <-> dc
      -> [ R -Rel- S ]^* ac <-> dc
-   # ab -^*- # bd = # (_ , ab , bd)
-   step s f -^*- step .s g = step s \ p -> f p -^*- g p
-
+   ab -^*#- bd = MAPR (\ { (_ , [ r ]# , # [ s ]#) -> [ _ , r , s ]# }) (ab -^*- bd)
+   
 
  module _ {A : Set} where
 
   map : forall {B} -> (A -> B) -> C ^* A -> C ^* B
-  map ab ac = fst (mapR (\ a b -> ab a ~ b) (\ a -> _ , r~) ac)
-
+  map ab ac = fst (mapR (R# \ a b -> ab a ~ b) (\ a -> _ , [ r~ ]#) ac)
 
   liftR~ : {ac bc : C ^* A} -> [ _~_ ]^* ac <-> bc -> ac ~ bc
-  liftR~ (# r~) = r~
+  liftR~ (# [ r~ ]#) = r~
   liftR~ (step s {j} {k} f) = ((s ,_) - <_>) $~ (
       j
       < etaF j ]~
@@ -243,7 +287,7 @@ module _ {C : Fontainer} where
 
   lift~R : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
   lift~R ac
-    with bc , abcq <- mapR _~_ (\ a -> _ , r~) ac
+    with bc , abcq <- mapR (R# _~_) (\ a -> _ , [ r~ ]#) ac
     with r~ <- liftR~ abcq
     = abcq
 
@@ -252,9 +296,9 @@ module _ {C : Fontainer} where
      -> (ac : C ^* A)
      -> map aa ac ~ ac
   mapId aa q ac
-    with bc , abcq <- mapR (\ a b -> aa a ~ b) (\ a -> _ , r~) ac
+    with bc , abcq <- mapR (R# \ a b -> aa a ~ b) (\ a -> _ , [ r~ ]#) ac
        = bc
-           < liftR~ (MAPR (\ {a}{b} w -> a < q a ]~ aa a ~[ w > b [QED]) abcq) ]~
+           < liftR~ (MAPR (\ { {a} [ r~ ]# -> [ a < q a ]~ aa a [QED] ]# }) abcq) ]~
          ac [QED]
 
   _-Join-_ : C ^* (C ^* A) -> C ^* A -> Set
@@ -269,13 +313,14 @@ module _ {C : Fontainer} where
 
     mapCo : map st (map rs rc) ~ map rt rc
     mapCo
-      with sc , rscq <- mapR (\ a b -> rs a ~ b) (\ a -> _ , r~) rc
-         | tc1 , rtcq <- mapR (\ a b -> rt a ~ b) (\ a -> _ , r~) rc
-      with tc0 , stcq <- mapR (\ a b -> st a ~ b) (\ a -> _ , r~) sc
+      with sc , rscq <- mapR (R# \ a b -> rs a ~ b) (\ a -> _ , [ r~ ]#) rc
+         | tc1 , rtcq <- mapR (R# \ a b -> rt a ~ b) (\ a -> _ , [ r~ ]#) rc
+      with tc0 , stcq <- mapR (R# \ a b -> st a ~ b) (\ a -> _ , [ r~ ]#) sc
       = liftR~
-       (MAPR (\ { {t0}{t1} (_ , (_ , r~ , r~) , r~) -> q _ })
-         (sym^* (rscq -^*- stcq) -^*- rtcq)
-       )
+          (MAPR (\ { [ _ , (_ , r~ , r~) , r~ ]# -> [ q _ ]# })
+                (sym^* (rscq -^*#- stcq) -^*#- rtcq))
+
+
 
 {- -- KEEP THIS (ELSEWHERE?) IT'S GLORIOUSLY GHASTLY!
 mapr : forall {C A B} -> (A -> B)
