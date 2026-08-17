@@ -168,7 +168,7 @@ module _ {C : Fontainer} where
 
  module _ {A B : Set} where
 
-  --
+  -- (name in lit.?)  We'll call it the "Kleisli relator"
   data [_]^*_<=_ (R : A -> C ^* B -> Set)
     : C ^* A -> C ^* B -> Set where
     # : forall {a b} -> R a b -> [ R ]^* # a <= b
@@ -176,6 +176,16 @@ module _ {C : Fontainer} where
         -> ((p : [ C .Po s ]F) -> [ R ]^* (j $F p) <= (k $F p))
         -> [ R ]^* < s , j > <= < s , k >
 
+  -- it has some useful properties we'll want to re-use
+
+  -- if R is 'simple', so is its Kleisli relator
+  module _ {R : A -> C ^* B -> Set}
+           (simpR : forall {a bc0 bc1} ->  R a bc0 -> R a bc1 -> bc0 ~ bc1) where
+    simpK : forall {ac bc0 bc1} -> ([ R ]^* ac <= bc0) -> ([ R ]^* ac <= bc1) ->
+            bc0 ~ bc1
+    simpK (# x) (# y) = simpR x y
+    simpK (step s x0) (step .s x1) = ((s ,_) - <_>) $~ poiF (\ p → simpK (x0 p) (x1 p))
+    
   module _ (R : A -> B -> Set) where
 
     {- We recover the usual relator by saying
@@ -189,11 +199,15 @@ module _ {C : Fontainer} where
 
  module _ {A : Set} where
 
+  module _ (R : A -> C ^* A -> Set) (reflR : (a : A) -> R a (# a)) where
+    diagR : (ac : C ^* A) -> [ R ]^* ac <= ac
+    diagR = rec - go where
+      go : forall {ac} -> Rec ac -> [ R ]^* ac <= ac
+      go (# x) = # (reflR x)
+      go (step s f) = step s \ p -> go (f p)
+
   diag : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
-  diag = rec - go where
-    go : forall {ac} -> Rec ac -> [ _~_ ]^* ac <-> ac
-    go (# x) = # [ r~ ]#
-    go (step s f) = step s \ p -> go (f p)
+  diag = diagR (R# _~_) \ _ -> [ r~ ]#
 
 
 {- HERE
@@ -218,6 +232,7 @@ module _ {C : Fontainer} where
     MAPR# : forall {ac bc} -> [ R ]^* ac <-> bc -> [ S ]^* ac <-> bc
     MAPR# = MAPR \ { [ r ]# -> [ rs r ]# }
 
+  -- note: in the special case where R is a function, this is 'bind'.
   module _ {R : A -> C ^* B -> Set}(abc : (a : A) -> <: R a :>) where
 
     shtep : (s : [ C .Sh ]F)(k : C .Po s -F> (\ _ -> C ^* A))
@@ -231,13 +246,15 @@ module _ {C : Fontainer} where
     -- what's new here is the need to *construct* the related term
     -- can't do that just by relation implication
 
-    mapRr : (ac : C ^* A) -> Rec ac -> <: [ R ]^* ac <=_ :>
-    mapRr (# _) (# x) with _ , r <- abc x = _ , # r
-    mapRr < s , k > (step s f) = shtep s k \ p -> mapRr _ (f p)
+    bindRr : (ac : C ^* A) -> Rec ac -> <: [ R ]^* ac <=_ :>
+    bindRr (# _) (# x) with _ , r <- abc x = _ , # r
+    bindRr < s , k > (step s f) = shtep s k \ p -> bindRr _ (f p)
 
-    mapR : (ac : C ^* A) -> <: [ R ]^* ac <=_ :>
-    mapR ac = mapRr ac (rec ac)
+    -- if R is entire, so it its Kleisli relator
+    bindR : (ac : C ^* A) -> <: [ R ]^* ac <=_ :>
+    bindR ac = bindRr ac (rec ac)
 
+    -- relational version of the Kleisli laws
   module _ (R : A -> C ^* B -> Set)(aq : forall {a b0 b1} -> R a b0 -> R a b1 -> b0 ~ b1)
     where
 
@@ -250,6 +267,7 @@ module _ {C : Fontainer} where
 
  module _ {A B : Set}{R : A -> B -> Set} where
 
+  -- Symmetry of relator lifts
   sym^* : forall {ac bc}
        -> [ R ]^* ac <-> bc
        -> [ (\ b a -> R a b) ]^* bc <-> ac
@@ -260,6 +278,7 @@ module _ {C : Fontainer} where
  module _ {A B D : Set}
     {R : A -> C ^* B -> Set}{S : B -> C ^* D -> Set} where
 
+   -- composition of Kleisli relators
    _-^*-_ : forall {ac bc dc}
      -> [ R ]^* ac <= bc
      -> [ S ]^* bc <= dc
@@ -269,6 +288,7 @@ module _ {C : Fontainer} where
 
  module _ {A B D : Set}{R : A -> B -> Set}{S : B -> D -> Set} where
 
+   -- specializes
    _-^*#-_ : forall {ac bc dc}
      -> [ R ]^* ac <-> bc
      -> [ S ]^* bc <-> dc
@@ -278,8 +298,11 @@ module _ {C : Fontainer} where
 
  module _ {A : Set} where
 
+  mapR : forall {B} -> (ab : A -> B) -> (ca : C ^* A) -> <: [ _[ ab >_ ]^* ca <->_ :>
+  mapR ab ac = bindR {R = R# _[ ab >_} (\ a -> _ , [ r~ ]#) ac
+
   map : forall {B} -> (A -> B) -> C ^* A -> C ^* B
-  map ab ac = fst (mapR {R = R# \ a b -> ab a ~ b} (\ a -> _ , [ r~ ]#) ac)
+  map ab ac = fst (mapR ab ac)
 
   liftR~ : {ac bc : C ^* A} -> [ _~_ ]^* ac <-> bc -> ac ~ bc
   liftR~ (# [ r~ ]#) = r~
@@ -287,7 +310,7 @@ module _ {C : Fontainer} where
 
   lift~R : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
   lift~R ac
-    with bc , abcq <- mapR (\ a -> _ , [ r~ ]#) ac
+    with bc , abcq <- bindR (\ a -> _ , [ r~ ]#) ac
     with r~ <- liftR~ abcq
     = abcq
 
@@ -296,36 +319,60 @@ module _ {C : Fontainer} where
      -> (ac : C ^* A)
      -> map aa ac ~ ac
   mapId aa q ac
-    with bc , abcq <- mapR {R = R# \ a b -> aa a ~ b} (\ a -> _ , [ r~ ]#) ac
+    with bc , abcq <- bindR {R = R# \ a b -> aa a ~ b} (\ a -> _ , [ r~ ]#) ac
        = bc
            < liftR~ (MAPR (\ { {a} [ r~ ]# -> [ a < q a ]~ aa a [QED] ]# }) abcq) ]~
          ac [QED]
 
+  -- join as a *relation*
   _-Join-_ : C ^* (C ^* A) -> C ^* A -> Set
   acc -Join- ac = [ _~_ ]^* acc <= ac 
 
-  join1 : (ac : C ^* A) -> # ac -Join- ac
-  join1 ac = # r~
+  -- -Join- exist
+  joinR : (acc : C ^* (C ^* A)) -> <: acc -Join-_ :>
+  joinR = bindR \ _ -> _ , r~
 
-  join2 : {ac ac' : C ^* A}{acc : C ^* (C ^* A)}
+  -- extract the given witness
+  join : (acc : C ^* (C ^* A)) -> C ^* A
+  join = joinR - fst
+
+  Join-lu : (ac : C ^* A) -> # ac -Join- ac
+  Join-lu _ = # r~
+
+  Join-ru : {ac ac' : C ^* A}{acc : C ^* (C ^* A)}
     -> [ (\ a bc -> # a ~ bc) ]^* ac <-> acc
     -> acc -Join- ac'
     -> ac ~ ac'
-  join2 x y = liftR~ (MAPR (\ { (_ , [ r~ ]# , # r~) -> [ r~ ]# }) (x -^*- y))
+  Join-ru x y = liftR~ (MAPR (\ { (_ , [ r~ ]# , # r~) -> [ r~ ]# }) (x -^*- y))
 
+  -- join is left and right unital
+  join-lu : (ac : C ^* A) -> join (# ac) ~ ac
+  join-lu ac = r~
+
+  join-ru : (ac : C ^* A) -> join (map # ac) ~ ac
+  join-ru ac
+    with acc , ac<->acc <- mapR {B = C ^* A} # ac
+    with ac' , acc<->ac' <- joinR acc
+    = sym~ (Join-ru ac<->acc acc<->ac')
+  
  module _ {A : Set} where
-  join3 : {accc : C ^* (C ^* (C ^* A))}{acc bcc : C ^* (C ^* A)}{ac bc : C ^* A}
+  -- Relational version of associativity of join
+  Join-assoc : {accc : C ^* (C ^* (C ^* A))}{acc bcc : C ^* (C ^* A)}{ac bc : C ^* A}
        -> accc -Join- acc -> acc -Join- ac
        -> [ _-Join-_ ]^* accc <-> bcc -> bcc -Join- bc
        -> ac ~ bc
-  join3 (# r~) h (# [ x ]#) (# r~) = funR _~_ (\ { r~ q -> q }) h x
-  join3 (step s g) (step .s h) (step .s i) (step .s j) = ((s ,_) - <_>) $~
-    poiF (\ p -> join3 (g p) (h p) (i p) (j p))
+  Join-assoc (# r~) h (# [ x ]#) (# r~) = funR _~_ (\ { r~ q -> q }) h x
+  Join-assoc (step s g) (step .s h) (step .s i) (step .s j) = ((s ,_) - <_>) $~
+    poiF (\ p -> Join-assoc (g p) (h p) (i p) (j p))
 
-  joinf : (acc : C ^* (C ^* A)) -> <: acc -Join-_ :>
-  joinf = mapR \ ac -> _ , r~
-
-  join = joinf - fst
+  join-assoc : (accc : C ^* (C ^* (C ^* A))) ->
+    join (join accc) ~ join (map join accc)
+  join-assoc accc
+    with acc , accc-acc <- joinR accc
+    with bcc , accc-bcc <- mapR join accc
+    with ac , acc-ac <- joinR acc
+    with bc , bcc-bc <- joinR bcc =
+      Join-assoc accc-acc acc-ac (MAPR# (\ { r~ → snd (joinR _)}) accc-bcc) bcc-bc
 
  module _ {R S T}
    {rs : R -> S}{st : S -> T}{rt : R -> T}
@@ -333,12 +380,11 @@ module _ {C : Fontainer} where
    (rc : C ^* R)
    where
    
-
     mapCo : map st (map rs rc) ~ map rt rc
     mapCo
-      with sc , rscq <- mapR {R = R# \ a b -> rs a ~ b} (\ a -> _ , [ r~ ]#) rc
-         | tc1 , rtcq <- mapR {R = R# \ a b -> rt a ~ b} (\ a -> _ , [ r~ ]#) rc
-      with tc0 , stcq <- mapR {R = R# \ a b -> st a ~ b} (\ a -> _ , [ r~ ]#) sc
+      with sc , rscq <- bindR {R = R# \ a b -> rs a ~ b} (\ _ -> _ , [ r~ ]#) rc
+         | tc1 , rtcq <- bindR {R = R# \ a b -> rt a ~ b} (\ _ -> _ , [ r~ ]#) rc
+      with tc0 , stcq <- bindR {R = R# \ a b -> st a ~ b} (\ _ -> _ , [ r~ ]#) sc
       = liftR~
           (MAPR (\ { [ _ , (_ , r~ , r~) , r~ ]# -> [ q _ ]# })
                 (sym^* (rscq -^*#- stcq) -^*#- rtcq))
