@@ -122,6 +122,10 @@ _$~_ : forall {S T}(f : S -> T) ->
                     -> f a ~ f b
 f $~ q = R~ f ~$~ q
 
+-- function graph
+_[_>_ : forall {A B : Set} (a : A) (f : A -> B) (b : B) -> Set
+a [ f > b = f a ~ b
+
 infixl 90 _~$~_ _$~_
 
 module _ {X : Set}(x : X) where
@@ -145,3 +149,7 @@ module _ {X : Set}(x : X) where
   tsbus : (y : X)(q : x ~ y)(P : X -> Set)
        -> P y -> P x
   tsbus _ r~ P p = p
+
+sym~ : {X : Set} {x y : X} -> y ~ x -> x ~ y
+sym~ q = _ < q ]~ _ [QED]
+  
