@@ -122,6 +122,11 @@ _$~_ : forall {S T}(f : S -> T) ->
                     -> f a ~ f b
 f $~ q = R~ f ~$~ q
 
+module _ {X : Set}(P : X -> Set){x : X} where
+
+  ford : <: P *: _~ x :> -> P x
+  ford (_ , p , r~) = p
+
 -- function graph
 _[_>_ : forall {A B : Set} (a : A) (f : A -> B) (b : B) -> Set
 a [ f > b = f a ~ b

@@ -668,7 +668,7 @@ We must then complete the definition of $\F{solve}$, which we recapitulate in fu
 As you can verify by inspection, the $\D{Problem}$ grows and shrinks all over the place, with the type of the $\F{Output}$ varying even in \remph{arity} as it does so. But the $\F{Input}$ gets structurally smaller at every step!
 If you are wondering how we ever return to the base case problem, $\basecase$, as found in the first two lines, consider what happens in the penultimate line, where we reach the indicated tag in an enumeration. The subproblem, $\V{P}\:\zee$, thus selected could be further exploration of a larger table, but it could also very well be exactly $\basecase$, if we have finally arrived at a recursive substructure.
 
-\section{Joins that are Awful}
+\section{Maps and Joins that are Awful}
 
 Now that we have justified our recursion view, we can implement a structurally recursive $\F{join}$.
 
@@ -700,7 +700,7 @@ Naturally, we ought to start with $\F{map}$ first. It too follows the same patte
 	\F{map}\: \V{f}\: \V{t} & \F{mapr}\: \V{f}\:\V{t} \: (\rec{\V{t})}
 \end{array} \\
 \Rule{\V{f} \hab \V{X}\fto\V{Y} \quad \V{t} \hab \FM{\V{C}}{\V{X}} \quad \V{r} \hab \REC{\V{t}}}
-	{\F{mapr}\: \V{F}\: \V{t}\: \V{r} \hab \FM{\V{C}}{\V{Y}}} &
+	{\F{mapr}\: \V{f}\: \V{t}\: \V{r} \hab \FM{\V{C}}{\V{Y}}} &
 \begin{array}[c]{l@{\:}l@{\:}c@{\:}c@{\;=\;}l}
 	\F{mapr} & \V{f} & \va{\V{x}}     & \va{\V{x}} & \va{\V{f}\:\V{x}}\\
 	\F{mapr} & \V{f} & \nd{\pr{\V{s}}{\V{k}}} & \nd{\pr{\V{s}}{\V{f}}} & \nd{\pr{\V{s}}{\vertflam{\LAM{p}{\F{mapr}\: \V{f} (\vertfapp{\V{k}}{\V{p}}) \: (\V{f}\: \V{p})}}}} \\
@@ -708,11 +708,43 @@ Naturally, we ought to start with $\F{map}$ first. It too follows the same patte
 \end{array}
 \]
 
+But $\F{map}$ and $\F{join}$ should satisfy functor and monad laws, respectively: how are we to \remph{prove} them? We have already made two key strategic blunders which will make our task unhelpfully difficult. The first is simply that we defined $\F{map}$ and $\F{join}$ separately, when we could have extracted both as special cases of monadic `bind'. The second is more subtle. Let us begin by stating an example of the sort of law we want --- $\F{map}$ respects composition.
+\[
+  \F{map}\:\V{f} ; \F{map}\:\V{g}  \peq \F{map}\:(\V{f};\V{g})
+\]
+Whether or not our host type theory is blessed with function extensionality, the proof will, of necessity, be pointwise, and it makes sense in any case to make the statement more flexible by considering not only the composite $\V{f};\V{g}$ but any $\V{h}$ with the same behaviour. So
+\[
+(\forall \V{x}.\; \V{g}\:(\V{f}\:\V{x}) \peq \V{h}\:\V{x}) \; \fto\;
+(\forall \V{t}.\; \F{map}\:\V{g}\:(\F{map}\:\V{f}\:\V{t}) \peq \F{map}\:\V{h}\:\V{t})
+\]
+If we try to prove this by induction on $\V{t}$, we will find that the indirection via $\F{mapr}$ forces us to reason operationally about $\rec{\V{t}}$, and before too long, we shall face the generalisation to $\F{solve}$ by which we defined $\F{rec}$. We should, at the very least, exploit the fact that we have already established the validity of the induction principle for $\V{t}$ which the definitions themselves use. That is to say, we should rather do induction on the \remph{recursivity} of $\V{t}$!
+\[
+(\forall \V{x}.\; \V{g}\:(\V{f}\:\V{x}) \peq \V{h}\:\V{x}) \; \fto\;
+(\forall \V{t}.\;\forall \V{r}\hb\REC{\V{t}},\V{s}\hb\REC{(\F{mapr}\:\V{f}\:\V{t}\:\V{r})}.\; \F{mapr}\:\V{g}\:(\F{mapr}\:\V{f}\:\V{t}\:\V{r})\:\V{s} \peq \F{map}\:\V{h}\:\V{t}\:\V{r})
+\]
+Note that we are forced to consider the recursivity of the \remph{output} of the inner $\F{mapr}\:\V{f}$ call, in order to make progress on the outer $\F{mapr}\:\V{g}$ call. Are we having fun yet?
+
+Induction on $\V{r}$, rather than $\V{t}$ gives us a base case which follows directly from our elementwise assumption. We also obtain a step case where the shapes match on the nose, and we have induction hypotheses which pertain to a tabulated function $\V{k}$ of substructures and \remph{specific} recursivity witnesse, $\V{kr}$ and $\V{ks}$ in each position.
+\[\begin{array}{rl}
+&
+\vertflam{\LAM{p}{\F{mapr}\:\V{g}
+    \:(\vertfapp{(\vertflam{\LAM{p}{\F{mapr}\:\V{f}\:(\vertfapp{\V{k}}{\V{p}})\:(\V{kr}\:\V{p})}})}{\V{p}})
+      \:(\V{ks}\:\V{p})}}
+\\ \peq &
+\vertflam{\LAM{p}{\F{mapr}\:\V{h}\:(\vertfapp{\V{k}}{\V{p}})\:(\V{kr}\:\V{p})}}
+\end{array}\]
+Firstly, to go under those uses of $\vertflam{\LAM{p}{\cdots}}$, we shall need the \remph{extensionality} property that pointwise equal functions have intensionally equal tabulations: that, we have not yet shown, but it is certainly to be expected. Secondly, we are one tabulated $\beta$-reduction away from a subgoal amenable to our induction hypothesis, so we must prove that $\beta$-law, an obligation we anticipated, above. The problem which then arises is that the recursivity witness $\V{ks}\:\V{p}$ pertains specifically to the $\beta$-redex prior to reduction, so its type will also need repair. This overspecificity to recursivity witnesses causes bureaucratic nightmares which are not insurmountable, but well worth evading.
+
+And before anyone suggests that we might make recursivity witnesses definitionally proof irrelevant, it has long been established that to do so leaves one unable to lean on strong normalisation~\cite{DBLP:conf/types/BradyMM03}. When computing with \remph{open} terms, it is never enough that there is at most one \remph{canonical} proof of recursivity, because there may be bogus but noncanonical proofs to tempt us into trouble.
+
+In some respects, however, our second blunder is rather more basic. We have been trying to reason about the \remph{implementations} of $\F{map}$ and $\F{join}$, rather than working with respect to their \remph{specifications}. The role of recursivity should be only to show those specifications can be made effective.
+
+
 % TODO
 % either cause 'rec' to reduce, and then get ourselves into the same mess that warranted 'solve', OR
 % we abstract recursivity proofs and end up in trouble because such proofs can't be proof-irrelevant (safely).
 
-\section{Joins that are Lawful}
+\section{Maps and Joins that are Lawful}
 
 % Just define the relational version!
 
