@@ -668,6 +668,12 @@ We must then complete the definition of $\F{solve}$, which we recapitulate in fu
 As you can verify by inspection, the $\D{Problem}$ grows and shrinks all over the place, with the type of the $\F{Output}$ varying even in \remph{arity} as it does so. But the $\F{Input}$ gets structurally smaller at every step!
 If you are wondering how we ever return to the base case problem, $\basecase$, as found in the first two lines, consider what happens in the penultimate line, where we reach the indicated tag in an enumeration. The subproblem, $\V{P}\:\zee$, thus selected could be further exploration of a larger table, but it could also very well be exactly $\basecase$, if we have finally arrived at a recursive substructure.
 
+
+\section{Equational Laws for Tabulated Functions}
+
+\textbf{TODO: fill in the beta and eta laws and extensionality properties provable for our tabulated functions. They're easy inductions on $\UF$, but we want that stuff established, rather than tripping over it in the middle of something else}.
+
+
 \section{Maps and Joins that are Awful}
 
 Now that we have justified our recursion view, we can implement a structurally recursive $\F{join}$.
