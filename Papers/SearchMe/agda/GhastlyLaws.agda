@@ -20,7 +20,7 @@ mapIdR : forall {C A}(aa : A -> A)
 mapIdR aa q ac (# a) = # $~ q a
 mapIdR aa q ac (step s {k} f) = ((s ,_) - <_>) $~ (
   (\\F \ p -> mapr aa (k $F p) (f p))
-    ~[ extF _ _ (\ p -> mapIdR aa q _ _) >
+    ~[ laqF _ _ (\ p -> mapIdR aa q _ _) >
   \\F (_$F_ k)
     ~[ etaF k >
   k [QED])
@@ -43,7 +43,7 @@ mapExtR q (# x) (# .x) (# .x) (# .x) r~ = # $~ q x
 mapExtR {j = j}{l} q < (s , k) > (step s f) < (s , k) > (step .s g) r~
   = ((s ,_) - <_>) $~ (
   (\\F \ p -> mapr j (k $F p) (f p))
-    ~[ extF _ _ (\ p -> mapExtR q (k $F p) (f p) (k $F p) (g p) r~) >
+    ~[ laqF _ _ (\ p -> mapExtR q (k $F p) (f p) (k $F p) (g p) r~) >
   (\\F \ p -> mapr l (k $F p) (g p))
     [QED])
 

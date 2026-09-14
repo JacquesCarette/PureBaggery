@@ -51,7 +51,7 @@ module _ {C : Fontainer} where
     simpK : forall {ac bc0 bc1} -> ([ R ]^* ac <= bc0) -> ([ R ]^* ac <= bc1) ->
             bc0 ~ bc1
     simpK (# x) (# y) = simpR x y
-    simpK (step s x0) (step .s x1) = ((s ,_) - <_>) $~ poiF (\ p -> simpK (x0 p) (x1 p))
+    simpK (step s x0) (step .s x1) = ((s ,_) - <_>) $~ extF (\ p -> simpK (x0 p) (x1 p))
     
   module _ (R : A -> B -> Set) where
 
@@ -164,7 +164,7 @@ module _ {C : Fontainer} where
 
   liftR~ : {ac bc : C ^* A} -> [ _~_ ]^* ac <-> bc -> ac ~ bc
   liftR~ (# [ r~ ]#) = r~
-  liftR~ (step s {j} {k} f) = ((s ,_) - <_>) $~ poiF (\ p -> liftR~ (f p))
+  liftR~ (step s {j} {k} f) = ((s ,_) - <_>) $~ extF (\ p -> liftR~ (f p))
 
   lift~R : (ac : C ^* A) -> [ _~_ ]^* ac <-> ac
   lift~R ac
@@ -220,7 +220,7 @@ module _ {C : Fontainer} where
        -> ac ~ bc
   Join-assoc (# r~) h (# [ x ]#) (# r~) = simpK (\ { r~ q -> q }) h x
   Join-assoc (step s g) (step .s h) (step .s i) (step .s j) = ((s ,_) - <_>) $~
-    poiF (\ p -> Join-assoc (g p) (h p) (i p) (j p))
+    extF (\ p -> Join-assoc (g p) (h p) (i p) (j p))
 
   join-assoc : (accc : C ^* (C ^* (C ^* A))) ->
     join (join accc) ~ join (map join accc)

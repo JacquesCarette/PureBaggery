@@ -47,32 +47,25 @@ betaF {R `>< S} f (r , s) =
   f (r , s) [QED]
 
 extF : {S : UF}{T : [ S ]F -> Set}
-    -> (f g : (x : [ S ]F) -> T x)
-    -> ((x : [ S ]F) -> f x ~ g x)
-    -> \\F f ~ \\F g
-extF {`[ ts ]} f g q = <_> $~ extE f g q
-extF {S `>< T} f g q = <_> $~
-  extF _ _ \ r -> extF _ _ \ s -> q (r , s)
+    -> {f g : S -F> T}
+    -> (q : (s : [ S ]F) -> f $F s ~ g $F s)
+    -> f ~ g
+extF {`[ ts ]} {f = < f >} {< g >} q = <_> $~ extE q
+extF {S `>< T} {f = < f >} {< g >} q = <_> $~ extF \ s -> extF \ t -> q (s , t)
 
 etaF : {S : UF}{T : [ S ]F -> Set}
     -> (k : S -F> T)
     -> (\\F \ i -> k $F i) ~ k
-etaF {`[ ts ]} < k > = <_> $~ etaE k
-etaF {R `>< S} < k > = <_> $~ (
-  (\\F \ r -> \\F \ s -> k $F r $F s)
-    ~[ extF _ _ (\ r -> etaF (k $F r)) >
-  \\F (_$F_ k)
-    ~[ etaF k >
-  k [QED])
+etaF k = extF (betaF _)
 
-poiF : {S : UF}{T : [ S ]F -> Set}
-    -> {f g : S -F> T}
-    -> (q : (s : [ S ]F) -> f $F s ~ g $F s)
-    -> f ~ g
-poiF {f = f}{g} q = 
-  f < etaF f ]~
-  \\F (f $F_) ~[ extF _ _ q >
-  \\F (g $F_) ~[ etaF g >
-  g [QED]
+laqF : {S : UF}{T : [ S ]F -> Set}
+    -> (f g : (x : [ S ]F) -> T x)
+    -> ((x : [ S ]F) -> f x ~ g x)
+    -> \\F f ~ \\F g
+laqF f g q = extF \ s -> 
+  \\F f $F s ~[ betaF f s >
+  f s        ~[ q s >
+  g s        < betaF g s ]~
+  \\F g $F s [QED]
 
 

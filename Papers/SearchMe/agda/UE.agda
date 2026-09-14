@@ -56,7 +56,7 @@ _$E_ : {ts : UE}{T : [ ts ]E -> Set}
 _$E_ {t ,- ts} < z , k > zee = z
 _$E_ {t ,- ts} < z , k > (suu i) = k $E (_ , i)
 
-infixl 20 _$E_
+infixl 30 _$E_
 
 betaE : {ts : UE}{T : [ ts ]E -> Set}
    -> (f : (x : [ ts ]E) -> T x)
@@ -64,16 +64,25 @@ betaE : {ts : UE}{T : [ ts ]E -> Set}
 betaE {t ,- ts} f zee = r~
 betaE {t ,- ts} f (suu i) = betaE (sus - f) (_ , i)
 
+extE : {ts : UE}{T : [ ts ]E -> Set}
+    -> {f g : ts -E> T}
+    -> (q : (t : [ ts ]E) -> f $E t ~ g $E t)
+    -> f ~ g
+extE {[]} {f = < <> >} {< <> >} q = r~
+extE {t ,- ts} {f = < _ , _ >} {< _ , _ >} q =
+  <_> $~ (R~ _,_ ~$~ q zee ~$~ extE (sus - q))
+
 etaE : {ts : UE}{T : [ ts ]E -> Set}
     -> (k : ts -E> T)
     -> (\\E \ i -> k $E i) ~ k
-etaE {[]} < <> > = r~
-etaE {t ,- ts} < z , k > = ((z ,_) - <_>) $~ etaE k
+etaE k = extE (betaE _)
 
-extE : {ts : UE}{T : [ ts ]E -> Set}
+laqE : {ts : UE}{T : [ ts ]E -> Set}
     -> (f g : (x : [ ts ]E) -> T x)
     -> ((x : [ ts ]E) -> f x ~ g x)
     -> \\E f ~ \\E g
-extE {[]} f g q = r~
-extE {t ,- ts} f g q =
-  <_> $~ (R~ _,_ ~$~ q zee ~$~ extE _ _ (sus - q))
+laqE f g q = extE \ i ->
+  \\E f $E i ~[ betaE f i >
+  f i        ~[ q i >
+  g i        < betaE g i ]~
+  \\E g $E i [QED]
