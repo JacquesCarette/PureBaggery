@@ -263,6 +263,7 @@ Our plan is to replace $\SET$ in the definition of $\CTR$ by our universe $\UF$ 
 so that the $\fto$ in the definition of $\CX{\cdot}{\cdot}$ can be replaced by the \remph{tabulation} of the function space from a finite position type.
 
 \section{Finite Types and our First Attempt at Tabulated Functions}
+\label{sec:fintyp1}
 
 We intend to construct a universe $\UF$ of finite types with an explicit interpretation%
 \footnote{hence a \emph{Tarski}-style universe} into $\SET$.
@@ -668,9 +669,22 @@ We must then complete the definition of $\F{solve}$, which we recapitulate in fu
 As you can verify by inspection, the $\D{Problem}$ grows and shrinks all over the place, with the type of the $\F{Output}$ varying even in \remph{arity} as it does so. But the $\F{Input}$ gets structurally smaller at every step!
 If you are wondering how we ever return to the base case problem, $\basecase$, as found in the first two lines, consider what happens in the penultimate line, where we reach the indicated tag in an enumeration. The subproblem, $\V{P}\:\zee$, thus selected could be further exploration of a larger table, but it could also very well be exactly $\basecase$, if we have finally arrived at a recursive substructure.
 
-
 \section{Equational Laws for Tabulated Functions}
 
+With all of these pieces now in place, we should check that the laws we hoped for~\ref{sec:fintyp1} hold. Indeed, we can prove that the $\beta$-rule holds for both $\UE$ and $\UF$.
+\[
+\Rule{\V{f}\hab \PI{x}{\ElE{\V{N}}}{\V{T}\:\V{x}} \hg
+      \V{x}\hab \ElE{\V{N}}}
+     {\bleueapp{\bleuelam{\V{f}}}{\V{x}}\peq\V{f}\:\V{x}}
+\qquad
+\Rule{\V{f}\hab \PI{x}{\ElF{\V{S}}}{\V{T}\:\V{x}} \hg
+      \V{x}\hab \ElF{\V{S}}}
+     {\bleufapp{\bleuflam{\V{f}}}{\V{x}}\peq\V{f}\:\V{x}}
+\]
+The former holds by induction on the enumeration $\V{N}$; the latter reduces to the former by structural induction on the domain $\V{S}$.
+
+\textbf{TODO: extensionality next, and extract eta as consequence,
+  likewise congruence of lambda}
 \textbf{TODO: fill in the beta and eta laws and extensionality properties provable for our tabulated functions. They're easy inductions on $\UF$, but we want that stuff established, rather than tripping over it in the middle of something else}.
 
 
