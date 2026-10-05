@@ -102,6 +102,10 @@
 \newcommand{\HOLE}{\orange{?}}
 \newcommand{\after}{\mathop{\F{\circ}}}
 
+\newcommand{\KRel}[3]{#2 \mathrel{\blue{\left\langle\black{#1}\right]}} #3}
+\newcommand{\rco}{\mathrel{\green{\fatsemi}}}
+  
+
 %%%% punctuation and spacing
 \newcommand{\hab}{:}
 \newcommand{\hb}{\!\hab\!}  %% thinner for use in sigma and pi types
@@ -683,14 +687,44 @@ With all of these pieces now in place, we should check that the laws we hoped fo
 \]
 The former holds by induction on the enumeration $\V{N}$; the latter reduces to the former by structural induction on the domain $\V{S}$.
 
-\textbf{TODO: extensionality next, and extract eta as consequence,
-  likewise congruence of lambda}
-\textbf{TODO: fill in the beta and eta laws and extensionality properties provable for our tabulated functions. They're easy inductions on $\UF$, but we want that stuff established, rather than tripping over it in the middle of something else}.
+A key virtue of \remph{tabulated} functions is that extensionally
+equal functions have intensionally equal tables. We may readily
+establish, again by structural induction on the domain, the following:
+\[
+\Rule{\PI{x}{\ElE{\V{N}}}
+       {\bleueapp{\V{f}}{\V{x}}\peq
+        \bleueapp{\V{g}}{\V{x}}}}
+     {\V{f}\peq\V{g}}
+\qquad
+\Rule{\PI{x}{\ElF{\V{S}}}
+       {\bleufapp{\V{f}}{\V{x}}\peq
+        \bleufapp{\V{g}}{\V{x}}}}
+     {\V{f}\peq\V{g}}
+\]
+As a corollary of extensionality, we obtain $\eta$-laws from $\beta$-laws
+\[
+\Axiom{(\bleuelam{\LAM{x}{\bleueapp{\V{f}}{\V{x}}}}) \peq \V{f}}
+\qquad
+\Axiom{(\bleuflam{\LAM{x}{\bleufapp{\V{f}}{\V{x}}}}) \peq \V{f}}
+\]
+and that tabulating abstraction is a congruence.
+\[
+\Rule{\PI{x}{\ElE{\V{N}}}{\V{f}\:\V{x}\peq\V{g}\:\V{x}}}
+     {\bleuelam{\V{f}} \peq \bleuelam{\V{g}}}
+\qquad
+\Rule{\PI{x}{\ElF{\V{S}}}{\V{f}\:\V{x}\peq\V{g}\:\V{x}}}
+     {\bleuflam{\V{f}} \peq \bleuflam{\V{g}}}
+\]
+
+These laws give us the basic reasoning steps we need to process
+each layer of our free monad terms in a pointwise style, rather
+than by painstaking traversal of the node structures. We get all
+the function extensionality we need by not using actual functions.
 
 
 \section{Maps and Joins that are Awful}
 
-Now that we have justified our recursion view, we can implement a structurally recursive $\F{join}$.
+Now that we have pointwise laws for tabulated functions and a pointwise view of recursion, we can implement a structurally recursive $\F{join}$ and try to show it obeys the monad laws.
 
 \[ 
 \begin{array}[c]{c@{\qquad\qquad}l}
@@ -744,16 +778,19 @@ If we try to prove this by induction on $\V{t}$, we will find that the indirecti
 \]
 Note that we are forced to consider the recursivity of the \remph{output} of the inner $\F{mapr}\:\V{f}$ call, in order to make progress on the outer $\F{mapr}\:\V{g}$ call. Are we having fun yet?
 
-Induction on $\V{r}$, rather than $\V{t}$ gives us a base case which follows directly from our elementwise assumption. We also obtain a step case where the shapes match on the nose, and we have induction hypotheses which pertain to a tabulated function $\V{k}$ of substructures and \remph{specific} recursivity witnesse, $\V{kr}$ and $\V{ks}$ in each position.
+Induction on $\V{r}$, rather than $\V{t}$ gives us a base case which follows directly from our elementwise assumption. We also obtain a step case where the shapes match on the nose, and we have induction hypotheses which pertain to a tabulated function $\V{k}$ of substructures and \remph{specific} recursivity witnesses, $\V{kr}$ and $\V{ks}$ in each position.
 \[\begin{array}{rl}
 &
-\vertflam{\LAM{p}{\F{mapr}\:\V{g}
-    \:(\vertfapp{(\vertflam{\LAM{p}{\F{mapr}\:\V{f}\:(\vertfapp{\V{k}}{\V{p}})\:(\V{kr}\:\V{p})}})}{\V{p}})
+\bleuflam{\LAM{p}{\F{mapr}\:\V{g}
+    \:(\bleufapp{(\bleuflam{\LAM{p}{\F{mapr}\:\V{f}\:(\bleufapp{\V{k}}{\V{p}})\:(\V{kr}\:\V{p})}})}{\V{p}})
       \:(\V{ks}\:\V{p})}}
 \\ \peq &
-\vertflam{\LAM{p}{\F{mapr}\:\V{h}\:(\vertfapp{\V{k}}{\V{p}})\:(\V{kr}\:\V{p})}}
+\bleuflam{\LAM{p}{\F{mapr}\:\V{h}\:(\bleufapp{\V{k}}{\V{p}})\:(\V{kr}\:\V{p})}}
 \end{array}\]
-Firstly, to go under those uses of $\vertflam{\LAM{p}{\cdots}}$, we shall need the \remph{extensionality} property that pointwise equal functions have intensionally equal tabulations: that, we have not yet shown, but it is certainly to be expected. Secondly, we are one tabulated $\beta$-reduction away from a subgoal amenable to our induction hypothesis, so we must prove that $\beta$-law, an obligation we anticipated, above. The problem which then arises is that the recursivity witness $\V{ks}\:\V{p}$ pertains specifically to the $\beta$-redex prior to reduction, so its type will also need repair. This overspecificity to recursivity witnesses causes bureaucratic nightmares which are not insurmountable, but well worth evading.
+Our laws from the previous section allow us to proceed pointwise under
+the abstractions and reduce the $\beta$-redexes thus generated.
+The problem which then arises is that the same $\beta$-redexes show up
+in the types of the recursivity witnesses: $\V{ks}\:\V{p}$ pertains specifically to the $\beta$-redex prior to reduction, so its type will also need repair. This overspecificity to recursivity witnesses causes bureaucratic nightmares which are not insurmountable, but well worth waking up from.
 
 And before anyone suggests that we might make recursivity witnesses definitionally proof irrelevant, it has long been established that to do so leaves one unable to lean on strong normalisation~\cite{DBLP:conf/types/BradyMM03}. When computing with \remph{open} terms, it is never enough that there is at most one \remph{canonical} proof of recursivity, because there may be bogus but noncanonical proofs to tempt us into trouble.
 
@@ -765,6 +802,43 @@ In some respects, however, our second blunder is rather more basic. We have been
 % we abstract recursivity proofs and end up in trouble because such proofs can't be proof-irrelevant (safely).
 
 \section{Maps and Joins that are Lawful}
+
+If we want to specify the recursive structure of maps and joins, it will
+nearly halve our effort to derive both of them from monadic `bind', which
+for term monads is exactly the action of simultaneous substitution on
+terms. We may present the \remph{graph} of bind as an inductive structure
+in its own right, making no mention whatever of the recursivity of the
+data to which it pertains.
+
+Moreover, if we specify the action of simultaneous
+substitution as a relation, it seems peculiar and non-compositional to give
+the substitution itself as a function. Rather, we should explain how to
+lift a relation on source variables and target terms structurally to a relation on source terms and target terms.
+
+Let us therefore declare the \demph{Kleisli Relator} for a given $\V{C}\hab\FTR$.
+\[
+\Rule{\V{R}\hab \V{X}\fto \FM{\V{C}}{\V{Y}} \fto \SET}
+     {\KRel{\V{R}}{\blank}{\blank} \hab \FM{\V{C}}{\V{X}} \fto \FM{\V{C}}{\V{Y}} \fto \SET}
+\qquad
+\Rule{\V{R}\:\V{x}\:\V{yt}}
+     {\KRel{\V{R}}{\va{\V{x}}}{\V{yt}}}
+\qquad     
+\Rule{\PI{p}{\ElF{\CPo{\V{C}}{\V{s}}}}
+       {\KRel{\V{R}}{\bleufapp{\V{f}}{\V{p}}}{\bleufapp{\V{g}}{\V{p}}}}}
+     {\KRel{\V{R}}{\nd{\pr{\V{s}}{\V{f}}}}{\nd{\pr{\V{s}}{\V{g}}}}}
+\]
+That is to say, variables are related to whatever $\V{R}$ says they are, with nodes of shape $\V{s}$ related if substructures are related at all positions $\V{p}$. There is no mention of recursivity in this definition.
+
+Now, given $\V{R}\hab \V{X}\fto \FM{\V{C}}{\V{Y}} \fto \SET$ and
+$\V{S}\hab \V{Y}\fto \FM{\V{C}}{\V{Z}}$, we may readily show that
+\[
+\Rule{\KRel{\V{R}}{\V{xt}}{\V{yt}} \hg \KRel{\V{S}}{\V{yt}}{\V{zt}}}
+     {\KRel{\V{R}\rco\KRel{\V{S}}{\blank}{\blank}}{\V{xt}}{\V{zt}}}
+\]
+by the most straightforward simultaneous induction on derivations!
+
+\textbf{Next, show that the Kleisli Relator preserves simplicity and entirety. The latter is where the recursivity resurfaces but also where it is contained.}
+
 
 % Just define the relational version!
 
